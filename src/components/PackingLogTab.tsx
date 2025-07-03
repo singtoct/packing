@@ -1,87 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import ReactDOM from 'react-dom/client';
+import * as XLSX from 'xlsx';
 import { PackingLogEntry } from '../types';
 import { getPackingLogs, savePackingLogs, getOrders } from '../services/storageService';
-import { PlusCircleIcon, PrinterIcon, Trash2Icon } from './icons/Icons';
-import { CTPackingLogo } from '../assets/logo';
-import mainStyles from '../index.css?raw';
-
-const PrintLogSheetView: React.FC = () => {
-    useEffect(() => {
-        window.print();
-        window.onafterprint = () => window.close();
-    }, []);
-
-    return (
-        <div className="p-8 font-sans">
-            <style>{`
-                @media print {
-                    body { -webkit-print-color-adjust: exact; }
-                    @page { size: A4; margin: 15mm; }
-                }
-                .checkbox-cell {
-                    width: 60px;
-                    text-align: center;
-                }
-            `}</style>
-            <div className="flex justify-between items-center mb-6 border-b-2 border-black pb-4">
-                <img src={CTPackingLogo} alt="CT.ELECTRIC Logo" className="h-20" />
-                <div className="text-right">
-                    <h1 className="text-2xl font-bold">ใบรายงานการแพ็คสินค้าประจำวัน</h1>
-                    <h2 className="text-lg font-semibold text-gray-700">DAILY PACKING REPORT</h2>
-                </div>
-            </div>
-            <div className="flex justify-between items-end mb-4 text-lg">
-                <div>
-                    <span className="font-semibold">วันที่ / DATE:</span>
-                    <span className="border-b-2 border-dotted border-black inline-block w-48 ml-2"></span>
-                </div>
-                 <div>
-                    <span className="font-semibold">ผู้บันทึก / RECORDER:</span>
-                    <span className="border-b-2 border-dotted border-black inline-block w-48 ml-2"></span>
-                </div>
-            </div>
-            <table className="w-full border-collapse border border-black text-base">
-                <thead>
-                    <tr className="bg-gray-200">
-                        <th className="border border-black p-2 font-bold text-center w-1/12">ลำดับ<br/><span className="font-normal text-sm">No.</span></th>
-                        <th className="border border-black p-2 font-bold text-center">
-                            รายการสินค้า<br/><span className="font-semibold text-xl">ကုန်ပစ္စည်းအမည်</span>
-                        </th>
-                        <th className="border border-black p-2 font-bold text-center w-1/6">
-                            จำนวน (ลัง)<br/><span className="font-semibold text-xl">အရေအတွက်</span>
-                        </th>
-                        <th className="border border-black p-2 font-bold text-center checkbox-cell">
-                            พร้อมส่ง<br/><span className="font-semibold text-lg">အသင့်</span>
-                        </th>
-                        <th className="border border-black p-2 font-bold text-center w-1/4">
-                            หมายเหตุ<br/><span className="font-semibold text-xl">မှတ်ချက်</span>
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {Array.from({ length: 18 }).map((_, index) => (
-                        <tr key={index}>
-                            <td className="border border-black p-2 h-10 text-center">{index + 1}</td>
-                            <td className="border border-black p-2 h-10"></td>
-                            <td className="border border-black p-2 h-10"></td>
-                            <td className="border border-black p-2 h-10 text-center">
-                                <div className="w-6 h-6 border-2 border-gray-400 mx-auto"></div>
-                            </td>
-                            <td className="border border-black p-2 h-10"></td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-             <div className="flex justify-end mt-8 text-lg">
-                 <div>
-                    <span className="font-semibold">ผู้ตรวจสอบ / CHECKED BY:</span>
-                    <span className="border-b-2 border-dotted border-black inline-block w-64 ml-2"></span>
-                </div>
-            </div>
-        </div>
-    );
-};
+import { PlusCircleIcon, Trash2Icon, FileSpreadsheetIcon } from './icons/Icons';
 
 export const PackingLogTab: React.FC = () => {
     const [logs, setLogs] = useState<PackingLogEntry[]>([]);
@@ -127,34 +48,89 @@ export const PackingLogTab: React.FC = () => {
         setLogs(prevLogs => prevLogs.filter(log => log.id !== id));
     };
 
-    const handlePrintBlankForm = () => {
-         const printWindow = window.open('', '_blank', 'width=800,height=1000');
-        if (printWindow) {
-            const tempDiv = printWindow.document.createElement('div');
-            printWindow.document.body.appendChild(tempDiv);
-            
-            const root = ReactDOM.createRoot(tempDiv);
-            
-            const style = printWindow.document.createElement('style');
-            style.innerHTML = mainStyles;
-            printWindow.document.head.appendChild(style);
+    const handleExportToExcel = () => {
+        const wb = XLSX.utils.book_new();
 
-            const kanitFontLink = printWindow.document.createElement('link');
-            kanitFontLink.href = "https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap";
-            kanitFontLink.rel = "stylesheet";
-            printWindow.document.head.appendChild(kanitFontLink);
+        // --- DATA PREPARATION ---
+        const title = [["ใบรายงานการแพ็คสินค้าประจำวัน / DAILY PACKING REPORT"]];
+        const info = [
+            ["วันที่ / DATE:", "", "", "ผู้บันทึก / RECORDER:", ""],
+        ];
+        const headers = [
+            ["ลำดับ\nNo.", "รายการสินค้า\nကုန်ပစ္စည်းအမည်", "จำนวน (ลัง)\nအရေအတွက်", "พร้อมส่ง\nအသင့်", "หมายเหตุ\nမှတ်ချက်"]
+        ];
+        const emptyData = Array.from({ length: 20 }, () => ["", "", "", "", ""]);
+        const footer = [["ผู้ตรวจสอบ / CHECKED BY:"]];
 
-            root.render(<PrintLogSheetView />);
+        const finalData = [
+            ...title,
+            [], // Spacer
+            ...info,
+            [], // Spacer
+            ...headers,
+            ...emptyData,
+            [], // Spacer
+            ...footer,
+        ];
+        
+        const ws = XLSX.utils.aoa_to_sheet(finalData);
+
+        // --- STYLING & FORMATTING ---
+        ws["!merges"] = [
+            // Title
+            { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } },
+            // Footer
+            { s: { r: finalData.length - 1, c: 3 }, e: { r: finalData.length - 1, c: 4 } },
+        ];
+
+        ws["!cols"] = [
+            { wch: 10 }, // No.
+            { wch: 45 }, // Item Name
+            { wch: 20 }, // Quantity
+            { wch: 15 }, // Ready
+            { wch: 35 }, // Notes
+        ];
+
+        ws["!rows"] = [
+            { hpt: 24 }, // Title row
+            null,
+            { hpt: 18 }, // Info row
+            null,
+            { hpt: 36 }, // Header row
+        ];
+
+        // Style the title
+        if(ws['A1']) {
+            ws['A1'].s = { font: { sz: 18, bold: true }, alignment: { horizontal: "center", vertical: "center" } };
         }
+        
+        // Style headers
+        const headerStyle = { font: { bold: true }, alignment: { horizontal: "center", vertical: "center", wrapText: true }, fill: { fgColor: { rgb: "EAEAEA" } } };
+        ['A5', 'B5', 'C5', 'D5', 'E5'].forEach(cellRef => {
+            if (ws[cellRef]) ws[cellRef].s = headerStyle;
+        });
+
+        // Add borders to the table area
+        const border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+        for (let R = 4; R < 4 + headers.length + emptyData.length; ++R) {
+            for (let C = 0; C < 5; ++C) {
+                const cell_address = XLSX.utils.encode_cell({ c: C, r: R });
+                if (!ws[cell_address]) ws[cell_address] = { t: 's', v: '' };
+                ws[cell_address].s = { ...ws[cell_address].s, border };
+            }
+        }
+        
+        XLSX.utils.book_append_sheet(wb, ws, "Packing Report");
+        XLSX.writeFile(wb, `CT_Packing_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
     };
 
     return (
         <div>
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">บันทึกข้อมูลการแพ็คสินค้า</h2>
-                <button onClick={handlePrintBlankForm} className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                    <PrinterIcon className="w-5 h-5"/>
-                    ปริ้นท์ฟอร์มเปล่า
+                <button onClick={handleExportToExcel} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500">
+                    <FileSpreadsheetIcon className="w-5 h-5"/>
+                    ส่งออกฟอร์ม Excel
                 </button>
             </div>
 
@@ -175,7 +151,7 @@ export const PackingLogTab: React.FC = () => {
                     <input type="date" id="logDate" value={logDate} onChange={e => setLogDate(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
                 </div>
                 <div className="col-span-1 md:col-span-4 flex justify-end">
-                     <button type="submit" className="inline-flex items-center justify-center gap-2 w-full md:w-auto px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                     <button type="submit" className="inline-flex items-center justify-center gap-2 w-full md:w-auto px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                         <PlusCircleIcon className="w-5 h-5" />
                         บันทึกข้อมูล
                     </button>
