@@ -91,7 +91,7 @@ export const PackingLogTab: React.FC = () => {
             { wch: 35 }, // Notes
         ];
 
-        ws["!rows"] = [ { hpt: 24 }, null, { hpt: 18 }, null, { hpt: 36 } ];
+        ws["!rows"] = [ { hpt: 24 }, {}, { hpt: 18 }, {}, { hpt: 36 } ];
         Array.from({ length: 20 }).forEach((_, i) => ws["!rows"]![5 + i] = { hpt: 22 });
 
 

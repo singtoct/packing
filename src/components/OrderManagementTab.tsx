@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom/client';
 import { OrderItem, BurmeseTranslation } from '../types';
 import { getOrders, saveOrders } from '../services/storageService';
 import { translateToBurmese } from '../services/geminiService';
 import { PlusCircleIcon, Trash2Icon, PrinterIcon, LoaderIcon } from './icons/Icons';
 import { CTPackingLogo } from '../assets/logo';
-import mainStyles from '../index.css?raw';
 
 // This component is redesigned to handle multiple orders in a single print-friendly table view.
 const PrintOrderView: React.FC<{ orders: OrderItem[], translations: BurmeseTranslation }> = ({ orders, translations }) => {
     useEffect(() => {
-        window.print();
+        // A small timeout helps ensure all resources like fonts and images are loaded before printing.
+        setTimeout(() => {
+            window.print();
+        }, 300);
         window.onafterprint = () => window.close();
     }, []);
 
@@ -145,18 +148,14 @@ export const OrderManagementTab: React.FC = () => {
 
         const printWindow = window.open('', '_blank', 'width=800,height=600');
         if (printWindow) {
-            const tempDiv = printWindow.document.createElement('div');
-            printWindow.document.body.appendChild(tempDiv);
-            
-            // This is a temporary workaround to render React component in a new window
-            // and apply styles. A dedicated print library might be better for complex cases.
             const printRoot = document.createElement('div');
             printWindow.document.body.appendChild(printRoot);
 
-            const styleEl = printWindow.document.createElement('style');
-            styleEl.innerHTML = mainStyles;
-            printWindow.document.head.appendChild(styleEl);
-
+            // Inject Tailwind via CDN and custom fonts/styles for the print window
+            const tailwindScript = printWindow.document.createElement('script');
+            tailwindScript.src = 'https://cdn.tailwindcss.com';
+            printWindow.document.head.appendChild(tailwindScript);
+            
             const kanitFontLink = printWindow.document.createElement('link');
             kanitFontLink.href = "https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap";
             kanitFontLink.rel = "stylesheet";
@@ -166,19 +165,9 @@ export const OrderManagementTab: React.FC = () => {
             fontStyleEl.innerHTML = `body { font-family: 'Kanit', sans-serif; }`;
             printWindow.document.head.appendChild(fontStyleEl);
             
-            // A simple render to string and setting innerHTML.
-            // For complex apps, `ReactDOM.createRoot` is the way to go but requires more setup.
-            const { renderToString } = await import('react-dom/server');
-            const printHtml = renderToString(<PrintOrderView orders={ordersToPrint} translations={translations} />);
-            printRoot.innerHTML = printHtml;
-            
-            // The PrintOrderView has its own logic to trigger print.
-            // We just need to make sure the content is fully rendered.
-            // A small timeout helps ensure all resources are loaded.
-            setTimeout(() => {
-                printWindow.print();
-                printWindow.onafterprint = () => printWindow.close();
-            }, 500);
+            // Use ReactDOM.createRoot to render the component, allowing hooks to work correctly.
+            const root = ReactDOM.createRoot(printRoot);
+            root.render(<PrintOrderView orders={ordersToPrint} translations={translations} />);
         }
     };
 
