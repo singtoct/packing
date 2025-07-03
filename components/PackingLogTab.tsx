@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { PackingLogEntry } from '../types';
 import { getPackingLogs, savePackingLogs, getOrders } from '../services/storageService';
 import { PlusCircleIcon, PrinterIcon, Trash2Icon } from './icons/Icons';
+import { CTPackingLogo } from '../assets/logo';
 
 const PrintLogSheetView: React.FC = () => {
     useEffect(() => {
@@ -22,9 +23,12 @@ const PrintLogSheetView: React.FC = () => {
                     text-align: center;
                 }
             `}</style>
-            <div className="text-center mb-6">
-                <h1 className="text-2xl font-bold">ใบรายงานการแพ็คสินค้าประจำวัน</h1>
-                <h2 className="text-lg font-semibold text-gray-700">DAILY PACKING REPORT</h2>
+            <div className="flex justify-between items-center mb-6 border-b-2 border-black pb-4">
+                <img src={CTPackingLogo} alt="CT.ELECTRIC Logo" className="h-20" />
+                <div className="text-right">
+                    <h1 className="text-2xl font-bold">ใบรายงานการแพ็คสินค้าประจำวัน</h1>
+                    <h2 className="text-lg font-semibold text-gray-700">DAILY PACKING REPORT</h2>
+                </div>
             </div>
             <div className="flex justify-between items-end mb-4 text-lg">
                 <div>

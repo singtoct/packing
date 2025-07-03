@@ -4,6 +4,7 @@ import { OrderItem, BurmeseTranslation } from '../types';
 import { getOrders, saveOrders } from '../services/storageService';
 import { translateToBurmese } from '../services/geminiService';
 import { PlusCircleIcon, Trash2Icon, PrinterIcon, LoaderIcon } from './icons/Icons';
+import { CTPackingLogo } from '../assets/logo';
 
 // This component is redesigned to handle multiple orders in a single print-friendly table view.
 const PrintOrderView: React.FC<{ orders: OrderItem[], translations: BurmeseTranslation }> = ({ orders, translations }) => {
@@ -25,10 +26,15 @@ const PrintOrderView: React.FC<{ orders: OrderItem[], translations: BurmeseTrans
                     .no-break { page-break-inside: avoid; }
                 }
             `}</style>
-            <div className="text-center mb-6">
-                <h1 className="text-3xl font-bold">ใบรวมสั่งงานแพ็คสินค้า</h1>
-                <h2 className="text-xl font-semibold">Consolidated Packing Order</h2>
-                <p className="text-sm mt-1">วันที่พิมพ์: {new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            <div className="flex justify-between items-center mb-6 border-b-2 border-black pb-4">
+                <img src={CTPackingLogo} alt="CT.ELECTRIC Logo" className="h-20" />
+                <div className="text-right">
+                    <h1 className="text-3xl font-bold">ใบรวมสั่งงานแพ็คสินค้า</h1>
+                    <h2 className="text-xl font-semibold text-gray-700">Consolidated Packing Order</h2>
+                </div>
+            </div>
+            <div className="flex justify-end mb-4">
+                <p className="text-lg">วันที่พิมพ์: {new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
             </div>
             
             <table className="w-full border-collapse border border-black text-lg">

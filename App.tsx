@@ -1,15 +1,24 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { OrderManagementTab } from './components/OrderManagementTab';
 import { PackingLogTab } from './components/PackingLogTab';
 import { StatisticsTab } from './components/StatisticsTab';
 import { AISuggestions } from './components/AISuggestions';
 import { BoxIcon, ListOrderedIcon, BarChart3Icon } from './components/icons/Icons';
+import { CTPackingLogo } from './assets/logo';
 
 type Tab = 'orders' | 'logs' | 'stats';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('orders');
+
+  useEffect(() => {
+    document.title = 'CT.ELECTRIC - Packing System';
+    const favicon = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+    if (favicon) {
+      favicon.href = CTPackingLogo;
+    }
+  }, []);
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -41,11 +50,10 @@ const App: React.FC = () => {
     <div className="bg-gray-100 min-h-screen text-gray-800">
       <header className="bg-white shadow-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center gap-3">
-              <div className="bg-blue-600 p-2 rounded-lg">
-                <BoxIcon className="w-6 h-6 text-white" />
-              </div>
+          <div className="flex justify-between items-center py-3">
+            <div className="flex items-center gap-4">
+               <img src={CTPackingLogo} alt="CT.ELECTRIC Logo" className="h-12" />
+               <div className="border-l border-gray-300 h-10"></div>
               <h1 className="text-xl sm:text-2xl font-bold text-gray-800">ระบบจัดการออเดอร์แพ็คกิ้ง</h1>
             </div>
             <nav className="flex items-center gap-2 p-1 bg-gray-100 rounded-lg">
@@ -75,7 +83,7 @@ const App: React.FC = () => {
         </div>
       </main>
       <footer className="text-center py-4 text-gray-500 text-sm">
-        <p>Packing Order Management System © {new Date().getFullYear()}</p>
+        <p>CT.ELECTRIC Packing Order Management System © {new Date().getFullYear()}</p>
       </footer>
     </div>
   );

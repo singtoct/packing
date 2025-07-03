@@ -1,89 +1,58 @@
-
-import { GoogleGenAI } from "@google/genai";
 import { AiSuggestion, BurmeseTranslation } from "../types";
 
-if (!process.env.API_KEY) {
-    throw new Error("API_KEY environment variable not set");
+// This function communicates with our secure, serverless API proxy
+async function callApiProxy<T>(type: 'translate' | 'suggest', payload: object): Promise<T> {
+    try {
+        const response = await fetch('/api/proxy', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({ type, payload }),
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.json().catch(() => ({ error: `Request failed with status: ${response.status}` }));
+            throw new Error(errorBody.error || 'An unknown API error occurred.');
+        }
+
+        return await response.json() as T;
+
+    } catch (error) {
+        console.error(`API proxy call for '${type}' failed:`, error);
+        // Re-throw the error to be handled by the calling component's logic
+        throw error;
+    }
 }
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-const parseJsonResponse = <T,>(text: string): T | null => {
-    let jsonStr = text.trim();
-    const fenceRegex = /^```(?:json)?\s*\n?(.*?)\n?\s*```$/s;
-    const match = jsonStr.match(fenceRegex);
-    if (match && match[1]) {
-        jsonStr = match[1].trim();
-    }
-    try {
-        return JSON.parse(jsonStr) as T;
-    } catch (e) {
-        console.error("Failed to parse JSON response:", e, "Original text:", text);
-        return null;
-    }
-};
 
 export const translateToBurmese = async (items: string[]): Promise<BurmeseTranslation> => {
-    const prompt = `Translate the following Thai product names into Burmese. Return a single JSON object where keys are the original Thai names and values are their Burmese translations.
-    
-Input Thai Names: ${JSON.stringify(items)}
-
-Example response format:
-{
-  "ฝาหน้ากาก CT A-103": "မျက်နှာဖုံးအဖုံး CT A-103",
-  "สายไฟ VAF 2x1.5": "VAF 2x1.5 ဝါယာကြိုး"
-}
-`;
-
+    if (!items || items.length === 0) {
+        return {};
+    }
     try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash-preview-04-17",
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                temperature: 0.2,
-            },
-        });
-        
-        const translations = parseJsonResponse<BurmeseTranslation>(response.text);
-        if (translations) {
-            return translations;
-        }
-        // Fallback: if JSON parsing fails, return original items
-        return items.reduce((acc, item) => ({ ...acc, [item]: item }), {});
-        
+        // The payload must match what the API expects
+        const payload = { items };
+        const translations = await callApiProxy<BurmeseTranslation>('translate', payload);
+        return translations || {};
     } catch (error) {
-        console.error("Error translating to Burmese:", error);
-        // On error, return an object mapping original names to themselves
+        // Fallback behavior: if translation fails, return original items
+        // This ensures the app remains functional even if the AI service is down.
+        console.warn("Translation failed, using fallback.", error);
         return items.reduce((acc, item) => ({ ...acc, [item]: item }), {});
     }
 };
 
 
 export const getFeatureSuggestions = async (): Promise<AiSuggestion[]> => {
-    const prompt = `You are a senior logistics and operations consultant. A web app for managing a packing department with Thai and Burmese workers needs new features.
-Current features: 
-1. Create packing orders.
-2. Print orders with Thai names translated to Burmese.
-3. Log daily packed items.
-4. View weekly packing statistics.
-
-Suggest 3 innovative new features. For each feature, provide a 'title' and a short 'description'. Format the response as a JSON array of objects.`;
-
     try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash-preview-04-17",
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                temperature: 0.7,
-            }
-        });
-
-        const suggestions = parseJsonResponse<AiSuggestion[]>(response.text);
+        // No payload is needed for suggestions
+        const suggestions = await callApiProxy<AiSuggestion[]>('suggest', {});
         return suggestions || [];
     } catch (error) {
-        console.error("Error getting feature suggestions:", error);
+        console.error("Feature suggestion fetch failed.", error);
+        // Return an empty array so the UI doesn't break
         return [];
     }
 };
