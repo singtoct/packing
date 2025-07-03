@@ -1,0 +1,5 @@
+{
+  "name": "Packing Order Management System",
+  "description": "A web application for creating and managing packing orders for a multilingual workforce (Thai/Burmese). It includes order printing with translation, packing logs, weekly statistics, and AI-powered feature suggestions.",
+  "requestFramePermissions": []
+}
