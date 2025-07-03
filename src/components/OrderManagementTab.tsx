@@ -5,6 +5,7 @@ import { getOrders, saveOrders } from '../services/storageService';
 import { translateToBurmese } from '../services/geminiService';
 import { PlusCircleIcon, Trash2Icon, PrinterIcon, LoaderIcon } from './icons/Icons';
 import { CTPackingLogo } from '../assets/logo';
+import mainStyles from '../index.css?raw';
 
 // This component is redesigned to handle multiple orders in a single print-friendly table view.
 const PrintOrderView: React.FC<{ orders: OrderItem[], translations: BurmeseTranslation }> = ({ orders, translations }) => {
@@ -150,18 +151,8 @@ export const OrderManagementTab: React.FC = () => {
             
             const root = ReactDOM.createRoot(tempDiv);
             
-            // Vite handles Tailwind build, so we don't need the CDN link in the print window.
-            // We can inject styles directly.
-            const style = document.createElement('style');
-            style.innerHTML = Array.from(document.styleSheets)
-              .map(s => {
-                try {
-                  return Array.from(s.cssRules).map(r => r.cssText).join('\n');
-                } catch (e) {
-                  return '';
-                }
-              })
-              .join('\n');
+            const style = printWindow.document.createElement('style');
+            style.innerHTML = mainStyles;
             printWindow.document.head.appendChild(style);
 
             const kanitFontLink = printWindow.document.createElement('link');

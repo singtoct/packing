@@ -4,6 +4,7 @@ import { PackingLogEntry } from '../types';
 import { getPackingLogs, savePackingLogs, getOrders } from '../services/storageService';
 import { PlusCircleIcon, PrinterIcon, Trash2Icon } from './icons/Icons';
 import { CTPackingLogo } from '../assets/logo';
+import mainStyles from '../index.css?raw';
 
 const PrintLogSheetView: React.FC = () => {
     useEffect(() => {
@@ -134,16 +135,8 @@ export const PackingLogTab: React.FC = () => {
             
             const root = ReactDOM.createRoot(tempDiv);
             
-            const style = document.createElement('style');
-            style.innerHTML = Array.from(document.styleSheets)
-              .map(s => {
-                try {
-                  return Array.from(s.cssRules).map(r => r.cssText).join('\n');
-                } catch (e) {
-                  return '';
-                }
-              })
-              .join('\n');
+            const style = printWindow.document.createElement('style');
+            style.innerHTML = mainStyles;
             printWindow.document.head.appendChild(style);
 
             const kanitFontLink = printWindow.document.createElement('link');
