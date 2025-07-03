@@ -20,11 +20,11 @@ export const PackingLogTab: React.FC = () => {
         const orders = getOrders();
         const uniqueItemNames = [...new Set(orders.map(o => `${o.name} (${o.color})`))];
         setAvailableItems(uniqueItemNames);
-        if(uniqueItemNames.length > 0) {
+        if(uniqueItemNames.length > 0 && !logItemName) {
             setLogItemName(uniqueItemNames[0]);
         }
 
-    }, []);
+    }, [logItemName]);
 
     useEffect(() => {
         savePackingLogs(logs);
@@ -60,7 +60,7 @@ export const PackingLogTab: React.FC = () => {
             ["ลำดับ\nNo.", "รายการสินค้า\nကုန်ပစ္စည်းအမည်", "จำนวน (ลัง)\nအရေအတွက်", "พร้อมส่ง\nအသင့်", "หมายเหตุ\nမှတ်ချက်"]
         ];
         const emptyData = Array.from({ length: 20 }, () => ["", "", "", "", ""]);
-        const footer = [["ผู้ตรวจสอบ / CHECKED BY:"]];
+        const footer = [["", "", "", "ผู้ตรวจสอบ / CHECKED BY:"]];
 
         const finalData = [
             ...title,
@@ -91,32 +91,25 @@ export const PackingLogTab: React.FC = () => {
             { wch: 35 }, // Notes
         ];
 
-        ws["!rows"] = [
-            { hpt: 24 }, // Title row
-            null,
-            { hpt: 18 }, // Info row
-            null,
-            { hpt: 36 }, // Header row
-        ];
+        ws["!rows"] = [ { hpt: 24 }, null, { hpt: 18 }, null, { hpt: 36 } ];
+        Array.from({ length: 20 }).forEach((_, i) => ws["!rows"]![5 + i] = { hpt: 22 });
 
-        // Style the title
-        if(ws['A1']) {
-            ws['A1'].s = { font: { sz: 18, bold: true }, alignment: { horizontal: "center", vertical: "center" } };
-        }
+
+        const titleStyle = { font: { sz: 18, bold: true }, alignment: { horizontal: "center", vertical: "center" } };
+        if(ws['A1']) ws['A1'].s = titleStyle;
         
-        // Style headers
-        const headerStyle = { font: { bold: true }, alignment: { horizontal: "center", vertical: "center", wrapText: true }, fill: { fgColor: { rgb: "EAEAEA" } } };
+        const headerStyle = { font: { bold: true, sz: 12 }, alignment: { horizontal: "center", vertical: "center", wrapText: true }, fill: { fgColor: { rgb: "EAEAEA" } } };
         ['A5', 'B5', 'C5', 'D5', 'E5'].forEach(cellRef => {
             if (ws[cellRef]) ws[cellRef].s = headerStyle;
         });
 
-        // Add borders to the table area
         const border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
-        for (let R = 4; R < 4 + headers.length + emptyData.length; ++R) {
+        for (let R = 4; R < 5 + emptyData.length; ++R) {
             for (let C = 0; C < 5; ++C) {
                 const cell_address = XLSX.utils.encode_cell({ c: C, r: R });
                 if (!ws[cell_address]) ws[cell_address] = { t: 's', v: '' };
-                ws[cell_address].s = { ...ws[cell_address].s, border };
+                const cell = ws[cell_address];
+                cell.s = { ...(cell.s || {}), border, alignment: { ...(cell.s?.alignment || {}), vertical: "center" } };
             }
         }
         

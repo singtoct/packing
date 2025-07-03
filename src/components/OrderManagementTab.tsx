@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import ReactDOM from 'react-dom/client';
 import { OrderItem, BurmeseTranslation } from '../types';
 import { getOrders, saveOrders } from '../services/storageService';
 import { translateToBurmese } from '../services/geminiService';
@@ -149,18 +148,37 @@ export const OrderManagementTab: React.FC = () => {
             const tempDiv = printWindow.document.createElement('div');
             printWindow.document.body.appendChild(tempDiv);
             
-            const root = ReactDOM.createRoot(tempDiv);
-            
-            const style = printWindow.document.createElement('style');
-            style.innerHTML = mainStyles;
-            printWindow.document.head.appendChild(style);
+            // This is a temporary workaround to render React component in a new window
+            // and apply styles. A dedicated print library might be better for complex cases.
+            const printRoot = document.createElement('div');
+            printWindow.document.body.appendChild(printRoot);
+
+            const styleEl = printWindow.document.createElement('style');
+            styleEl.innerHTML = mainStyles;
+            printWindow.document.head.appendChild(styleEl);
 
             const kanitFontLink = printWindow.document.createElement('link');
             kanitFontLink.href = "https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap";
             kanitFontLink.rel = "stylesheet";
             printWindow.document.head.appendChild(kanitFontLink);
-
-            root.render(<PrintOrderView orders={ordersToPrint} translations={translations} />);
+            
+            const fontStyleEl = printWindow.document.createElement('style');
+            fontStyleEl.innerHTML = `body { font-family: 'Kanit', sans-serif; }`;
+            printWindow.document.head.appendChild(fontStyleEl);
+            
+            // A simple render to string and setting innerHTML.
+            // For complex apps, `ReactDOM.createRoot` is the way to go but requires more setup.
+            const { renderToString } = await import('react-dom/server');
+            const printHtml = renderToString(<PrintOrderView orders={ordersToPrint} translations={translations} />);
+            printRoot.innerHTML = printHtml;
+            
+            // The PrintOrderView has its own logic to trigger print.
+            // We just need to make sure the content is fully rendered.
+            // A small timeout helps ensure all resources are loaded.
+            setTimeout(() => {
+                printWindow.print();
+                printWindow.onafterprint = () => printWindow.close();
+            }, 500);
         }
     };
 
