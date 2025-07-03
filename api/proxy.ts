@@ -80,7 +80,13 @@ Example response format:
           contents: prompt,
           config: { responseMimeType: "application/json", temperature: 0.2 },
         });
-        result = parseJsonResponse(response.text);
+
+        const responseText = response.text;
+        if (responseText) {
+            result = parseJsonResponse(responseText);
+        } else {
+            result = null;
+        }
         break;
       }
       
@@ -98,7 +104,13 @@ Suggest 3 innovative new features. For each feature, provide a 'title' and a sho
             contents: prompt,
             config: { responseMimeType: "application/json", temperature: 0.7 },
         });
-        result = parseJsonResponse(response.text);
+        
+        const responseText = response.text;
+        if (responseText) {
+            result = parseJsonResponse(responseText);
+        } else {
+            result = null;
+        }
         break;
       }
 

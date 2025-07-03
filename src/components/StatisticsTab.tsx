@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { getPackingLogs } from '../services/storageService';
-import { PackingLogEntry } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface ChartData {
