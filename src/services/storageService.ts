@@ -1,8 +1,9 @@
 
-import { OrderItem, PackingLogEntry } from '../types';
+import { OrderItem, PackingLogEntry, InventoryItem } from '../types';
 
 const ORDERS_KEY = 'packing_orders';
 const LOGS_KEY = 'packing_logs';
+const INVENTORY_KEY = 'packing_inventory';
 
 // Generic getter
 const getItems = <T,>(key: string): T[] => {
@@ -31,3 +32,7 @@ export const saveOrders = (orders: OrderItem[]): void => saveItems<OrderItem>(OR
 // Packing Log specific functions
 export const getPackingLogs = (): PackingLogEntry[] => getItems<PackingLogEntry>(LOGS_KEY);
 export const savePackingLogs = (logs: PackingLogEntry[]): void => saveItems<PackingLogEntry>(LOGS_KEY, logs);
+
+// Inventory specific functions
+export const getInventory = (): InventoryItem[] => getItems<InventoryItem>(INVENTORY_KEY);
+export const saveInventory = (inventory: InventoryItem[]): void => saveItems<InventoryItem>(INVENTORY_KEY, inventory);

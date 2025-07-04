@@ -3,11 +3,12 @@ import React, { useState, useEffect } from 'react';
 import { OrderManagementTab } from './components/OrderManagementTab';
 import { PackingLogTab } from './components/PackingLogTab';
 import { StatisticsTab } from './components/StatisticsTab';
+import { InventoryTab } from './components/InventoryTab';
 import { AISuggestions } from './components/AISuggestions';
-import { BoxIcon, ListOrderedIcon, BarChart3Icon } from './components/icons/Icons';
+import { BoxIcon, ListOrderedIcon, BarChart3Icon, ArchiveIcon } from './components/icons/Icons';
 import { CTPackingLogo } from './assets/logo';
 
-type Tab = 'orders' | 'logs' | 'stats';
+type Tab = 'orders' | 'logs' | 'inventory' | 'stats';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('orders');
@@ -26,6 +27,8 @@ const App: React.FC = () => {
         return <OrderManagementTab />;
       case 'logs':
         return <PackingLogTab />;
+      case 'inventory':
+        return <InventoryTab />;
       case 'stats':
         return <StatisticsTab />;
       default:
@@ -41,6 +44,7 @@ const App: React.FC = () => {
           ? 'bg-blue-600 text-white shadow-md'
           : 'bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-700'
       }`}
+      aria-current={currentTab === tabName ? 'page' : undefined}
     >
       {children}
     </button>
@@ -64,6 +68,10 @@ const App: React.FC = () => {
               <TabButton tabName="logs" currentTab={activeTab} setTab={setActiveTab}>
                 <BoxIcon className="w-5 h-5" />
                 <span>บันทึกการแพ็ค</span>
+              </TabButton>
+              <TabButton tabName="inventory" currentTab={activeTab} setTab={setActiveTab}>
+                <ArchiveIcon className="w-5 h-5" />
+                <span>สต็อกสินค้า</span>
               </TabButton>
               <TabButton tabName="stats" currentTab={activeTab} setTab={setActiveTab}>
                 <BarChart3Icon className="w-5 h-5" />

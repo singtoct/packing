@@ -14,6 +14,11 @@ export interface PackingLogEntry {
   quantity: number;
 }
 
+export interface InventoryItem {
+    name: string;
+    quantity: number;
+}
+
 export interface AiSuggestion {
     title: string;
     description: string;

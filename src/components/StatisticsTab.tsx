@@ -1,24 +1,31 @@
 
 import React, { useState, useEffect } from 'react';
 import { getPackingLogs } from '../services/storageService';
+import { PackingLogEntry } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-interface ChartData {
+type ChartData = {
     name: string;
     quantity: number;
 }
 
+type DateRange = 7 | 30 | 0; // 0 for all time
+
 export const StatisticsTab: React.FC = () => {
     const [data, setData] = useState<ChartData[]>([]);
+    const [dateRange, setDateRange] = useState<DateRange>(7);
 
     useEffect(() => {
         const logs = getPackingLogs();
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        let filteredLogs: PackingLogEntry[] = logs;
 
-        const recentLogs = logs.filter(log => new Date(log.date) >= sevenDaysAgo);
+        if (dateRange > 0) {
+            const rangeDate = new Date();
+            rangeDate.setDate(rangeDate.getDate() - dateRange);
+            filteredLogs = logs.filter(log => new Date(log.date) >= rangeDate);
+        }
         
-        const aggregatedData = recentLogs.reduce((acc, log) => {
+        const aggregatedData = filteredLogs.reduce((acc, log) => {
             if (!acc[log.name]) {
                 acc[log.name] = 0;
             }
@@ -34,22 +41,43 @@ export const StatisticsTab: React.FC = () => {
             .sort((a, b) => b.quantity - a.quantity); 
 
         setData(chartData);
-    }, []);
+    }, [dateRange]);
+
+    const FilterButton: React.FC<{ range: DateRange; label: string }> = ({ range, label }) => (
+        <button
+            onClick={() => setDateRange(range)}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                dateRange === range
+                    ? 'bg-blue-600 text-white shadow'
+                    : 'bg-white text-gray-700 hover:bg-gray-100'
+            }`}
+        >
+            {label}
+        </button>
+    );
+    
+    const getHeading = () => {
+        if(dateRange === 7) return "สถิติการแพ็คสินค้า (7 วันล่าสุด)";
+        if(dateRange === 30) return "สถิติการแพ็คสินค้า (30 วันล่าสุด)";
+        return "สถิติการแพ็คสินค้า (ทั้งหมด)";
+    }
 
     return (
         <div>
-            <h2 className="text-2xl font-bold mb-6">สถิติการแพ็คสินค้า (7 วันล่าสุด)</h2>
+            <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
+                <h2 className="text-2xl font-bold">{getHeading()}</h2>
+                <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-lg">
+                    <FilterButton range={7} label="7 วัน" />
+                    <FilterButton range={30} label="30 วัน" />
+                    <FilterButton range={0} label="ทั้งหมด" />
+                </div>
+            </div>
             <div className="w-full h-96 bg-gray-50 p-4 rounded-lg border">
                 {data.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart
                             data={data}
-                            margin={{
-                                top: 5,
-                                right: 20,
-                                left: 0,
-                                bottom: 20,
-                            }}
+                            margin={{ top: 5, right: 20, left: 0, bottom: 20, }}
                         >
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="name" angle={-15} textAnchor="end" height={80} interval={0} tick={{ fontSize: 12 }} />
@@ -68,7 +96,7 @@ export const StatisticsTab: React.FC = () => {
                     </ResponsiveContainer>
                 ) : (
                     <div className="flex items-center justify-center h-full">
-                        <p className="text-gray-500 text-lg">ไม่มีข้อมูลเพียงพอสำหรับแสดงผล</p>
+                        <p className="text-gray-500 text-lg">ไม่มีข้อมูลในช่วงเวลานี้</p>
                     </div>
                 )}
             </div>

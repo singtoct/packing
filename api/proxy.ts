@@ -1,3 +1,4 @@
+
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI } from "@google/genai";
 
@@ -95,10 +96,12 @@ Example response format:
 Current features: 
 1. Create packing orders.
 2. Print orders with Thai names translated to Burmese.
-3. Log daily packed items.
-4. View weekly packing statistics.
+3. Log daily packed items, which automatically updates an inventory system.
+4. A dedicated tab to view and search current inventory levels.
+5. An advanced statistics dashboard with date range filters (7-day, 30-day, all-time).
+6. Ability to export packing history and blank forms to Excel.
 
-Suggest 3 innovative new features. For each feature, provide a 'title' and a short 'description'. Format the response as a JSON array of objects.`;
+Suggest 3 innovative new features that build upon the existing system. For each feature, provide a 'title' and a short 'description'. Format the response as a JSON array of objects.`;
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash-preview-04-17",
             contents: prompt,
