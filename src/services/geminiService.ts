@@ -1,3 +1,5 @@
+
+
 import { AiSuggestion, BurmeseTranslation } from "../types";
 
 // This function communicates with our secure, serverless API proxy
@@ -43,7 +45,6 @@ export const translateToBurmese = async (items: string[]): Promise<BurmeseTransl
         return items.reduce((acc, item) => ({ ...acc, [item]: item }), {});
     }
 };
-
 
 export const getFeatureSuggestions = async (): Promise<AiSuggestion[]> => {
     try {

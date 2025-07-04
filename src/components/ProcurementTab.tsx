@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { getSuppliers, saveSuppliers, getPurchaseOrders, savePurchaseOrders, getRawMaterials, saveRawMaterials, getAnalysisShortfall } from '../services/storageService';
 import { Supplier, PurchaseOrder, RawMaterial } from '../types';
@@ -200,7 +201,7 @@ const SupplierView: React.FC<{
     );
 }
 
-export const ProcurementTab: React.FC<{setActiveTab: (tab: View) => void}> = ({setActiveTab}) => {
+export const ProcurementTab: React.FC = () => {
     const [view, setView] = useState<View>('shortfall');
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);

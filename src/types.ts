@@ -1,5 +1,9 @@
 
 
+export interface AiSuggestion {
+    title: string;
+    description: string;
+}
 
 export interface OrderItem {
   id: string;
@@ -117,11 +121,6 @@ export interface Shipment {
     carrier: string;
     trackingNumber: string;
     status: 'In Transit' | 'Delivered' | 'Delayed';
-}
-
-export interface AiSuggestion {
-    title: string;
-    description: string;
 }
 
 export interface BurmeseTranslation {

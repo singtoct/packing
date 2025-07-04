@@ -1,7 +1,3 @@
-
-
-
-
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI } from "@google/genai";
 
@@ -95,33 +91,35 @@ Example response format:
       }
       
       case 'suggest': {
-        const prompt = `You are a senior manufacturing and operations consultant. A web app for managing a factory with Thai and Burmese workers needs new features.
-Current features: 
-1.  **Order & Analysis:** Manage customer orders and analyze raw material requirements based on BOMs, highlighting shortfalls.
-2.  **Procurement & Suppliers:** Manage suppliers and create Purchase Orders (POs), which can be auto-filled from the analysis results. Receiving a PO automatically updates raw material inventory.
-3.  **Raw Material & BOM Management:** Manage raw material inventory (including cost per unit) and define multi-level Bills of Materials (BOMs).
-4.  **Molding & Production:** Log daily production from the molding department. The system auto-deducts raw materials based on the BOM.
-5.  **Production Status Tracking:** A Kanban board tracks production batches through intermediate steps after molding.
-6.  **Packing & Finished Goods:** Log daily packed items, which increases finished goods inventory. This inventory is decremented when orders are shipped.
-7.  **Quality Control (QC):** A dedicated module for QC inspectors to Pass/Fail items, add notes, and upload photos.
-8.  **Shipment Tracking:** Log shipments to customers, including carrier and tracking numbers.
-9.  **Machine Maintenance:** Manage machine profiles, log maintenance activities (preventive/corrective), and track downtime.
-10. **Employee Management & Performance:** Manage employee profiles and view individual performance statistics for packing and molding.
-11. **Cost & Profitability Analysis:** A tab that calculates total material cost for each order and compares it against the sale price to determine profit.
-12. **Dashboard & Reporting:** A comprehensive dashboard shows KPIs. An advanced reporting module exports data to Excel.
+        const prompt = `Based on the features of this comprehensive factory production management system (dashboard, order management, shipment tracking, procurement, raw material analysis, molding production logs, production status kanban, packing logs, quality control, finished goods inventory, raw materials inventory & BOMs, machine maintenance, employee management, cost analysis, statistics, and reporting), suggest 3 new, impactful features to further enhance it. The suggestions should be practical for a manufacturing environment. Format the response as a JSON array of objects, each with "title" (string, in Thai) and "description" (string, in Thai).
 
-Based on this extremely powerful, fully integrated MRP system, suggest 3 highly innovative new features that would provide the most business value. For each feature, provide a 'title' and a short 'description'. Format the response as a JSON array of objects.`;
+Example format:
+[
+  {
+    "title": "การแจ้งเตือนอัตโนมัติ",
+    "description": "ส่งการแจ้งเตือนผ่าน Line หรือ Email เมื่อสต็อกวัตถุดิบหรือสินค้าใกล้หมด หรือเมื่อมีงาน QC ที่ต้องตรวจสอบ"
+  },
+  {
+    "title": "แดชบอร์ดประสิทธิภาพเครื่องจักร",
+    "description": "แสดงผล OEE (Overall Equipment Effectiveness) ของเครื่องจักรแต่ละตัวแบบเรียลไทม์"
+  },
+  {
+    "title": "ระบบบาร์โค้ด/QR Code",
+    "description": "ใช้บาร์โค้ดในการรับวัตถุดิบ, ติดตามงานระหว่างผลิต (WIP), และบันทึกการแพ็คเพื่อลดความผิดพลาดและเพิ่มความรวดเร็ว"
+  }
+]
+`;
         const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash-preview-04-17",
-            contents: prompt,
-            config: { responseMimeType: "application/json", temperature: 0.7 },
+          model: "gemini-2.5-flash-preview-04-17",
+          contents: prompt,
+          config: { responseMimeType: "application/json", temperature: 0.7 },
         });
-        
+
         const responseText = response.text;
-        if (responseText) {
-            result = parseJsonResponse(responseText);
+        if(responseText) {
+          result = parseJsonResponse(responseText);
         } else {
-            result = null;
+          result = null;
         }
         break;
       }
