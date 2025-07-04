@@ -24,7 +24,7 @@ export const PackingLogTab: React.FC = () => {
             setLogItemName(uniqueItemNames[0]);
         }
 
-    }, [logItemName]);
+    }, []);
 
     useEffect(() => {
         savePackingLogs(logs);
