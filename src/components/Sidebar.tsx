@@ -162,7 +162,7 @@ export const Sidebar: React.FC<{ activeTab: Tab, setActiveTab: (tab: Tab) => voi
                                 isOpen={openMenus.has(item.title)}
                                 toggle={() => toggleMenu(item.title)}
                             >
-                                {item.children.map(child => (
+                                {item.children?.map(child => (
                                     <MenuItem 
                                         key={child.tab}
                                         tab={child.tab as Tab}
@@ -177,8 +177,8 @@ export const Sidebar: React.FC<{ activeTab: Tab, setActiveTab: (tab: Tab) => voi
                     }
                     return (
                          <MenuItem 
-                            key={item.tab}
-                            tab={item.tab}
+                            key={item.tab!}
+                            tab={item.tab!}
                             title={item.title}
                             icon={item.icon}
                             activeTab={activeTab}
