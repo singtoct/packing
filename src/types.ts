@@ -54,6 +54,22 @@ export interface QCEntry {
   imageUrl?: string;
 }
 
+export interface RawMaterial {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string; // e.g., 'kg', 'ชิ้น', 'ม้วน'
+}
+
+export interface BillOfMaterial {
+  productName: string; // The name of the finished good, e.g., "ฝาหน้ากาก CT A-103 (สีขาว)"
+  components: {
+    rawMaterialId: string;
+    quantity: number; // quantity of raw material per ONE unit of finished good
+  }[];
+}
+
+
 export interface AiSuggestion {
     title: string;
     description: string;

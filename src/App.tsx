@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect } from 'react';
 import { OrderManagementTab } from './components/OrderManagementTab';
 import { PackingLogTab } from './components/PackingLogTab';
@@ -11,13 +12,15 @@ import { ReportingTab } from './components/ReportingTab';
 import { QCTab } from './components/QCTab';
 import { MoldingTab } from './components/MoldingTab';
 import { ProductionStatusTab } from './components/ProductionStatusTab';
+import { RawMaterialsTab } from './components/RawMaterialsTab';
+import { AnalysisTab } from './components/AnalysisTab';
 import { AISuggestions } from './components/AISuggestions';
-import { BoxIcon, ListOrderedIcon, BarChart3Icon, ArchiveIcon, BellIcon, LayoutDashboardIcon, UsersIcon, FileTextIcon, ClipboardCheckIcon, FactoryIcon, RouteIcon } from './components/icons/Icons';
+import { BoxIcon, ListOrderedIcon, BarChart3Icon, ArchiveIcon, BellIcon, LayoutDashboardIcon, UsersIcon, FileTextIcon, ClipboardCheckIcon, FactoryIcon, RouteIcon, BeakerIcon, SigmaIcon } from './components/icons/Icons';
 import { CTPackingLogo } from './assets/logo';
 import { getInventory } from './services/storageService';
 import { InventoryItem } from './types';
 
-type Tab = 'dashboard' | 'orders' | 'molding' | 'production_status' | 'logs' | 'qc' | 'inventory' | 'stats' | 'employees' | 'reports';
+type Tab = 'dashboard' | 'orders' | 'molding' | 'production_status' | 'logs' | 'qc' | 'inventory' | 'stats' | 'employees' | 'reports' | 'raw_materials' | 'analysis';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -62,6 +65,10 @@ const App: React.FC = () => {
         return <QCTab />;
       case 'inventory':
         return <InventoryTab setLowStockCheck={checkLowStock}/>;
+      case 'raw_materials':
+        return <RawMaterialsTab />;
+      case 'analysis':
+        return <AnalysisTab />;
       case 'stats':
         return <StatisticsTab />;
       case 'employees':
@@ -153,6 +160,14 @@ const App: React.FC = () => {
                 <TabButton tabName="inventory" currentTab={activeTab} setTab={setActiveTab}>
                   <ArchiveIcon className="w-5 h-5" />
                   <span>สต็อกสินค้า</span>
+                </TabButton>
+                 <TabButton tabName="raw_materials" currentTab={activeTab} setTab={setActiveTab}>
+                  <BeakerIcon className="w-5 h-5" />
+                  <span>วัตถุดิบ</span>
+                </TabButton>
+                 <TabButton tabName="analysis" currentTab={activeTab} setTab={setActiveTab}>
+                  <SigmaIcon className="w-5 h-5" />
+                  <span>วิเคราะห์</span>
                 </TabButton>
                 <TabButton tabName="stats" currentTab={activeTab} setTab={setActiveTab}>
                   <BarChart3Icon className="w-5 h-5" />

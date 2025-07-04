@@ -1,5 +1,6 @@
 
 
+
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI } from "@google/genai";
 
@@ -95,17 +96,16 @@ Example response format:
       case 'suggest': {
         const prompt = `You are a senior manufacturing and operations consultant. A web app for managing a factory with Thai and Burmese workers needs new features.
 Current features: 
-1.  **Order Management:** Create, edit, print (with Thai/Burmese translations), and ship packing orders.
-2.  **Molding Department:** Log daily production runs of plastic parts, including good parts, rejects, machine used, and operator. This is the upstream process.
-3.  **Production Status Tracking:** A Kanban-style board to visualize the entire production workflow after molding. Batches are tracked through intermediate steps like 'scratch-proofing' and 'sub-assembly' before reaching the final packing or assembly rooms.
-4.  **Packing Log:** Log daily packed items, assigning each log to a specific employee.
-5.  **Inventory Management:** Inventory of packed goods is automatically updated from packing logs and shipping actions. Users can set minimum stock levels for items, triggering low-stock alerts.
-6.  **Employee Management:** Manage employee profiles and view individual performance statistics.
-7.  **Dashboard:** A comprehensive overview of key metrics like upcoming orders, low stock items, top performing employees, today's molding production, Work-In-Progress (WIP) count, and recent packing trends.
-8.  **Advanced Reporting:** Export packing history, molding history, and inventory status to Excel.
-9.  **Quality Control (QC) Module:** After an item is packed, a QC entry is automatically created. A dedicated QC tab allows inspectors to Pass/Fail items, add notes, specify failure reasons, and upload photo evidence. This links packing performance directly to quality outcomes.
+1.  **Order Management & MRP:** Customers place orders. An "Analysis" tab calculates total raw materials needed for all open orders based on pre-defined Bills of Materials (BOMs), and alerts users of any shortfalls compared to current raw material inventory.
+2.  **Raw Material & BOM Management:** A dedicated tab allows users to manage raw material inventory (e.g., plastic pellets, screws) and define the multi-level Bill of Materials (BOM) for each product.
+3.  **Molding Department:** Log daily production of plastic parts. The system automatically checks for sufficient raw materials based on the BOM before allowing production to be logged, and deducts consumed materials from inventory upon saving.
+4.  **Production Status Tracking:** A Kanban board tracks production batches through intermediate steps (e.g., 'scratch-proofing', 'sub-assembly') after molding.
+5.  **Packing Log & Finished Goods Inventory:** Log daily packed items. This automatically increases the finished goods inventory. This inventory is then decremented when orders are shipped. Low stock alerts for finished goods are available.
+6.  **Quality Control (QC) Module:** After packing, a QC entry is created. A QC tab allows inspectors to Pass/Fail items, add notes, and upload photo evidence.
+7.  **Employee Management:** Manage employee profiles and view individual performance statistics for packing and molding.
+8.  **Dashboard & Reporting:** A comprehensive dashboard shows KPIs for all departments. An advanced reporting module exports data from all departments to Excel.
 
-Based on this powerful existing system, suggest 3 highly innovative new features that would provide the most business value by integrating the departments or improving efficiency. For each feature, provide a 'title' and a short 'description'. Format the response as a JSON array of objects.`;
+Based on this extremely powerful, fully integrated MRP system, suggest 3 highly innovative new features that would provide the most business value by improving efficiency, reducing costs, or adding new strategic capabilities. For each feature, provide a 'title' and a short 'description'. Format the response as a JSON array of objects.`;
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash-preview-04-17",
             contents: prompt,

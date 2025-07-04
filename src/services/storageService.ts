@@ -1,5 +1,5 @@
 
-import { OrderItem, PackingLogEntry, InventoryItem, Employee, QCEntry, MoldingLogEntry } from '../types';
+import { OrderItem, PackingLogEntry, InventoryItem, Employee, QCEntry, MoldingLogEntry, RawMaterial, BillOfMaterial } from '../types';
 
 const ORDERS_KEY = 'packing_orders';
 const LOGS_KEY = 'packing_logs';
@@ -7,6 +7,9 @@ const MOLDING_LOGS_KEY = 'molding_logs';
 const INVENTORY_KEY = 'packing_inventory';
 const EMPLOYEES_KEY = 'packing_employees';
 const QC_KEY = 'packing_qc_entries';
+const RAW_MATERIALS_KEY = 'packing_raw_materials';
+const BOMS_KEY = 'packing_boms';
+
 
 // Generic getter
 const getItems = <T,>(key: string): T[] => {
@@ -67,3 +70,25 @@ export const saveEmployees = (employees: Employee[]): void => saveItems<Employee
 // QC Entry specific functions
 export const getQCEntries = (): QCEntry[] => getItems<QCEntry>(QC_KEY);
 export const saveQCEntries = (entries: QCEntry[]): void => saveItems<QCEntry>(QC_KEY, entries);
+
+// Raw Material specific functions
+export const getRawMaterials = (): RawMaterial[] => {
+    const items = getItems<RawMaterial>(RAW_MATERIALS_KEY);
+    if (items.length === 0) {
+        // Initialize with some default materials
+        const defaultMaterials: RawMaterial[] = [
+            { id: crypto.randomUUID(), name: 'เม็ดพลาสติก PP สีขาว', quantity: 100, unit: 'kg' },
+            { id: crypto.randomUUID(), name: 'เม็ดพลาสติก ABS สีดำ', quantity: 50, unit: 'kg' },
+            { id: crypto.randomUUID(), name: 'ฟิล์มกันรอย', quantity: 10, unit: 'ม้วน' },
+            { id: crypto.randomUUID(), name: 'สกรู M3x10', quantity: 5000, unit: 'ชิ้น' },
+        ];
+        saveItems<RawMaterial>(RAW_MATERIALS_KEY, defaultMaterials);
+        return defaultMaterials;
+    }
+    return items;
+};
+export const saveRawMaterials = (materials: RawMaterial[]): void => saveItems<RawMaterial>(RAW_MATERIALS_KEY, materials);
+
+// Bill of Material (BOM) specific functions
+export const getBOMs = (): BillOfMaterial[] => getItems<BillOfMaterial>(BOMS_KEY);
+export const saveBOMs = (boms: BillOfMaterial[]): void => saveItems<BillOfMaterial>(BOMS_KEY, boms);
