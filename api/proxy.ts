@@ -94,12 +94,13 @@ Example response format:
       case 'suggest': {
         const prompt = `You are a senior logistics and operations consultant. A web app for managing a packing department with Thai and Burmese workers needs new features.
 Current features: 
-1. Create, **edit**, print, and ship packing orders. Orders have Thai/Burmese translations.
-2. Log daily packed items. **Logs are now assigned to a specific employee.**
-3. Inventory is automatically updated from packing logs and shipping actions.
-4. **Automated low-stock alerts:** Users can set a minimum stock level for each item, and the UI highlights items that fall below this threshold. A global notification icon alerts users.
-5. **Advanced statistics dashboard:** Features date-range filters and can now be **filtered by employee** to track individual performance.
-6. Ability to export packing history and blank forms to Excel.
+1.  **Order Management:** Create, edit, print (with Thai/Burmese translations), and ship packing orders.
+2.  **Packing Log:** Log daily packed items, assigning each log to a specific employee.
+3.  **Inventory Management:** Inventory is automatically updated from packing logs and shipping actions. Users can set minimum stock levels for items, triggering low-stock alerts.
+4.  **Employee Management:** Manage employee profiles and view individual performance statistics.
+5.  **Dashboard:** A comprehensive overview of key metrics like upcoming orders, low stock items, top performing employees, and recent packing trends.
+6.  **Advanced Reporting:** Export packing history and inventory status to Excel.
+7.  **Quality Control (QC) Module:** After an item is packed, a QC entry is automatically created. A dedicated QC tab allows inspectors to Pass/Fail items, add notes, specify failure reasons, and upload photo evidence. This links packing performance directly to quality outcomes.
 
 Based on this powerful existing system, suggest 3 highly innovative new features that would provide the most business value. For each feature, provide a 'title' and a short 'description'. Format the response as a JSON array of objects.`;
         const response = await ai.models.generateContent({

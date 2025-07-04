@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
-import { PackingLogEntry, Employee } from '../types';
-import { getPackingLogs, savePackingLogs, getOrders, getInventory, saveInventory, getEmployees } from '../services/storageService';
+import { PackingLogEntry, Employee, QCEntry } from '../types';
+import { getPackingLogs, savePackingLogs, getOrders, getInventory, saveInventory, getEmployees, getQCEntries, saveQCEntries } from '../services/storageService';
 import { PlusCircleIcon, Trash2Icon, FileSpreadsheetIcon, DownloadIcon } from './icons/Icons';
 
 export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ setLowStockCheck }) => {
@@ -46,7 +46,7 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
         if (!logItemName.trim() || !logDate || !packerName) return;
         
         const newLog: PackingLogEntry = {
-            id: new Date().toISOString(),
+            id: crypto.randomUUID(),
             date: logDate,
             name: logItemName.trim(),
             quantity: logQuantity,
@@ -65,12 +65,32 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
 
         const updatedLogs = [newLog, ...logs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         setLogs(updatedLogs);
+        
+        // Create corresponding QC Entry
+        const newQCEntry: QCEntry = {
+            id: newLog.id,
+            packingLogId: newLog.id,
+            productName: newLog.name,
+            quantity: newLog.quantity,
+            packerName: newLog.packerName,
+            packingDate: newLog.date,
+            status: 'Pending',
+        };
+        const currentQCEntries = getQCEntries();
+        saveQCEntries([newQCEntry, ...currentQCEntries]);
+
+
         setLogQuantity(1);
     };
 
     const handleDeleteLog = (id: string) => {
         const logToDelete = logs.find(log => log.id === id);
         if (!logToDelete) return;
+
+        // Also delete the corresponding QC entry
+        const currentQCEntries = getQCEntries();
+        const updatedQCEntries = currentQCEntries.filter(entry => entry.packingLogId !== id);
+        saveQCEntries(updatedQCEntries);
 
         const currentInventory = getInventory();
         const itemIndex = currentInventory.findIndex(item => item.name === logToDelete.name);

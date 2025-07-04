@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
-import { getOrders, getPackingLogs, getInventory } from '../services/storageService';
-import { OrderItem, PackingLogEntry, InventoryItem } from '../types';
+import { getOrders, getPackingLogs, getInventory, getQCEntries } from '../services/storageService';
+import { OrderItem, PackingLogEntry, InventoryItem, QCEntry } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { ListOrderedIcon, AlertTriangleIcon, TrophyIcon, TrendingUpIcon, CheckCircle2Icon } from './icons/Icons';
+import { ListOrderedIcon, AlertTriangleIcon, TrophyIcon, TrendingUpIcon, CheckCircle2Icon, ClipboardCheckIcon } from './icons/Icons';
 
-type Tab = 'dashboard' | 'orders' | 'logs' | 'inventory' | 'stats';
+type Tab = 'dashboard' | 'orders' | 'logs' | 'inventory' | 'stats' | 'qc';
 
 const StatCard: React.FC<{ title: string; icon: React.ReactNode; children: React.ReactNode; onClick?: () => void; className?: string }> = ({ title, icon, children, onClick, className = '' }) => (
     <div 
@@ -25,15 +25,18 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
     const [lowStockItems, setLowStockItems] = useState<InventoryItem[]>([]);
     const [packingSummary, setPackingSummary] = useState<{ date: string; quantity: number }[]>([]);
     const [topPacker, setTopPacker] = useState<{ name: string; quantity: number } | null>(null);
+    const [pendingQCCount, setPendingQCCount] = useState(0);
 
     useEffect(() => {
         const fetchData = () => {
             const orders = getOrders();
             const logs = getPackingLogs();
             const inventory = getInventory();
+            const qcEntries = getQCEntries();
             
             setUpcomingOrders([...orders].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()).slice(0, 5));
             setLowStockItems(inventory.filter(item => item.minStock !== undefined && item.quantity < item.minStock));
+            setPendingQCCount(qcEntries.filter(e => e.status === 'Pending').length);
 
             const sevenDaysAgo = new Date();
             sevenDaysAgo.setHours(0, 0, 0, 0);
@@ -74,7 +77,7 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
     return (
         <div>
             <h2 className="text-3xl font-bold mb-8 text-gray-800">แดชบอร์ดภาพรวม</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 
                 <StatCard title="ออเดอร์ใกล้ถึงกำหนดส่ง" icon={<ListOrderedIcon className="w-6 h-6 text-blue-500" />} onClick={() => setActiveTab('orders')}>
                     {upcomingOrders.length > 0 ? (
@@ -95,7 +98,7 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
                 <StatCard title="รายการสต็อกต่ำ" icon={<AlertTriangleIcon className="w-6 h-6 text-yellow-500" />} onClick={() => setActiveTab('inventory')}>
                     {lowStockItems.length > 0 ? (
                         <ul className="space-y-3">
-                            {lowStockItems.map(item => (
+                            {lowStockItems.slice(0, 5).map(item => (
                                 <li key={item.name} className="text-sm border-b border-gray-100 pb-2">
                                     <p className="font-semibold text-gray-800 truncate">{item.name}</p>
                                     <p className="text-red-600 font-bold">มี: {item.quantity} (ขั้นต่ำ: {item.minStock})</p>
@@ -106,6 +109,20 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
                         <div className="flex flex-col items-center justify-center h-full text-green-600">
                            <CheckCircle2Icon className="w-12 h-12 mb-2"/>
                            <p className="font-semibold">สต็อกสินค้าปกติ</p>
+                        </div>
+                    )}
+                </StatCard>
+                
+                <StatCard title="รอตรวจสอบคุณภาพ (QC)" icon={<ClipboardCheckIcon className="w-6 h-6 text-purple-500" />} onClick={() => setActiveTab('qc')}>
+                    {pendingQCCount > 0 ? (
+                        <div className="flex flex-col items-center justify-center h-full text-center">
+                            <p className="text-4xl font-bold text-purple-600">{pendingQCCount}</p>
+                            <p className="text-lg text-purple-800">รายการ</p>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center h-full text-green-600">
+                           <CheckCircle2Icon className="w-12 h-12 mb-2"/>
+                           <p className="font-semibold">ไม่มีรายการรอตรวจสอบ</p>
                         </div>
                     )}
                 </StatCard>
@@ -122,7 +139,7 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
                     ) : <p className="text-gray-500 text-center pt-8">ไม่มีข้อมูลการแพ็คใน 7 วันล่าสุด</p>}
                 </StatCard>
 
-                <StatCard title="ยอดแพ็ค 7 วันล่าสุด" icon={<TrendingUpIcon className="w-6 h-6 text-green-500" />} onClick={() => setActiveTab('stats')}>
+                <StatCard title="ยอดแพ็ค 7 วันล่าสุด" icon={<TrendingUpIcon className="w-6 h-6 text-green-500" />} onClick={() => setActiveTab('stats')} className="col-span-1 sm:col-span-2 lg:col-span-2">
                     {packingSummary.reduce((sum, item) => sum + item.quantity, 0) > 0 ? (
                         <ResponsiveContainer width="100%" height="100%" minHeight={150}>
                             <BarChart data={packingSummary} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>

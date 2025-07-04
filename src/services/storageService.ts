@@ -1,10 +1,11 @@
 
-import { OrderItem, PackingLogEntry, InventoryItem, Employee } from '../types';
+import { OrderItem, PackingLogEntry, InventoryItem, Employee, QCEntry } from '../types';
 
 const ORDERS_KEY = 'packing_orders';
 const LOGS_KEY = 'packing_logs';
 const INVENTORY_KEY = 'packing_inventory';
 const EMPLOYEES_KEY = 'packing_employees';
+const QC_KEY = 'packing_qc_entries';
 
 // Generic getter
 const getItems = <T,>(key: string): T[] => {
@@ -57,3 +58,7 @@ export const getEmployees = (): Employee[] => {
 };
 
 export const saveEmployees = (employees: Employee[]): void => saveItems<Employee>(EMPLOYEES_KEY, employees);
+
+// QC Entry specific functions
+export const getQCEntries = (): QCEntry[] => getItems<QCEntry>(QC_KEY);
+export const saveQCEntries = (entries: QCEntry[]): void => saveItems<QCEntry>(QC_KEY, entries);

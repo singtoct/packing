@@ -7,13 +7,14 @@ import { InventoryTab } from './components/InventoryTab';
 import { DashboardTab } from './components/DashboardTab';
 import { EmployeeManagementTab } from './components/EmployeeManagementTab';
 import { ReportingTab } from './components/ReportingTab';
+import { QCTab } from './components/QCTab';
 import { AISuggestions } from './components/AISuggestions';
-import { BoxIcon, ListOrderedIcon, BarChart3Icon, ArchiveIcon, BellIcon, LayoutDashboardIcon, UsersIcon, FileTextIcon } from './components/icons/Icons';
+import { BoxIcon, ListOrderedIcon, BarChart3Icon, ArchiveIcon, BellIcon, LayoutDashboardIcon, UsersIcon, FileTextIcon, ClipboardCheckIcon } from './components/icons/Icons';
 import { CTPackingLogo } from './assets/logo';
 import { getInventory } from './services/storageService';
 import { InventoryItem } from './types';
 
-type Tab = 'dashboard' | 'orders' | 'logs' | 'inventory' | 'stats' | 'employees' | 'reports';
+type Tab = 'dashboard' | 'orders' | 'logs' | 'qc' | 'inventory' | 'stats' | 'employees' | 'reports';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -50,6 +51,8 @@ const App: React.FC = () => {
         return <OrderManagementTab />;
       case 'logs':
         return <PackingLogTab setLowStockCheck={checkLowStock} />;
+      case 'qc':
+        return <QCTab />;
       case 'inventory':
         return <InventoryTab setLowStockCheck={checkLowStock}/>;
       case 'stats':
@@ -115,7 +118,7 @@ const App: React.FC = () => {
                   </div>
                 )}
               </div>
-              <nav className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg">
+              <nav className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg flex-wrap">
                 <TabButton tabName="dashboard" currentTab={activeTab} setTab={setActiveTab}>
                   <LayoutDashboardIcon className="w-5 h-5" />
                   <span>แดชบอร์ด</span>
@@ -127,6 +130,10 @@ const App: React.FC = () => {
                 <TabButton tabName="logs" currentTab={activeTab} setTab={setActiveTab}>
                   <BoxIcon className="w-5 h-5" />
                   <span>บันทึกการแพ็ค</span>
+                </TabButton>
+                <TabButton tabName="qc" currentTab={activeTab} setTab={setActiveTab}>
+                  <ClipboardCheckIcon className="w-5 h-5" />
+                  <span>ควบคุมคุณภาพ</span>
                 </TabButton>
                 <TabButton tabName="inventory" currentTab={activeTab} setTab={setActiveTab}>
                   <ArchiveIcon className="w-5 h-5" />

@@ -27,6 +27,21 @@ export interface Employee {
   hireDate: string;
 }
 
+export interface QCEntry {
+  id: string; // Same as PackingLogEntry id for easy mapping
+  packingLogId: string;
+  productName: string;
+  quantity: number;
+  packerName: string;
+  packingDate: string;
+  status: 'Pending' | 'Passed' | 'Failed';
+  qcDate?: string;
+  qcInspector?: string;
+  reasons?: string[];
+  notes?: string;
+  imageUrl?: string;
+}
+
 export interface AiSuggestion {
     title: string;
     description: string;
