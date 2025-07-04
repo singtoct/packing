@@ -4,16 +4,17 @@ import { OrderManagementTab } from './components/OrderManagementTab';
 import { PackingLogTab } from './components/PackingLogTab';
 import { StatisticsTab } from './components/StatisticsTab';
 import { InventoryTab } from './components/InventoryTab';
+import { DashboardTab } from './components/DashboardTab';
 import { AISuggestions } from './components/AISuggestions';
-import { BoxIcon, ListOrderedIcon, BarChart3Icon, ArchiveIcon, BellIcon } from './components/icons/Icons';
+import { BoxIcon, ListOrderedIcon, BarChart3Icon, ArchiveIcon, BellIcon, LayoutDashboardIcon } from './components/icons/Icons';
 import { CTPackingLogo } from './assets/logo';
 import { getInventory } from './services/storageService';
 import { InventoryItem } from './types';
 
-type Tab = 'orders' | 'logs' | 'inventory' | 'stats';
+type Tab = 'dashboard' | 'orders' | 'logs' | 'inventory' | 'stats';
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<Tab>('orders');
+  const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [lowStockItems, setLowStockItems] = useState<InventoryItem[]>([]);
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
 
@@ -40,6 +41,8 @@ const App: React.FC = () => {
 
   const renderTabContent = () => {
     switch (activeTab) {
+      case 'dashboard':
+        return <DashboardTab setActiveTab={setActiveTab} />;
       case 'orders':
         return <OrderManagementTab />;
       case 'logs':
@@ -49,7 +52,7 @@ const App: React.FC = () => {
       case 'stats':
         return <StatisticsTab />;
       default:
-        return <OrderManagementTab />;
+        return <DashboardTab setActiveTab={setActiveTab} />;
     }
   };
 
@@ -106,6 +109,10 @@ const App: React.FC = () => {
                 )}
               </div>
               <nav className="flex items-center gap-2 p-1 bg-gray-100 rounded-lg">
+                <TabButton tabName="dashboard" currentTab={activeTab} setTab={setActiveTab}>
+                  <LayoutDashboardIcon className="w-5 h-5" />
+                  <span>แดชบอร์ด</span>
+                </TabButton>
                 <TabButton tabName="orders" currentTab={activeTab} setTab={setActiveTab}>
                   <ListOrderedIcon className="w-5 h-5" />
                   <span>สร้างออเดอร์</span>

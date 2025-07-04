@@ -1,0 +1,140 @@
+
+import React, { useState, useEffect } from 'react';
+import { getOrders, getPackingLogs, getInventory } from '../services/storageService';
+import { OrderItem, PackingLogEntry, InventoryItem } from '../types';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { ListOrderedIcon, AlertTriangleIcon, TrophyIcon, TrendingUpIcon, CheckCircle2Icon } from './icons/Icons';
+
+type Tab = 'dashboard' | 'orders' | 'logs' | 'inventory' | 'stats';
+
+const StatCard: React.FC<{ title: string; icon: React.ReactNode; children: React.ReactNode; onClick?: () => void; className?: string }> = ({ title, icon, children, onClick, className = '' }) => (
+    <div 
+      className={`bg-white p-6 rounded-xl shadow-lg border border-gray-200 flex flex-col ${onClick ? 'cursor-pointer hover:shadow-xl hover:border-blue-300 transition-all duration-300' : ''} ${className}`}
+      onClick={onClick}
+    >
+        <div className="flex items-center gap-3 mb-4">
+            {icon}
+            <h3 className="text-lg font-bold text-gray-700">{title}</h3>
+        </div>
+        <div className="flex-grow">{children}</div>
+    </div>
+);
+
+export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ setActiveTab }) => {
+    const [upcomingOrders, setUpcomingOrders] = useState<OrderItem[]>([]);
+    const [lowStockItems, setLowStockItems] = useState<InventoryItem[]>([]);
+    const [packingSummary, setPackingSummary] = useState<{ date: string; quantity: number }[]>([]);
+    const [topPacker, setTopPacker] = useState<{ name: string; quantity: number } | null>(null);
+
+    useEffect(() => {
+        const fetchData = () => {
+            const orders = getOrders();
+            const logs = getPackingLogs();
+            const inventory = getInventory();
+            
+            setUpcomingOrders([...orders].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()).slice(0, 5));
+            setLowStockItems(inventory.filter(item => item.minStock !== undefined && item.quantity < item.minStock));
+
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setHours(0, 0, 0, 0);
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+            
+            const recentLogs = logs.filter(log => new Date(log.date) >= sevenDaysAgo);
+
+            const summaryMap = new Map<string, number>();
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(sevenDaysAgo);
+                d.setDate(d.getDate() + i);
+                const key = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short' });
+                summaryMap.set(key, 0);
+            }
+
+            recentLogs.forEach(log => {
+                const key = new Date(log.date).toLocaleDateString('th-TH', { day: '2-digit', month: 'short' });
+                if (summaryMap.has(key)) {
+                    summaryMap.set(key, summaryMap.get(key)! + log.quantity);
+                }
+            });
+            setPackingSummary(Array.from(summaryMap.entries()).map(([date, quantity]) => ({ date, quantity })));
+
+            const packerStats = recentLogs.reduce((acc, log) => {
+                acc[log.packerName] = (acc[log.packerName] || 0) + log.quantity;
+                return acc;
+            }, {} as Record<string, number>);
+
+            const top = Object.entries(packerStats).sort(([, a], [, b]) => b - a)[0];
+            setTopPacker(top ? { name: top[0], quantity: top[1] } : null);
+        };
+
+        fetchData();
+        window.addEventListener('storage', fetchData);
+        return () => window.removeEventListener('storage', fetchData);
+    }, []);
+
+    return (
+        <div>
+            <h2 className="text-3xl font-bold mb-8 text-gray-800">แดชบอร์ดภาพรวม</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+                
+                <StatCard title="ออเดอร์ใกล้ถึงกำหนดส่ง" icon={<ListOrderedIcon className="w-6 h-6 text-blue-500" />} onClick={() => setActiveTab('orders')}>
+                    {upcomingOrders.length > 0 ? (
+                        <ul className="space-y-3">
+                            {upcomingOrders.map(order => (
+                                <li key={order.id} className="text-sm border-b border-gray-100 pb-2">
+                                    <p className="font-semibold text-gray-800 truncate">{order.name} ({order.color})</p>
+                                    <div className="flex justify-between items-center text-gray-500">
+                                        <span>จำนวน: {order.quantity} ลัง</span>
+                                        <span className="font-bold text-red-500">{new Date(order.dueDate).toLocaleDateString('th-TH')}</span>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : <p className="text-gray-500 text-center pt-8">ไม่มีออเดอร์ที่ใกล้ถึงกำหนด</p>}
+                </StatCard>
+                
+                <StatCard title="รายการสต็อกต่ำ" icon={<AlertTriangleIcon className="w-6 h-6 text-yellow-500" />} onClick={() => setActiveTab('inventory')}>
+                    {lowStockItems.length > 0 ? (
+                        <ul className="space-y-3">
+                            {lowStockItems.map(item => (
+                                <li key={item.name} className="text-sm border-b border-gray-100 pb-2">
+                                    <p className="font-semibold text-gray-800 truncate">{item.name}</p>
+                                    <p className="text-red-600 font-bold">มี: {item.quantity} (ขั้นต่ำ: {item.minStock})</p>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center h-full text-green-600">
+                           <CheckCircle2Icon className="w-12 h-12 mb-2"/>
+                           <p className="font-semibold">สต็อกสินค้าปกติ</p>
+                        </div>
+                    )}
+                </StatCard>
+
+                <StatCard title="พนักงานดีเด่น (7 วัน)" icon={<TrophyIcon className="w-6 h-6 text-amber-500" />} onClick={() => setActiveTab('stats')} className="bg-amber-50">
+                    {topPacker ? (
+                        <div className="flex flex-col items-center justify-center h-full text-center">
+                            <div className="bg-amber-400 rounded-full p-4 mb-3">
+                                <TrophyIcon className="w-10 h-10 text-white"/>
+                            </div>
+                            <p className="text-xl font-bold text-amber-900">{topPacker.name}</p>
+                            <p className="text-lg text-amber-700">แพ็คได้ {topPacker.quantity} ลัง</p>
+                        </div>
+                    ) : <p className="text-gray-500 text-center pt-8">ไม่มีข้อมูลการแพ็คใน 7 วันล่าสุด</p>}
+                </StatCard>
+
+                <StatCard title="ยอดแพ็ค 7 วันล่าสุด" icon={<TrendingUpIcon className="w-6 h-6 text-green-500" />} onClick={() => setActiveTab('stats')}>
+                    {packingSummary.reduce((sum, item) => sum + item.quantity, 0) > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%" minHeight={150}>
+                            <BarChart data={packingSummary} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                                <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                                <YAxis allowDecimals={false} />
+                                <Tooltip contentStyle={{ borderRadius: '0.5rem', fontSize: '12px' }} />
+                                <Bar dataKey="quantity" name="จำนวน" fill="#10b981" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    ) : <p className="text-gray-500 text-center pt-8">ไม่มีข้อมูลการแพ็คใน 7 วันล่าสุด</p>}
+                </StatCard>
+            </div>
+        </div>
+    );
+};
