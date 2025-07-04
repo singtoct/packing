@@ -1,8 +1,9 @@
 
-import { OrderItem, PackingLogEntry, InventoryItem, Employee, QCEntry } from '../types';
+import { OrderItem, PackingLogEntry, InventoryItem, Employee, QCEntry, MoldingLogEntry } from '../types';
 
 const ORDERS_KEY = 'packing_orders';
 const LOGS_KEY = 'packing_logs';
+const MOLDING_LOGS_KEY = 'molding_logs';
 const INVENTORY_KEY = 'packing_inventory';
 const EMPLOYEES_KEY = 'packing_employees';
 const QC_KEY = 'packing_qc_entries';
@@ -34,6 +35,10 @@ export const saveOrders = (orders: OrderItem[]): void => saveItems<OrderItem>(OR
 // Packing Log specific functions
 export const getPackingLogs = (): PackingLogEntry[] => getItems<PackingLogEntry>(LOGS_KEY);
 export const savePackingLogs = (logs: PackingLogEntry[]): void => saveItems<PackingLogEntry>(LOGS_KEY, logs);
+
+// Molding Log specific functions
+export const getMoldingLogs = (): MoldingLogEntry[] => getItems<MoldingLogEntry>(MOLDING_LOGS_KEY);
+export const saveMoldingLogs = (logs: MoldingLogEntry[]): void => saveItems<MoldingLogEntry>(MOLDING_LOGS_KEY, logs);
 
 // Inventory specific functions
 export const getInventory = (): InventoryItem[] => getItems<InventoryItem>(INVENTORY_KEY);

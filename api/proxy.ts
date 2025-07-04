@@ -92,17 +92,18 @@ Example response format:
       }
       
       case 'suggest': {
-        const prompt = `You are a senior logistics and operations consultant. A web app for managing a packing department with Thai and Burmese workers needs new features.
+        const prompt = `You are a senior manufacturing and operations consultant. A web app for managing a factory with Thai and Burmese workers needs new features.
 Current features: 
 1.  **Order Management:** Create, edit, print (with Thai/Burmese translations), and ship packing orders.
-2.  **Packing Log:** Log daily packed items, assigning each log to a specific employee.
-3.  **Inventory Management:** Inventory is automatically updated from packing logs and shipping actions. Users can set minimum stock levels for items, triggering low-stock alerts.
-4.  **Employee Management:** Manage employee profiles and view individual performance statistics.
-5.  **Dashboard:** A comprehensive overview of key metrics like upcoming orders, low stock items, top performing employees, and recent packing trends.
-6.  **Advanced Reporting:** Export packing history and inventory status to Excel.
-7.  **Quality Control (QC) Module:** After an item is packed, a QC entry is automatically created. A dedicated QC tab allows inspectors to Pass/Fail items, add notes, specify failure reasons, and upload photo evidence. This links packing performance directly to quality outcomes.
+2.  **Molding Department:** Log daily production runs of plastic parts, including good parts, rejects, machine used, and operator. This is the upstream process before packing.
+3.  **Packing Log:** Log daily packed items, assigning each log to a specific employee.
+4.  **Inventory Management:** Inventory of packed goods is automatically updated from packing logs and shipping actions. Users can set minimum stock levels for items, triggering low-stock alerts.
+5.  **Employee Management:** Manage employee profiles and view individual performance statistics.
+6.  **Dashboard:** A comprehensive overview of key metrics like upcoming orders, low stock items, top performing employees, today's molding production, and recent packing trends.
+7.  **Advanced Reporting:** Export packing history, molding history, and inventory status to Excel.
+8.  **Quality Control (QC) Module:** After an item is packed, a QC entry is automatically created. A dedicated QC tab allows inspectors to Pass/Fail items, add notes, specify failure reasons, and upload photo evidence. This links packing performance directly to quality outcomes.
 
-Based on this powerful existing system, suggest 3 highly innovative new features that would provide the most business value. For each feature, provide a 'title' and a short 'description'. Format the response as a JSON array of objects.`;
+Based on this powerful existing system, suggest 3 highly innovative new features that would provide the most business value by integrating the departments or improving efficiency. For each feature, provide a 'title' and a short 'description'. Format the response as a JSON array of objects.`;
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash-preview-04-17",
             contents: prompt,

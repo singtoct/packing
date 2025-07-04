@@ -15,6 +15,16 @@ export interface PackingLogEntry {
   packerName: string;
 }
 
+export interface MoldingLogEntry {
+  id: string;
+  date: string;
+  productName: string;
+  quantityProduced: number;
+  quantityRejected: number;
+  machine: string;
+  operatorName: string;
+}
+
 export interface InventoryItem {
     name: string;
     quantity: number;

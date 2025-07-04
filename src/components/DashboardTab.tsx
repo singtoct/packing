@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
-import { getOrders, getPackingLogs, getInventory, getQCEntries } from '../services/storageService';
-import { OrderItem, PackingLogEntry, InventoryItem, QCEntry } from '../types';
+import { getOrders, getPackingLogs, getInventory, getQCEntries, getMoldingLogs } from '../services/storageService';
+import { OrderItem, PackingLogEntry, InventoryItem, QCEntry, MoldingLogEntry } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { ListOrderedIcon, AlertTriangleIcon, TrophyIcon, TrendingUpIcon, CheckCircle2Icon, ClipboardCheckIcon } from './icons/Icons';
+import { ListOrderedIcon, AlertTriangleIcon, TrophyIcon, TrendingUpIcon, CheckCircle2Icon, ClipboardCheckIcon, FactoryIcon } from './icons/Icons';
 
-type Tab = 'dashboard' | 'orders' | 'logs' | 'inventory' | 'stats' | 'qc';
+type Tab = 'dashboard' | 'orders' | 'logs' | 'inventory' | 'stats' | 'qc' | 'molding';
 
 const StatCard: React.FC<{ title: string; icon: React.ReactNode; children: React.ReactNode; onClick?: () => void; className?: string }> = ({ title, icon, children, onClick, className = '' }) => (
     <div 
@@ -26,6 +26,7 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
     const [packingSummary, setPackingSummary] = useState<{ date: string; quantity: number }[]>([]);
     const [topPacker, setTopPacker] = useState<{ name: string; quantity: number } | null>(null);
     const [pendingQCCount, setPendingQCCount] = useState(0);
+    const [moldingTodayCount, setMoldingTodayCount] = useState(0);
 
     useEffect(() => {
         const fetchData = () => {
@@ -33,10 +34,16 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
             const logs = getPackingLogs();
             const inventory = getInventory();
             const qcEntries = getQCEntries();
+            const moldingLogs = getMoldingLogs();
             
             setUpcomingOrders([...orders].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()).slice(0, 5));
             setLowStockItems(inventory.filter(item => item.minStock !== undefined && item.quantity < item.minStock));
             setPendingQCCount(qcEntries.filter(e => e.status === 'Pending').length);
+
+            const todayStr = new Date().toISOString().split('T')[0];
+            const todayMoldingLogs = moldingLogs.filter(log => log.date === todayStr);
+            setMoldingTodayCount(todayMoldingLogs.reduce((sum, log) => sum + log.quantityProduced, 0));
+
 
             const sevenDaysAgo = new Date();
             sevenDaysAgo.setHours(0, 0, 0, 0);
@@ -77,7 +84,7 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
     return (
         <div>
             <h2 className="text-3xl font-bold mb-8 text-gray-800">แดชบอร์ดภาพรวม</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 
                 <StatCard title="ออเดอร์ใกล้ถึงกำหนดส่ง" icon={<ListOrderedIcon className="w-6 h-6 text-blue-500" />} onClick={() => setActiveTab('orders')}>
                     {upcomingOrders.length > 0 ? (
@@ -126,8 +133,15 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
                         </div>
                     )}
                 </StatCard>
-
-                <StatCard title="พนักงานดีเด่น (7 วัน)" icon={<TrophyIcon className="w-6 h-6 text-amber-500" />} onClick={() => setActiveTab('stats')} className="bg-amber-50">
+                
+                <StatCard title="ยอดผลิต (แผนกฉีด)" icon={<FactoryIcon className="w-6 h-6 text-slate-500" />} onClick={() => setActiveTab('molding')}>
+                     <div className="flex flex-col items-center justify-center h-full text-center">
+                        <p className="text-4xl font-bold text-slate-600">{moldingTodayCount.toLocaleString()}</p>
+                        <p className="text-lg text-slate-800">ชิ้น (วันนี้)</p>
+                    </div>
+                </StatCard>
+                
+                <StatCard title="พนักงานดีเด่น (7 วัน)" icon={<TrophyIcon className="w-6 h-6 text-amber-500" />} onClick={() => setActiveTab('stats')} className="bg-amber-50 lg:col-span-2">
                     {topPacker ? (
                         <div className="flex flex-col items-center justify-center h-full text-center">
                             <div className="bg-amber-400 rounded-full p-4 mb-3">

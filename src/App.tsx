@@ -8,13 +8,14 @@ import { DashboardTab } from './components/DashboardTab';
 import { EmployeeManagementTab } from './components/EmployeeManagementTab';
 import { ReportingTab } from './components/ReportingTab';
 import { QCTab } from './components/QCTab';
+import { MoldingTab } from './components/MoldingTab';
 import { AISuggestions } from './components/AISuggestions';
-import { BoxIcon, ListOrderedIcon, BarChart3Icon, ArchiveIcon, BellIcon, LayoutDashboardIcon, UsersIcon, FileTextIcon, ClipboardCheckIcon } from './components/icons/Icons';
+import { BoxIcon, ListOrderedIcon, BarChart3Icon, ArchiveIcon, BellIcon, LayoutDashboardIcon, UsersIcon, FileTextIcon, ClipboardCheckIcon, FactoryIcon } from './components/icons/Icons';
 import { CTPackingLogo } from './assets/logo';
 import { getInventory } from './services/storageService';
 import { InventoryItem } from './types';
 
-type Tab = 'dashboard' | 'orders' | 'logs' | 'qc' | 'inventory' | 'stats' | 'employees' | 'reports';
+type Tab = 'dashboard' | 'orders' | 'molding' | 'logs' | 'qc' | 'inventory' | 'stats' | 'employees' | 'reports';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -49,6 +50,8 @@ const App: React.FC = () => {
         return <DashboardTab setActiveTab={setActiveTab} />;
       case 'orders':
         return <OrderManagementTab />;
+      case 'molding':
+        return <MoldingTab />;
       case 'logs':
         return <PackingLogTab setLowStockCheck={checkLowStock} />;
       case 'qc':
@@ -126,6 +129,10 @@ const App: React.FC = () => {
                 <TabButton tabName="orders" currentTab={activeTab} setTab={setActiveTab}>
                   <ListOrderedIcon className="w-5 h-5" />
                   <span>สร้างออเดอร์</span>
+                </TabButton>
+                <TabButton tabName="molding" currentTab={activeTab} setTab={setActiveTab}>
+                  <FactoryIcon className="w-5 h-5" />
+                  <span>แผนกฉีด</span>
                 </TabButton>
                 <TabButton tabName="logs" currentTab={activeTab} setTab={setActiveTab}>
                   <BoxIcon className="w-5 h-5" />
