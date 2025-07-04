@@ -1,11 +1,10 @@
+
 {
   "compilerOptions": {
     "composite": true,
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
     "skipLibCheck": true,
     "module": "ESNext",
-    "moduleResolution": "bundler",
-    "allowSyntheticDefaultImports": true
+    "moduleResolution": "bundler"
   },
-  "include": ["vite.config.ts", "postcss.config.js", "tailwind.config.js"]
+  "include": ["vite.config.ts"]
 }
