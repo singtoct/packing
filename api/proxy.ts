@@ -94,14 +94,14 @@ Example response format:
       case 'suggest': {
         const prompt = `You are a senior logistics and operations consultant. A web app for managing a packing department with Thai and Burmese workers needs new features.
 Current features: 
-1. Create packing orders.
-2. Print orders with Thai names translated to Burmese.
-3. Log daily packed items, which automatically updates an inventory system.
-4. A dedicated tab to view and search current inventory levels.
-5. An advanced statistics dashboard with date range filters (7-day, 30-day, all-time).
+1. Create, **edit**, print, and ship packing orders. Orders have Thai/Burmese translations.
+2. Log daily packed items. **Logs are now assigned to a specific employee.**
+3. Inventory is automatically updated from packing logs and shipping actions.
+4. **Automated low-stock alerts:** Users can set a minimum stock level for each item, and the UI highlights items that fall below this threshold. A global notification icon alerts users.
+5. **Advanced statistics dashboard:** Features date-range filters and can now be **filtered by employee** to track individual performance.
 6. Ability to export packing history and blank forms to Excel.
 
-Suggest 3 innovative new features that build upon the existing system. For each feature, provide a 'title' and a short 'description'. Format the response as a JSON array of objects.`;
+Based on this powerful existing system, suggest 3 highly innovative new features that would provide the most business value. For each feature, provide a 'title' and a short 'description'. Format the response as a JSON array of objects.`;
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash-preview-04-17",
             contents: prompt,

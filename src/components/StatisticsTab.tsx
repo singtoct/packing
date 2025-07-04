@@ -11,6 +11,7 @@ type ChartData = {
 
 type DateRange = 7 | 30 | 0; // 0 for all time
 
+const EMPLOYEES = ['สมชาย', 'สมศรี', 'มานะ', 'ปิติ', 'ชูใจ', 'สมศักดิ์', 'อมรรัตน์'];
 const COLORS = ['#3b82f6', '#10b981', '#ef4444', '#f97316', '#8b5cf6', '#ec4899', '#6b7280', '#f59e0b'];
 const RADIAN = Math.PI / 180;
 const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
@@ -30,15 +31,22 @@ const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, per
 export const StatisticsTab: React.FC = () => {
     const [data, setData] = useState<ChartData[]>([]);
     const [dateRange, setDateRange] = useState<DateRange>(7);
+    const [selectedPacker, setSelectedPacker] = useState('All');
 
     useEffect(() => {
         const logs = getPackingLogs();
         let filteredLogs: PackingLogEntry[] = logs;
 
+        // Filter by date
         if (dateRange > 0) {
             const rangeDate = new Date();
             rangeDate.setDate(rangeDate.getDate() - dateRange);
-            filteredLogs = logs.filter(log => new Date(log.date) >= rangeDate);
+            filteredLogs = filteredLogs.filter(log => new Date(log.date) >= rangeDate);
+        }
+
+        // Filter by packer
+        if (selectedPacker !== 'All') {
+            filteredLogs = filteredLogs.filter(log => log.packerName === selectedPacker);
         }
         
         const aggregatedData = filteredLogs.reduce((acc, log) => {
@@ -51,14 +59,14 @@ export const StatisticsTab: React.FC = () => {
 
         const chartData: ChartData[] = Object.keys(aggregatedData)
             .map(name => ({
-                name: name, // Full name for tooltip
-                shortName: name.length > 25 ? name.substring(0, 22) + '...' : name, // Short name for axis
+                name: name,
+                shortName: name.length > 25 ? name.substring(0, 22) + '...' : name,
                 quantity: aggregatedData[name]
             }))
             .sort((a, b) => b.quantity - a.quantity); 
 
         setData(chartData);
-    }, [dateRange]);
+    }, [dateRange, selectedPacker]);
 
     const FilterButton: React.FC<{ range: DateRange; label: string }> = ({ range, label }) => (
         <button
@@ -74,19 +82,33 @@ export const StatisticsTab: React.FC = () => {
     );
     
     const getHeading = () => {
-        if(dateRange === 7) return "สถิติการแพ็คสินค้า (7 วันล่าสุด)";
-        if(dateRange === 30) return "สถิติการแพ็คสินค้า (30 วันล่าสุด)";
-        return "สถิติการแพ็คสินค้า (ทั้งหมด)";
+        let heading = "สถิติการแพ็คสินค้า";
+        if(selectedPacker !== 'All') heading += ` (${selectedPacker})`;
+        if(dateRange === 7) return `${heading} - 7 วันล่าสุด`;
+        if(dateRange === 30) return `${heading} - 30 วันล่าสุด`;
+        return `${heading} - ทั้งหมด`;
     }
 
     return (
         <div>
             <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
                 <h2 className="text-2xl font-bold">{getHeading()}</h2>
-                <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-lg">
-                    <FilterButton range={7} label="7 วัน" />
-                    <FilterButton range={30} label="30 วัน" />
-                    <FilterButton range={0} label="ทั้งหมด" />
+                <div className="flex items-center gap-4 flex-wrap">
+                    <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-lg">
+                        <FilterButton range={7} label="7 วัน" />
+                        <FilterButton range={30} label="30 วัน" />
+                        <FilterButton range={0} label="ทั้งหมด" />
+                    </div>
+                    <div>
+                         <select 
+                            value={selectedPacker} 
+                            onChange={e => setSelectedPacker(e.target.value)} 
+                            className="px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        >
+                           <option value="All">พนักงานทั้งหมด</option>
+                           {EMPLOYEES.map(name => <option key={name} value={name}>{name}</option>)}
+                        </select>
+                    </div>
                 </div>
             </div>
 

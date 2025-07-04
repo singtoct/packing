@@ -4,15 +4,70 @@ import ReactDOM from 'react-dom/client';
 import { OrderItem, BurmeseTranslation, InventoryItem } from '../types';
 import { getOrders, saveOrders, getInventory, saveInventory } from '../services/storageService';
 import { translateToBurmese } from '../services/geminiService';
-import { PlusCircleIcon, Trash2Icon, PrinterIcon, LoaderIcon, TruckIcon } from './icons/Icons';
+import { PlusCircleIcon, Trash2Icon, PrinterIcon, LoaderIcon, TruckIcon, EditIcon } from './icons/Icons';
 import { CTPackingLogo } from '../assets/logo';
+
+// Modal for editing an order
+const EditOrderModal: React.FC<{
+    order: OrderItem;
+    onClose: () => void;
+    onSave: (updatedOrder: OrderItem) => void;
+}> = ({ order, onClose, onSave }) => {
+    const [editedOrder, setEditedOrder] = useState<OrderItem>(order);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value, type } = e.target;
+        setEditedOrder(prev => ({
+            ...prev,
+            [name]: type === 'number' ? Number(value) : value,
+        }));
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onSave(editedOrder);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+            <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-lg">
+                <h2 className="text-2xl font-bold mb-6">แก้ไขออเดอร์</h2>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                     <div>
+                        <label htmlFor="editItemName" className="block text-sm font-medium text-gray-700">ชื่อสินค้า</label>
+                        <input type="text" id="editItemName" name="name" value={editedOrder.name} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
+                    </div>
+                    <div>
+                        <label htmlFor="editItemColor" className="block text-sm font-medium text-gray-700">สี</label>
+                        <input type="text" id="editItemColor" name="color" value={editedOrder.color} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
+                    </div>
+                    <div>
+                        <label htmlFor="editItemQuantity" className="block text-sm font-medium text-gray-700">จำนวน (ลัง)</label>
+                        <input type="number" id="editItemQuantity" name="quantity" min="1" value={editedOrder.quantity} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
+                    </div>
+                    <div>
+                        <label htmlFor="editDueDate" className="block text-sm font-medium text-gray-700">วันครบกำหนด</label>
+                        <input type="date" id="editDueDate" name="dueDate" value={editedOrder.dueDate} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
+                    </div>
+                    <div className="flex justify-end gap-4 pt-4">
+                        <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                            ยกเลิก
+                        </button>
+                        <button type="submit" className="px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            บันทึกการเปลี่ยนแปลง
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
 
 // This component is now purely for display in the print window. The print action is triggered externally.
 const PrintOrderView: React.FC<{ orders: OrderItem[], translations: BurmeseTranslation }> = ({ orders, translations }) => {
     const getItemName = (name: string) => translations[name] || name;
-
     const sortedOrders = [...orders].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-
     return (
         <div className="p-8 font-sans">
             <style>{`
@@ -74,6 +129,7 @@ export const OrderManagementTab: React.FC = () => {
     const [newDueDate, setNewDueDate] = useState('');
     const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
     const [isPrintingSelected, setIsPrintingSelected] = useState(false);
+    const [editingOrder, setEditingOrder] = useState<OrderItem | null>(null);
 
     useEffect(() => {
         const today = new Date().toISOString().split('T')[0];
@@ -84,8 +140,7 @@ export const OrderManagementTab: React.FC = () => {
             setInventory(getInventory());
         };
 
-        handleStorageChange(); // Initial load
-
+        handleStorageChange();
         window.addEventListener('storage', handleStorageChange);
         return () => window.removeEventListener('storage', handleStorageChange);
     }, []);
@@ -112,6 +167,11 @@ export const OrderManagementTab: React.FC = () => {
         setNewItemName('');
         setNewItemColor('');
         setNewItemQuantity(1);
+    };
+
+     const handleUpdateOrder = (updatedOrder: OrderItem) => {
+        setOrders(prevOrders => prevOrders.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+        setEditingOrder(null);
     };
 
     const handleDeleteOrder = (id: string) => {
@@ -156,7 +216,6 @@ export const OrderManagementTab: React.FC = () => {
             return;
         }
     
-        // Update inventory
         itemInInventory.quantity -= orderToShip.quantity;
         const updatedInventory = itemInInventory.quantity > 0 
             ? currentInventory.map(i => i.name === inventoryItemName ? itemInInventory : i)
@@ -165,11 +224,9 @@ export const OrderManagementTab: React.FC = () => {
         saveInventory(updatedInventory);
         setInventory(updatedInventory);
     
-        // Update orders: remove the shipped order
         const updatedOrders = orders.filter(o => o.id !== orderId);
         setOrders(updatedOrders); 
         
-        // Also update selected orders if it was selected
         if (selectedOrders.has(orderId)) {
             handleSelectOrder(orderId, false);
         }
@@ -177,14 +234,12 @@ export const OrderManagementTab: React.FC = () => {
 
     const handlePrintSelected = async () => {
         if (selectedOrders.size === 0) return;
-
         setIsPrintingSelected(true);
         const ordersToPrint = orders.filter(o => selectedOrders.has(o.id));
         const uniqueItemNames = [...new Set(ordersToPrint.map(o => o.name))];
         
         try {
             const translations = await translateToBurmese(uniqueItemNames);
-    
             const printWindow = window.open('', '_blank', 'width=800,height=600');
             if (printWindow) {
                 const printRoot = document.createElement('div');
@@ -223,6 +278,13 @@ export const OrderManagementTab: React.FC = () => {
 
     return (
         <div>
+            {editingOrder && (
+                <EditOrderModal
+                    order={editingOrder}
+                    onClose={() => setEditingOrder(null)}
+                    onSave={handleUpdateOrder}
+                />
+            )}
             <h2 className="text-2xl font-bold mb-6">สร้างออเดอร์ใหม่</h2>
             <form onSubmit={handleAddOrder} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end bg-gray-50 p-4 rounded-lg border">
                 <div className="col-span-1 md:col-span-2">
@@ -308,6 +370,9 @@ export const OrderManagementTab: React.FC = () => {
                                             title={hasEnoughStock ? `จัดส่งออเดอร์ (มี ${availableStock} ในสต็อก)` : `สต็อกไม่พอ (มี ${availableStock} / ต้องการ ${order.quantity})`}
                                         >
                                             <TruckIcon className="w-5 h-5" />
+                                        </button>
+                                         <button onClick={() => setEditingOrder(order)} className="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-100 rounded-full transition-colors" aria-label={`Edit order ${order.name}`}>
+                                            <EditIcon className="w-5 h-5" />
                                         </button>
                                         <button onClick={() => handleDeleteOrder(order.id)} className="p-2 text-red-500 hover:text-red-700 hover:bg-red-100 rounded-full transition-colors" aria-label={`Delete order ${order.name}`}>
                                             <Trash2Icon className="w-5 h-5" />

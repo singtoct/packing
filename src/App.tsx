@@ -5,13 +5,23 @@ import { PackingLogTab } from './components/PackingLogTab';
 import { StatisticsTab } from './components/StatisticsTab';
 import { InventoryTab } from './components/InventoryTab';
 import { AISuggestions } from './components/AISuggestions';
-import { BoxIcon, ListOrderedIcon, BarChart3Icon, ArchiveIcon } from './components/icons/Icons';
+import { BoxIcon, ListOrderedIcon, BarChart3Icon, ArchiveIcon, BellIcon } from './components/icons/Icons';
 import { CTPackingLogo } from './assets/logo';
+import { getInventory } from './services/storageService';
+import { InventoryItem } from './types';
 
 type Tab = 'orders' | 'logs' | 'inventory' | 'stats';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('orders');
+  const [lowStockItems, setLowStockItems] = useState<InventoryItem[]>([]);
+  const [isAlertsOpen, setIsAlertsOpen] = useState(false);
+
+  const checkLowStock = () => {
+    const inventory = getInventory();
+    const lowItems = inventory.filter(item => item.minStock && item.quantity < item.minStock);
+    setLowStockItems(lowItems);
+  };
 
   useEffect(() => {
     document.title = 'CT.ELECTRIC - Packing System';
@@ -19,6 +29,13 @@ const App: React.FC = () => {
     if (favicon) {
       favicon.href = CTPackingLogo;
     }
+    
+    checkLowStock(); // Initial check
+    window.addEventListener('storage', checkLowStock); // Listen for changes from other tabs
+    
+    return () => {
+      window.removeEventListener('storage', checkLowStock);
+    };
   }, []);
 
   const renderTabContent = () => {
@@ -26,9 +43,9 @@ const App: React.FC = () => {
       case 'orders':
         return <OrderManagementTab />;
       case 'logs':
-        return <PackingLogTab />;
+        return <PackingLogTab setLowStockCheck={checkLowStock} />;
       case 'inventory':
-        return <InventoryTab />;
+        return <InventoryTab setLowStockCheck={checkLowStock}/>;
       case 'stats':
         return <StatisticsTab />;
       default:
@@ -52,7 +69,7 @@ const App: React.FC = () => {
 
   return (
     <div className="bg-gray-100 min-h-screen text-gray-800">
-      <header className="bg-white shadow-sm sticky top-0 z-10">
+      <header className="bg-white shadow-sm sticky top-0 z-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-3">
             <div className="flex items-center gap-4">
@@ -60,24 +77,53 @@ const App: React.FC = () => {
                <div className="border-l border-gray-300 h-10"></div>
               <h1 className="text-xl sm:text-2xl font-bold text-gray-800">ระบบจัดการออเดอร์แพ็คกิ้ง</h1>
             </div>
-            <nav className="flex items-center gap-2 p-1 bg-gray-100 rounded-lg">
-              <TabButton tabName="orders" currentTab={activeTab} setTab={setActiveTab}>
-                <ListOrderedIcon className="w-5 h-5" />
-                <span>สร้างออเดอร์</span>
-              </TabButton>
-              <TabButton tabName="logs" currentTab={activeTab} setTab={setActiveTab}>
-                <BoxIcon className="w-5 h-5" />
-                <span>บันทึกการแพ็ค</span>
-              </TabButton>
-              <TabButton tabName="inventory" currentTab={activeTab} setTab={setActiveTab}>
-                <ArchiveIcon className="w-5 h-5" />
-                <span>สต็อกสินค้า</span>
-              </TabButton>
-              <TabButton tabName="stats" currentTab={activeTab} setTab={setActiveTab}>
-                <BarChart3Icon className="w-5 h-5" />
-                <span>สถิติ</span>
-              </TabButton>
-            </nav>
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <button onClick={() => setIsAlertsOpen(!isAlertsOpen)} className="relative p-2 text-gray-600 hover:text-blue-600 hover:bg-gray-100 rounded-full">
+                  <BellIcon className="w-6 h-6" />
+                  {lowStockItems.length > 0 && (
+                    <span className="absolute top-0 right-0 block h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center ring-2 ring-white">
+                      {lowStockItems.length}
+                    </span>
+                  )}
+                </button>
+                {isAlertsOpen && (
+                  <div className="absolute right-0 mt-2 w-72 bg-white border border-gray-200 rounded-lg shadow-xl z-30">
+                    <div className="p-3 border-b font-bold text-gray-700">รายการสต็อกต่ำ</div>
+                    {lowStockItems.length > 0 ? (
+                      <ul className="max-h-80 overflow-y-auto">
+                        {lowStockItems.map(item => (
+                           <li key={item.name} className="px-3 py-2 border-b text-sm hover:bg-gray-50">
+                             <p className="font-semibold">{item.name}</p>
+                             <p className="text-red-600">มี: {item.quantity} (ขั้นต่ำ: {item.minStock})</p>
+                           </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="p-4 text-sm text-gray-500">ไม่มีรายการสต็อกต่ำในขณะนี้</p>
+                    )}
+                  </div>
+                )}
+              </div>
+              <nav className="flex items-center gap-2 p-1 bg-gray-100 rounded-lg">
+                <TabButton tabName="orders" currentTab={activeTab} setTab={setActiveTab}>
+                  <ListOrderedIcon className="w-5 h-5" />
+                  <span>สร้างออเดอร์</span>
+                </TabButton>
+                <TabButton tabName="logs" currentTab={activeTab} setTab={setActiveTab}>
+                  <BoxIcon className="w-5 h-5" />
+                  <span>บันทึกการแพ็ค</span>
+                </TabButton>
+                <TabButton tabName="inventory" currentTab={activeTab} setTab={setActiveTab}>
+                  <ArchiveIcon className="w-5 h-5" />
+                  <span>สต็อกสินค้า</span>
+                </TabButton>
+                <TabButton tabName="stats" currentTab={activeTab} setTab={setActiveTab}>
+                  <BarChart3Icon className="w-5 h-5" />
+                  <span>สถิติ</span>
+                </TabButton>
+              </nav>
+            </div>
           </div>
         </div>
       </header>

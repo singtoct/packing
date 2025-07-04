@@ -8,15 +8,17 @@ export interface OrderItem {
 }
 
 export interface PackingLogEntry {
-  id: string;
+  id:string;
   date: string;
   name: string;
   quantity: number;
+  packerName: string;
 }
 
 export interface InventoryItem {
     name: string;
     quantity: number;
+    minStock?: number;
 }
 
 export interface AiSuggestion {

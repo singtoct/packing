@@ -5,11 +5,14 @@ import { PackingLogEntry } from '../types';
 import { getPackingLogs, savePackingLogs, getOrders, getInventory, saveInventory } from '../services/storageService';
 import { PlusCircleIcon, Trash2Icon, FileSpreadsheetIcon, DownloadIcon } from './icons/Icons';
 
-export const PackingLogTab: React.FC = () => {
+const EMPLOYEES = ['สมชาย', 'สมศรี', 'มานะ', 'ปิติ', 'ชูใจ', 'สมศักดิ์', 'อมรรัตน์'];
+
+export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ setLowStockCheck }) => {
     const [logs, setLogs] = useState<PackingLogEntry[]>([]);
     const [logItemName, setLogItemName] = useState('');
     const [logQuantity, setLogQuantity] = useState(1);
     const [logDate, setLogDate] = useState('');
+    const [packerName, setPackerName] = useState(EMPLOYEES[0]);
     const [availableItems, setAvailableItems] = useState<string[]>([]);
 
     useEffect(() => {
@@ -26,7 +29,7 @@ export const PackingLogTab: React.FC = () => {
             setLogItemName(uniqueItemNames[0]);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Run only once on mount
+    }, []); 
 
     useEffect(() => {
         savePackingLogs(logs);
@@ -34,16 +37,16 @@ export const PackingLogTab: React.FC = () => {
 
     const handleAddLog = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!logItemName.trim() || !logDate) return;
+        if (!logItemName.trim() || !logDate || !packerName) return;
         
         const newLog: PackingLogEntry = {
             id: new Date().toISOString(),
             date: logDate,
             name: logItemName.trim(),
             quantity: logQuantity,
+            packerName: packerName,
         };
 
-        // Update inventory
         const currentInventory = getInventory();
         const itemIndex = currentInventory.findIndex(item => item.name === newLog.name);
         if (itemIndex > -1) {
@@ -52,8 +55,8 @@ export const PackingLogTab: React.FC = () => {
             currentInventory.push({ name: newLog.name, quantity: newLog.quantity });
         }
         saveInventory(currentInventory);
+        setLowStockCheck();
 
-        // Update logs UI
         const updatedLogs = [newLog, ...logs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         setLogs(updatedLogs);
         setLogQuantity(1);
@@ -63,18 +66,17 @@ export const PackingLogTab: React.FC = () => {
         const logToDelete = logs.find(log => log.id === id);
         if (!logToDelete) return;
 
-        // Update inventory
         const currentInventory = getInventory();
         const itemIndex = currentInventory.findIndex(item => item.name === logToDelete.name);
         if (itemIndex > -1) {
             currentInventory[itemIndex].quantity -= logToDelete.quantity;
-            if (currentInventory[itemIndex].quantity <= 0) {
-                currentInventory.splice(itemIndex, 1);
+            if (currentInventory[itemIndex].quantity < 0) {
+                 currentInventory[itemIndex].quantity = 0; // Prevent negative inventory
             }
         }
         saveInventory(currentInventory);
+        setLowStockCheck();
         
-        // Update logs UI
         setLogs(prevLogs => prevLogs.filter(log => log.id !== id));
     };
 
@@ -119,11 +121,12 @@ export const PackingLogTab: React.FC = () => {
         const dataToExport = logs.map(log => ({
             'วันที่': new Date(log.date).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }),
             'ชื่อสินค้า': log.name,
-            'จำนวน (ลัง)': log.quantity
+            'จำนวน (ลัง)': log.quantity,
+            'ผู้บันทึก': log.packerName
         }));
         
         const ws = XLSX.utils.json_to_sheet(dataToExport);
-        ws['!cols'] = [{ wch: 15 }, { wch: 50 }, { wch: 15 }];
+        ws['!cols'] = [{ wch: 15 }, { wch: 50 }, { wch: 15 }, { wch: 20 }];
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Packing History");
         XLSX.writeFile(wb, `Packing_History_${new Date().toISOString().split('T')[0]}.xlsx`);
@@ -145,7 +148,7 @@ export const PackingLogTab: React.FC = () => {
                 </div>
             </div>
 
-            <form onSubmit={handleAddLog} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end bg-gray-50 p-4 rounded-lg border mb-10">
+            <form onSubmit={handleAddLog} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end bg-gray-50 p-4 rounded-lg border mb-10">
                 <div className="md:col-span-2">
                     <label htmlFor="logItemName" className="block text-sm font-medium text-gray-700">สินค้าที่แพ็ค</label>
                     <select id="logItemName" value={logItemName} onChange={e => setLogItemName(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
@@ -158,10 +161,16 @@ export const PackingLogTab: React.FC = () => {
                     <input type="number" id="logQuantity" min="1" value={logQuantity} onChange={e => setLogQuantity(Number(e.target.value))} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
                 </div>
                 <div>
+                    <label htmlFor="packerName" className="block text-sm font-medium text-gray-700">ผู้บันทึก</label>
+                     <select id="packerName" value={packerName} onChange={e => setPackerName(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
+                       {EMPLOYEES.map(name => <option key={name} value={name}>{name}</option>)}
+                    </select>
+                </div>
+                <div>
                     <label htmlFor="logDate" className="block text-sm font-medium text-gray-700">วันที่แพ็ค</label>
                     <input type="date" id="logDate" value={logDate} onChange={e => setLogDate(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
                 </div>
-                <div className="col-span-1 md:col-span-4 flex justify-end">
+                <div className="col-span-1 md:col-span-5 flex justify-end">
                      <button type="submit" className="inline-flex items-center justify-center gap-2 w-full md:w-auto px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
                         <PlusCircleIcon className="w-5 h-5" />
                         บันทึกข้อมูล
@@ -177,6 +186,7 @@ export const PackingLogTab: React.FC = () => {
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">วันที่</th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อสินค้า</th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">จำนวน (ลัง)</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ผู้บันทึก</th>
                             <th scope="col" className="relative px-6 py-3"><span className="sr-only">ลบ</span></th>
                         </tr>
                     </thead>
@@ -185,15 +195,16 @@ export const PackingLogTab: React.FC = () => {
                             logs.map(log => (
                                 <tr key={log.id}>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{new Date(log.date).toLocaleDateString('th-TH')}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.name}</td>
+                                    <td className="px-6 py-4 whitespace-normal text-sm text-gray-500">{log.name}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.quantity}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-semibold">{log.packerName}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <button onClick={() => handleDeleteLog(log.id)} className="text-red-600 hover:text-red-900" aria-label={`Delete log for ${log.name}`}><Trash2Icon className="w-4 h-4" /></button>
                                     </td>
                                 </tr>
                             ))
                         ) : (
-                            <tr><td colSpan={4} className="text-center text-gray-500 py-8">ยังไม่มีการบันทึก</td></tr>
+                            <tr><td colSpan={5} className="text-center text-gray-500 py-8">ยังไม่มีการบันทึก</td></tr>
                         )}
                     </tbody>
                 </table>
