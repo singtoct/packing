@@ -1,9 +1,10 @@
 
-import { OrderItem, PackingLogEntry, InventoryItem } from '../types';
+import { OrderItem, PackingLogEntry, InventoryItem, Employee } from '../types';
 
 const ORDERS_KEY = 'packing_orders';
 const LOGS_KEY = 'packing_logs';
 const INVENTORY_KEY = 'packing_inventory';
+const EMPLOYEES_KEY = 'packing_employees';
 
 // Generic getter
 const getItems = <T,>(key: string): T[] => {
@@ -36,3 +37,23 @@ export const savePackingLogs = (logs: PackingLogEntry[]): void => saveItems<Pack
 // Inventory specific functions
 export const getInventory = (): InventoryItem[] => getItems<InventoryItem>(INVENTORY_KEY);
 export const saveInventory = (inventory: InventoryItem[]): void => saveItems<InventoryItem>(INVENTORY_KEY, inventory);
+
+// Employee specific functions
+const INITIAL_EMPLOYEES = ['สมชาย', 'สมศรี', 'มานะ', 'ปิติ', 'ชูใจ', 'สมศักดิ์', 'อมรรัตน์'];
+
+export const getEmployees = (): Employee[] => {
+    const items = getItems<Employee>(EMPLOYEES_KEY);
+    if (items.length === 0) {
+        // First run, initialize with default employees from the old list
+        const defaultEmployees: Employee[] = INITIAL_EMPLOYEES.map(name => ({
+            id: crypto.randomUUID(),
+            name,
+            hireDate: new Date().toISOString().split('T')[0],
+        }));
+        saveItems<Employee>(EMPLOYEES_KEY, defaultEmployees);
+        return defaultEmployees;
+    }
+    return items.sort((a,b) => a.name.localeCompare(b.name));
+};
+
+export const saveEmployees = (employees: Employee[]): void => saveItems<Employee>(EMPLOYEES_KEY, employees);

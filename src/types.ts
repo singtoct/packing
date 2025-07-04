@@ -21,6 +21,12 @@ export interface InventoryItem {
     minStock?: number;
 }
 
+export interface Employee {
+  id: string;
+  name: string;
+  hireDate: string;
+}
+
 export interface AiSuggestion {
     title: string;
     description: string;

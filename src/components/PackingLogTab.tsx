@@ -1,25 +1,31 @@
 
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
-import { PackingLogEntry } from '../types';
-import { getPackingLogs, savePackingLogs, getOrders, getInventory, saveInventory } from '../services/storageService';
+import { PackingLogEntry, Employee } from '../types';
+import { getPackingLogs, savePackingLogs, getOrders, getInventory, saveInventory, getEmployees } from '../services/storageService';
 import { PlusCircleIcon, Trash2Icon, FileSpreadsheetIcon, DownloadIcon } from './icons/Icons';
-
-const EMPLOYEES = ['สมชาย', 'สมศรี', 'มานะ', 'ปิติ', 'ชูใจ', 'สมศักดิ์', 'อมรรัตน์'];
 
 export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ setLowStockCheck }) => {
     const [logs, setLogs] = useState<PackingLogEntry[]>([]);
     const [logItemName, setLogItemName] = useState('');
     const [logQuantity, setLogQuantity] = useState(1);
     const [logDate, setLogDate] = useState('');
-    const [packerName, setPackerName] = useState(EMPLOYEES[0]);
+    const [packerName, setPackerName] = useState('');
     const [availableItems, setAvailableItems] = useState<string[]>([]);
+    const [employees, setEmployees] = useState<Employee[]>([]);
 
     useEffect(() => {
         const storedLogs = getPackingLogs();
         setLogs(storedLogs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+        
         const today = new Date().toISOString().split('T')[0];
         setLogDate(today);
+
+        const loadedEmployees = getEmployees();
+        setEmployees(loadedEmployees);
+        if (loadedEmployees.length > 0) {
+            setPackerName(loadedEmployees[0].name);
+        }
 
         const orders = getOrders();
         const uniqueItemNames = [...new Set(orders.map(o => `${o.name} (${o.color})`))].sort();
@@ -163,7 +169,7 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
                 <div>
                     <label htmlFor="packerName" className="block text-sm font-medium text-gray-700">ผู้บันทึก</label>
                      <select id="packerName" value={packerName} onChange={e => setPackerName(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
-                       {EMPLOYEES.map(name => <option key={name} value={name}>{name}</option>)}
+                       {employees.map(emp => <option key={emp.id} value={emp.name}>{emp.name}</option>)}
                     </select>
                 </div>
                 <div>
