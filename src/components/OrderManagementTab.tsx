@@ -1,10 +1,10 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom/client';
-import { OrderItem, BurmeseTranslation } from '../types';
-import { getOrders, saveOrders } from '../services/storageService';
+import { OrderItem, BurmeseTranslation, InventoryItem } from '../types';
+import { getOrders, saveOrders, getInventory, saveInventory } from '../services/storageService';
 import { translateToBurmese } from '../services/geminiService';
-import { PlusCircleIcon, Trash2Icon, PrinterIcon, LoaderIcon } from './icons/Icons';
+import { PlusCircleIcon, Trash2Icon, PrinterIcon, LoaderIcon, TruckIcon } from './icons/Icons';
 import { CTPackingLogo } from '../assets/logo';
 
 // This component is now purely for display in the print window. The print action is triggered externally.
@@ -67,6 +67,7 @@ const PrintOrderView: React.FC<{ orders: OrderItem[], translations: BurmeseTrans
 
 export const OrderManagementTab: React.FC = () => {
     const [orders, setOrders] = useState<OrderItem[]>([]);
+    const [inventory, setInventory] = useState<InventoryItem[]>([]);
     const [newItemName, setNewItemName] = useState('');
     const [newItemColor, setNewItemColor] = useState('');
     const [newItemQuantity, setNewItemQuantity] = useState(1);
@@ -75,14 +76,27 @@ export const OrderManagementTab: React.FC = () => {
     const [isPrintingSelected, setIsPrintingSelected] = useState(false);
 
     useEffect(() => {
-        setOrders(getOrders());
         const today = new Date().toISOString().split('T')[0];
         setNewDueDate(today);
+        
+        const handleStorageChange = () => {
+            setOrders(getOrders());
+            setInventory(getInventory());
+        };
+
+        handleStorageChange(); // Initial load
+
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
     }, []);
 
     useEffect(() => {
         saveOrders(orders);
     }, [orders]);
+
+    const inventoryMap = useMemo(() => 
+        new Map(inventory.map(item => [item.name, item.quantity])),
+    [inventory]);
 
     const handleAddOrder = (e: React.FormEvent) => {
         e.preventDefault();
@@ -129,6 +143,38 @@ export const OrderManagementTab: React.FC = () => {
         }
     };
 
+    const handleShipOrder = (orderId: string) => {
+        const orderToShip = orders.find(o => o.id === orderId);
+        if (!orderToShip) return;
+    
+        const currentInventory = getInventory();
+        const inventoryItemName = `${orderToShip.name} (${orderToShip.color})`;
+        const itemInInventory = currentInventory.find(i => i.name === inventoryItemName);
+    
+        if (!itemInInventory || itemInInventory.quantity < orderToShip.quantity) {
+            alert(`สินค้าในสต็อกไม่เพียงพอ! ต้องการ ${orderToShip.quantity} แต่มีเพียง ${itemInInventory?.quantity || 0} ลัง`);
+            return;
+        }
+    
+        // Update inventory
+        itemInInventory.quantity -= orderToShip.quantity;
+        const updatedInventory = itemInInventory.quantity > 0 
+            ? currentInventory.map(i => i.name === inventoryItemName ? itemInInventory : i)
+            : currentInventory.filter(i => i.name !== inventoryItemName);
+        
+        saveInventory(updatedInventory);
+        setInventory(updatedInventory);
+    
+        // Update orders: remove the shipped order
+        const updatedOrders = orders.filter(o => o.id !== orderId);
+        setOrders(updatedOrders); 
+        
+        // Also update selected orders if it was selected
+        if (selectedOrders.has(orderId)) {
+            handleSelectOrder(orderId, false);
+        }
+    };
+
     const handlePrintSelected = async () => {
         if (selectedOrders.size === 0) return;
 
@@ -160,13 +206,10 @@ export const OrderManagementTab: React.FC = () => {
                 const root = ReactDOM.createRoot(printRoot);
                 root.render(<PrintOrderView orders={ordersToPrint} translations={translations} />);
 
-                printWindow.onafterprint = () => {
-                    printWindow.close();
-                };
+                printWindow.onafterprint = () => printWindow.close();
     
-                // Wait for styles and content to load, then print
                 setTimeout(() => {
-                    printWindow.focus(); // focus is important for some browsers
+                    printWindow.focus();
                     printWindow.print();
                 }, 500);
             }
@@ -232,7 +275,12 @@ export const OrderManagementTab: React.FC = () => {
                     </div>
                     <div className="space-y-px bg-gray-200">
                         {orders.length > 0 ? (
-                            orders.map(order => (
+                            orders.map(order => {
+                                const inventoryItemName = `${order.name} (${order.color})`;
+                                const availableStock = inventoryMap.get(inventoryItemName) || 0;
+                                const hasEnoughStock = availableStock >= order.quantity;
+
+                                return (
                                 <div key={order.id} className="bg-white p-4 flex flex-wrap items-center justify-between gap-4">
                                     <div className="flex items-center gap-4 flex-grow min-w-[250px]">
                                         <input 
@@ -252,12 +300,22 @@ export const OrderManagementTab: React.FC = () => {
                                         <span className="font-bold text-red-600">{new Date(order.dueDate).toLocaleDateString('th-TH')}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
+                                        <button 
+                                            onClick={() => handleShipOrder(order.id)} 
+                                            disabled={!hasEnoughStock}
+                                            className="p-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-full transition-colors disabled:text-gray-400 disabled:bg-gray-100 disabled:cursor-not-allowed" 
+                                            aria-label={hasEnoughStock ? `Ship order ${order.name}`: `Not enough stock for ${order.name}`}
+                                            title={hasEnoughStock ? `จัดส่งออเดอร์ (มี ${availableStock} ในสต็อก)` : `สต็อกไม่พอ (มี ${availableStock} / ต้องการ ${order.quantity})`}
+                                        >
+                                            <TruckIcon className="w-5 h-5" />
+                                        </button>
                                         <button onClick={() => handleDeleteOrder(order.id)} className="p-2 text-red-500 hover:text-red-700 hover:bg-red-100 rounded-full transition-colors" aria-label={`Delete order ${order.name}`}>
                                             <Trash2Icon className="w-5 h-5" />
                                         </button>
                                     </div>
                                 </div>
-                            ))
+                            );
+                        })
                         ) : (
                             <p className="text-center text-gray-500 py-8 bg-white">ยังไม่มีออเดอร์</p>
                         )}
