@@ -1,9 +1,14 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { RawMaterial, BillOfMaterial, MoldingLogEntry } from '../types';
 import { getRawMaterials, saveRawMaterials, getBOMs, saveBOMs, getMoldingLogs } from '../services/storageService';
 import { PlusCircleIcon, Trash2Icon, EditIcon } from './icons/Icons';
 
 type View = 'inventory' | 'bom';
+
+const commonInputStyle = "px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500";
+const buttonPrimaryStyle = "inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700";
+const buttonSecondaryStyle = "inline-flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50";
 
 export const RawMaterialsTab: React.FC = () => {
     const [view, setView] = useState<View>('inventory');
@@ -56,20 +61,29 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
     const [name, setName] = useState('');
     const [quantity, setQuantity] = useState(0);
     const [unit, setUnit] = useState('kg');
+    const [costPerUnit, setCostPerUnit] = useState<number | ''>('');
 
     const handleAddMaterial = (e: React.FormEvent) => {
         e.preventDefault();
         if (!name.trim() || !unit.trim()) return;
-        const newMaterial: RawMaterial = { id: crypto.randomUUID(), name, quantity, unit };
+        const newMaterial: RawMaterial = { 
+            id: crypto.randomUUID(), 
+            name, 
+            quantity, 
+            unit,
+            costPerUnit: costPerUnit === '' ? undefined : Number(costPerUnit)
+        };
         const updatedMaterials = [...rawMaterials, newMaterial].sort((a, b) => a.name.localeCompare(b.name));
         setRawMaterials(updatedMaterials);
         saveRawMaterials(updatedMaterials);
         setName('');
         setQuantity(0);
+        setUnit('kg');
+        setCostPerUnit('');
     };
     
-    const handleUpdateQuantity = (id: string, newQuantity: number) => {
-        const updated = rawMaterials.map(m => m.id === id ? { ...m, quantity: newQuantity } : m);
+    const handleUpdateField = (id: string, field: 'quantity' | 'costPerUnit', value: number) => {
+        const updated = rawMaterials.map(m => m.id === id ? { ...m, [field]: value } : m);
         setRawMaterials(updated);
         saveRawMaterials(updated);
     };
@@ -84,20 +98,24 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
 
     return (
         <div>
-            <form onSubmit={handleAddMaterial} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end bg-gray-50 p-4 rounded-lg border mb-8">
-                <div>
+            <form onSubmit={handleAddMaterial} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end bg-gray-50 p-4 rounded-lg border mb-8">
+                <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700">ชื่อวัตถุดิบ</label>
-                    <input type="text" value={name} onChange={e => setName(e.target.value)} className="mt-1 block w-full input" required />
+                    <input type="text" value={name} onChange={e => setName(e.target.value)} className={`mt-1 block w-full ${commonInputStyle}`} required />
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-gray-700">จำนวน</label>
-                    <input type="number" value={quantity} onChange={e => setQuantity(Number(e.target.value))} className="mt-1 block w-full input" />
+                    <input type="number" value={quantity} onChange={e => setQuantity(Number(e.target.value))} className={`mt-1 block w-full ${commonInputStyle}`} />
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-gray-700">หน่วย</label>
-                    <input type="text" value={unit} onChange={e => setUnit(e.target.value)} placeholder="เช่น kg, ชิ้น, ม้วน" className="mt-1 block w-full input" required />
+                    <input type="text" value={unit} onChange={e => setUnit(e.target.value)} placeholder="เช่น kg, ชิ้น, ม้วน" className={`mt-1 block w-full ${commonInputStyle}`} required />
                 </div>
-                <button type="submit" className="button-primary self-end h-10">
+                 <div>
+                    <label className="block text-sm font-medium text-gray-700">ต้นทุน/หน่วย</label>
+                    <input type="number" step="0.01" value={costPerUnit} onChange={e => setCostPerUnit(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Optional" className={`mt-1 block w-full ${commonInputStyle}`} />
+                </div>
+                <button type="submit" className={`${buttonPrimaryStyle} self-end h-10 col-span-full md:col-span-1`}>
                     <PlusCircleIcon className="w-5 h-5" /> เพิ่มวัตถุดิบ
                 </button>
             </form>
@@ -105,26 +123,37 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
                 <table className="min-w-full bg-white divide-y divide-gray-200 rounded-lg shadow-sm border">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th className="th-cell">ชื่อวัตถุดิบ</th>
-                            <th className="th-cell w-1/4">จำนวนในสต็อก</th>
-                            <th className="th-cell w-1/4">หน่วย</th>
-                            <th className="th-cell w-20"></th>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">ชื่อวัตถุดิบ</th>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">จำนวนในสต็อก</th>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">หน่วย</th>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">ต้นทุน/หน่วย (บาท)</th>
+                            <th className="px-6 py-3 w-20"></th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                         {rawMaterials.map(mat => (
                             <tr key={mat.id}>
-                                <td className="td-cell">{mat.name}</td>
-                                <td className="td-cell">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{mat.name}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                     <input 
                                         type="number" 
                                         value={mat.quantity} 
-                                        onChange={e => handleUpdateQuantity(mat.id, Number(e.target.value))}
-                                        className="w-24 input text-right"
+                                        onChange={e => handleUpdateField(mat.id, 'quantity', Number(e.target.value))}
+                                        className={`w-24 text-right ${commonInputStyle}`}
                                     />
                                 </td>
-                                <td className="td-cell">{mat.unit}</td>
-                                <td className="td-cell">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{mat.unit}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                     <input 
+                                        type="number"
+                                        step="0.01" 
+                                        value={mat.costPerUnit ?? ''} 
+                                        onChange={e => handleUpdateField(mat.id, 'costPerUnit', Number(e.target.value))}
+                                        className={`w-24 text-right ${commonInputStyle}`}
+                                        placeholder="N/A"
+                                    />
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                     <button onClick={() => handleDeleteMaterial(mat.id)} className="text-red-500 hover:text-red-700"><Trash2Icon className="w-5 h-5" /></button>
                                 </td>
                             </tr>
@@ -206,18 +235,18 @@ const BOMView: React.FC<{ boms: BillOfMaterial[], setBoms: React.Dispatch<React.
                         <div className="space-y-4">
                             {editingBom.components.map((comp, index) => (
                                 <div key={index} className="flex items-center gap-2 bg-gray-50 p-3 rounded-md">
-                                    <select value={comp.rawMaterialId} onChange={e => handleUpdateComponent(index, 'rawMaterialId', e.target.value)} className="input w-1/2">
+                                    <select value={comp.rawMaterialId} onChange={e => handleUpdateComponent(index, 'rawMaterialId', e.target.value)} className={`${commonInputStyle} w-1/2`}>
                                         {rawMaterials.map(rm => <option key={rm.id} value={rm.id}>{rm.name}</option>)}
                                     </select>
-                                    <input type="number" step="0.001" value={comp.quantity} onChange={e => handleUpdateComponent(index, 'quantity', Number(e.target.value))} className="input w-1/4" />
+                                    <input type="number" step="0.001" value={comp.quantity} onChange={e => handleUpdateComponent(index, 'quantity', Number(e.target.value))} className={`${commonInputStyle} w-1/4`} />
                                     <span className="text-gray-600 w-1/4">{rawMaterialMap.get(comp.rawMaterialId)?.unit || ''} / 1 ชิ้น</span>
                                     <button onClick={() => handleRemoveComponent(index)} className="text-red-500 hover:text-red-700 p-1"><Trash2Icon className="w-5 h-5"/></button>
                                 </div>
                             ))}
                         </div>
                         <div className="mt-4 flex gap-4">
-                            <button onClick={handleAddComponent} className="button-secondary">เพิ่มส่วนประกอบ</button>
-                            <button onClick={handleSaveBom} className="button-primary">บันทึก BOM</button>
+                            <button onClick={handleAddComponent} className={buttonSecondaryStyle}>เพิ่มส่วนประกอบ</button>
+                            <button onClick={handleSaveBom} className={buttonPrimaryStyle}>บันทึก BOM</button>
                         </div>
                     </div>
                 ) : (

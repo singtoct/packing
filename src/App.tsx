@@ -1,6 +1,7 @@
 
 
 
+
 import React, { useState, useEffect } from 'react';
 import { OrderManagementTab } from './components/OrderManagementTab';
 import { PackingLogTab } from './components/PackingLogTab';
@@ -15,12 +16,17 @@ import { ProductionStatusTab } from './components/ProductionStatusTab';
 import { RawMaterialsTab } from './components/RawMaterialsTab';
 import { AnalysisTab } from './components/AnalysisTab';
 import { AISuggestions } from './components/AISuggestions';
-import { BoxIcon, ListOrderedIcon, BarChart3Icon, ArchiveIcon, BellIcon, LayoutDashboardIcon, UsersIcon, FileTextIcon, ClipboardCheckIcon, FactoryIcon, RouteIcon, BeakerIcon, SigmaIcon } from './components/icons/Icons';
+import { MaintenanceTab } from './components/MaintenanceTab';
+import { ProcurementTab } from './components/ProcurementTab';
+import { CostAnalysisTab } from './components/CostAnalysisTab';
+import { ShipmentTrackingTab } from './components/ShipmentTrackingTab';
+import { BoxIcon, ListOrderedIcon, BarChart3Icon, ArchiveIcon, BellIcon, LayoutDashboardIcon, UsersIcon, FileTextIcon, ClipboardCheckIcon, FactoryIcon, RouteIcon, BeakerIcon, SigmaIcon, ShoppingCartIcon, TruckIcon, WrenchIcon, DollarSignIcon } from './components/icons/Icons';
 import { CTPackingLogo } from './assets/logo';
 import { getInventory } from './services/storageService';
 import { InventoryItem } from './types';
 
-type Tab = 'dashboard' | 'orders' | 'molding' | 'production_status' | 'logs' | 'qc' | 'inventory' | 'stats' | 'employees' | 'reports' | 'raw_materials' | 'analysis';
+type Tab = 'dashboard' | 'orders' | 'analysis' | 'procurement' | 'molding' | 'production_status' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'stats' | 'reports';
+
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -34,7 +40,7 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    document.title = 'CT.ELECTRIC - Packing System';
+    document.title = 'CT.ELECTRIC - Production System';
     const favicon = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
     if (favicon) {
       favicon.href = CTPackingLogo;
@@ -52,9 +58,13 @@ const App: React.FC = () => {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <DashboardTab setActiveTab={setActiveTab} />;
+        return <DashboardTab setActiveTab={setActiveTab as any} />;
       case 'orders':
         return <OrderManagementTab />;
+      case 'analysis':
+        return <AnalysisTab />;
+       case 'procurement':
+        return <ProcurementTab setActiveTab={setActiveTab as any} />;
       case 'molding':
         return <MoldingTab />;
       case 'production_status':
@@ -63,27 +73,32 @@ const App: React.FC = () => {
         return <PackingLogTab setLowStockCheck={checkLowStock} />;
       case 'qc':
         return <QCTab />;
+      case 'shipments':
+        return <ShipmentTrackingTab />;
       case 'inventory':
         return <InventoryTab setLowStockCheck={checkLowStock}/>;
       case 'raw_materials':
         return <RawMaterialsTab />;
-      case 'analysis':
-        return <AnalysisTab />;
-      case 'stats':
-        return <StatisticsTab />;
+      case 'maintenance':
+        return <MaintenanceTab />;
       case 'employees':
         return <EmployeeManagementTab />;
+      case 'cost_analysis':
+        return <CostAnalysisTab />;
+      case 'stats':
+        return <StatisticsTab />;
       case 'reports':
         return <ReportingTab />;
       default:
-        return <DashboardTab setActiveTab={setActiveTab} />;
+        return <DashboardTab setActiveTab={setActiveTab as any} />;
     }
   };
 
-  const TabButton = ({ tabName, currentTab, setTab, children }: { tabName: Tab, currentTab: Tab, setTab: React.Dispatch<React.SetStateAction<Tab>>, children: React.ReactNode }) => (
+  const TabButton = ({ tabName, currentTab, setTab, children, title }: { tabName: Tab, currentTab: Tab, setTab: React.Dispatch<React.SetStateAction<Tab>>, children: React.ReactNode, title: string }) => (
     <button
       onClick={() => setTab(tabName)}
-      className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${
+      title={title}
+      className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg transition-all duration-200 whitespace-nowrap ${
         currentTab === tabName
           ? 'bg-blue-600 text-white shadow-md'
           : 'bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-700'
@@ -95,12 +110,12 @@ const App: React.FC = () => {
   );
 
   return (
-    <div className="bg-gray-100 min-h-screen text-gray-800">
+    <div className="bg-gray-100 min-h-screen text-gray-800 font-sans">
       <header className="bg-white shadow-sm sticky top-0 z-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-2">
             <div className="flex items-center gap-4">
-               <img src={CTPackingLogo} alt="CT.ELECTRIC Logo" className="h-12" />
+               <img src={CTPackingLogo} alt="CT.ELECTRIC Logo" className="h-10" />
                <div className="border-l border-gray-300 h-10"></div>
               <h1 className="text-xl sm:text-2xl font-bold text-gray-800">ระบบจัดการการผลิต</h1>
             </div>
@@ -132,56 +147,35 @@ const App: React.FC = () => {
                   </div>
                 )}
               </div>
-              <nav className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg flex-wrap">
-                <TabButton tabName="dashboard" currentTab={activeTab} setTab={setActiveTab}>
-                  <LayoutDashboardIcon className="w-5 h-5" />
-                  <span>แดชบอร์ด</span>
-                </TabButton>
-                <TabButton tabName="orders" currentTab={activeTab} setTab={setActiveTab}>
-                  <ListOrderedIcon className="w-5 h-5" />
-                  <span>ออเดอร์</span>
-                </TabButton>
-                <TabButton tabName="molding" currentTab={activeTab} setTab={setActiveTab}>
-                  <FactoryIcon className="w-5 h-5" />
-                  <span>แผนกฉีด</span>
-                </TabButton>
-                 <TabButton tabName="production_status" currentTab={activeTab} setTab={setActiveTab}>
-                  <RouteIcon className="w-5 h-5" />
-                  <span>สถานะการผลิต</span>
-                </TabButton>
-                <TabButton tabName="logs" currentTab={activeTab} setTab={setActiveTab}>
-                  <BoxIcon className="w-5 h-5" />
-                  <span>บันทึกการแพ็ค</span>
-                </TabButton>
-                <TabButton tabName="qc" currentTab={activeTab} setTab={setActiveTab}>
-                  <ClipboardCheckIcon className="w-5 h-5" />
-                  <span>ควบคุมคุณภาพ</span>
-                </TabButton>
-                <TabButton tabName="inventory" currentTab={activeTab} setTab={setActiveTab}>
-                  <ArchiveIcon className="w-5 h-5" />
-                  <span>สต็อกสินค้า</span>
-                </TabButton>
-                 <TabButton tabName="raw_materials" currentTab={activeTab} setTab={setActiveTab}>
-                  <BeakerIcon className="w-5 h-5" />
-                  <span>วัตถุดิบ</span>
-                </TabButton>
-                 <TabButton tabName="analysis" currentTab={activeTab} setTab={setActiveTab}>
-                  <SigmaIcon className="w-5 h-5" />
-                  <span>วิเคราะห์</span>
-                </TabButton>
-                <TabButton tabName="stats" currentTab={activeTab} setTab={setActiveTab}>
-                  <BarChart3Icon className="w-5 h-5" />
-                  <span>สถิติ</span>
-                </TabButton>
-                 <TabButton tabName="employees" currentTab={activeTab} setTab={setActiveTab}>
-                  <UsersIcon className="w-5 h-5" />
-                  <span>พนักงาน</span>
-                </TabButton>
-                <TabButton tabName="reports" currentTab={activeTab} setTab={setActiveTab}>
-                  <FileTextIcon className="w-5 h-5" />
-                  <span>รายงาน</span>
-                </TabButton>
+              <div className="overflow-x-auto pb-2">
+              <nav className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg flex-nowrap">
+                <TabButton title="แดชบอร์ด" tabName="dashboard" currentTab={activeTab} setTab={setActiveTab}><LayoutDashboardIcon className="w-5 h-5" /><span>แดชบอร์ด</span></TabButton>
+                
+                <div className="border-l border-gray-300 h-6 mx-1"></div>
+                
+                <TabButton title="ออเดอร์" tabName="orders" currentTab={activeTab} setTab={setActiveTab}><ListOrderedIcon className="w-5 h-5" /><span>ออเดอร์</span></TabButton>
+                <TabButton title="วิเคราะห์วัตถุดิบ" tabName="analysis" currentTab={activeTab} setTab={setActiveTab}><SigmaIcon className="w-5 h-5" /><span>วิเคราะห์</span></TabButton>
+                <TabButton title="จัดซื้อ" tabName="procurement" currentTab={activeTab} setTab={setActiveTab}><ShoppingCartIcon className="w-5 h-5" /><span>จัดซื้อ</span></TabButton>
+                <TabButton title="วัตถุดิบ" tabName="raw_materials" currentTab={activeTab} setTab={setActiveTab}><BeakerIcon className="w-5 h-5" /><span>วัตถุดิบ</span></TabButton>
+                
+                <div className="border-l border-gray-300 h-6 mx-1"></div>
+
+                <TabButton title="แผนกฉีด" tabName="molding" currentTab={activeTab} setTab={setActiveTab}><FactoryIcon className="w-5 h-5" /><span>แผนกฉีด</span></TabButton>
+                <TabButton title="สถานะการผลิต" tabName="production_status" currentTab={activeTab} setTab={setActiveTab}><RouteIcon className="w-5 h-5" /><span>สถานะผลิต</span></TabButton>
+                <TabButton title="บันทึกการแพ็ค" tabName="logs" currentTab={activeTab} setTab={setActiveTab}><BoxIcon className="w-5 h-5" /><span>แพ็ค</span></TabButton>
+                <TabButton title="ควบคุมคุณภาพ" tabName="qc" currentTab={activeTab} setTab={setActiveTab}><ClipboardCheckIcon className="w-5 h-5" /><span>QC</span></TabButton>
+                <TabButton title="สต็อกสินค้า" tabName="inventory" currentTab={activeTab} setTab={setActiveTab}><ArchiveIcon className="w-5 h-5" /><span>สต็อก</span></TabButton>
+                 <TabButton title="การจัดส่ง" tabName="shipments" currentTab={activeTab} setTab={setActiveTab}><TruckIcon className="w-5 h-5" /><span>จัดส่ง</span></TabButton>
+
+                <div className="border-l border-gray-300 h-6 mx-1"></div>
+
+                <TabButton title="บำรุงรักษา" tabName="maintenance" currentTab={activeTab} setTab={setActiveTab}><WrenchIcon className="w-5 h-5" /><span>ซ่อมบำรุง</span></TabButton>
+                <TabButton title="พนักงาน" tabName="employees" currentTab={activeTab} setTab={setActiveTab}><UsersIcon className="w-5 h-5" /><span>พนักงาน</span></TabButton>
+                 <TabButton title="วิเคราะห์ต้นทุน" tabName="cost_analysis" currentTab={activeTab} setTab={setActiveTab}><DollarSignIcon className="w-5 h-5" /><span>ต้นทุน</span></TabButton>
+                <TabButton title="สถิติ" tabName="stats" currentTab={activeTab} setTab={setActiveTab}><BarChart3Icon className="w-5 h-5" /><span>สถิติ</span></TabButton>
+                <TabButton title="รายงาน" tabName="reports" currentTab={activeTab} setTab={setActiveTab}><FileTextIcon className="w-5 h-5" /><span>รายงาน</span></TabButton>
               </nav>
+              </div>
             </div>
           </div>
         </div>

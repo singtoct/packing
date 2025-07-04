@@ -1,11 +1,13 @@
 
 
+
 export interface OrderItem {
   id: string;
   name: string;
   color: string;
   quantity: number;
   dueDate: string;
+  salePrice?: number; // Price per case
 }
 
 export interface PackingLogEntry {
@@ -59,6 +61,7 @@ export interface RawMaterial {
   name: string;
   quantity: number;
   unit: string; // e.g., 'kg', 'ชิ้น', 'ม้วน'
+  costPerUnit?: number;
 }
 
 export interface BillOfMaterial {
@@ -69,6 +72,52 @@ export interface BillOfMaterial {
   }[];
 }
 
+export interface Machine {
+  id: string;
+  name: string;
+  location: string;
+  status: 'Running' | 'Down' | 'Maintenance';
+}
+
+export interface MaintenanceLog {
+  id: string;
+  machineId: string;
+  date: string;
+  type: 'Preventive' | 'Corrective';
+  description: string;
+  downtimeHours: number;
+  technician: string;
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  contactPerson: string;
+  phone: string;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  poNumber: string;
+  supplierId: string;
+  orderDate: string;
+  expectedDate: string;
+  status: 'Draft' | 'Sent' | 'Partially Received' | 'Completed' | 'Cancelled';
+  items: {
+    rawMaterialId: string;
+    quantity: number;
+    unitPrice: number;
+  }[];
+}
+
+export interface Shipment {
+    id: string;
+    shipmentDate: string;
+    orderIds: string[]; // Can be manually entered order numbers or IDs
+    carrier: string;
+    trackingNumber: string;
+    status: 'In Transit' | 'Delivered' | 'Delayed';
+}
 
 export interface AiSuggestion {
     title: string;
