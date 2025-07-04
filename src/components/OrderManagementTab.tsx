@@ -6,16 +6,8 @@ import { translateToBurmese } from '../services/geminiService';
 import { PlusCircleIcon, Trash2Icon, PrinterIcon, LoaderIcon } from './icons/Icons';
 import { CTPackingLogo } from '../assets/logo';
 
-// This component is redesigned to handle multiple orders in a single print-friendly table view.
+// This component is now purely for display in the print window. The print action is triggered externally.
 const PrintOrderView: React.FC<{ orders: OrderItem[], translations: BurmeseTranslation }> = ({ orders, translations }) => {
-    useEffect(() => {
-        // A small timeout helps ensure all resources like fonts and images are loaded before printing.
-        setTimeout(() => {
-            window.print();
-        }, 300);
-        window.onafterprint = () => window.close();
-    }, []);
-
     const getItemName = (name: string) => translations[name] || name;
 
     const sortedOrders = [...orders].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
@@ -143,31 +135,45 @@ export const OrderManagementTab: React.FC = () => {
         const ordersToPrint = orders.filter(o => selectedOrders.has(o.id));
         const uniqueItemNames = [...new Set(ordersToPrint.map(o => o.name))];
         
-        const translations = await translateToBurmese(uniqueItemNames);
-        setIsPrintingSelected(false);
+        try {
+            const translations = await translateToBurmese(uniqueItemNames);
+    
+            const printWindow = window.open('', '_blank', 'width=800,height=600');
+            if (printWindow) {
+                const printRoot = document.createElement('div');
+                printWindow.document.body.appendChild(printRoot);
+    
+                const tailwindScript = printWindow.document.createElement('script');
+                tailwindScript.src = 'https://cdn.tailwindcss.com';
+                printWindow.document.head.appendChild(tailwindScript);
+                
+                const kanitFontLink = printWindow.document.createElement('link');
+                kanitFontLink.href = "https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap";
+                kanitFontLink.rel = "stylesheet";
+                printWindow.document.head.appendChild(kanitFontLink);
+                
+                const fontStyleEl = printWindow.document.createElement('style');
+                fontStyleEl.innerHTML = `body { font-family: 'Kanit', sans-serif; }`;
+                printWindow.document.head.appendChild(fontStyleEl);
+                
+                const root = ReactDOM.createRoot(printRoot);
+                root.render(<PrintOrderView orders={ordersToPrint} translations={translations} />);
 
-        const printWindow = window.open('', '_blank', 'width=800,height=600');
-        if (printWindow) {
-            const printRoot = document.createElement('div');
-            printWindow.document.body.appendChild(printRoot);
-
-            // Inject Tailwind via CDN and custom fonts/styles for the print window
-            const tailwindScript = printWindow.document.createElement('script');
-            tailwindScript.src = 'https://cdn.tailwindcss.com';
-            printWindow.document.head.appendChild(tailwindScript);
-            
-            const kanitFontLink = printWindow.document.createElement('link');
-            kanitFontLink.href = "https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap";
-            kanitFontLink.rel = "stylesheet";
-            printWindow.document.head.appendChild(kanitFontLink);
-            
-            const fontStyleEl = printWindow.document.createElement('style');
-            fontStyleEl.innerHTML = `body { font-family: 'Kanit', sans-serif; }`;
-            printWindow.document.head.appendChild(fontStyleEl);
-            
-            // Use ReactDOM.createRoot to render the component, allowing hooks to work correctly.
-            const root = ReactDOM.createRoot(printRoot);
-            root.render(<PrintOrderView orders={ordersToPrint} translations={translations} />);
+                printWindow.onafterprint = () => {
+                    printWindow.close();
+                };
+    
+                // Wait for styles and content to load, then print
+                setTimeout(() => {
+                    printWindow.focus(); // focus is important for some browsers
+                    printWindow.print();
+                }, 500);
+            }
+        } catch (error) {
+            console.error("Failed during print preparation:", error);
+            alert("เกิดข้อผิดพลาดในการเตรียมพิมพ์ กรุณาลองใหม่อีกครั้ง");
+        } finally {
+            setIsPrintingSelected(false);
         }
     };
 
