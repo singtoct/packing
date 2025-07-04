@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { OrderManagementTab } from './components/OrderManagementTab';
 import { PackingLogTab } from './components/PackingLogTab';
@@ -9,13 +10,14 @@ import { EmployeeManagementTab } from './components/EmployeeManagementTab';
 import { ReportingTab } from './components/ReportingTab';
 import { QCTab } from './components/QCTab';
 import { MoldingTab } from './components/MoldingTab';
+import { ProductionStatusTab } from './components/ProductionStatusTab';
 import { AISuggestions } from './components/AISuggestions';
-import { BoxIcon, ListOrderedIcon, BarChart3Icon, ArchiveIcon, BellIcon, LayoutDashboardIcon, UsersIcon, FileTextIcon, ClipboardCheckIcon, FactoryIcon } from './components/icons/Icons';
+import { BoxIcon, ListOrderedIcon, BarChart3Icon, ArchiveIcon, BellIcon, LayoutDashboardIcon, UsersIcon, FileTextIcon, ClipboardCheckIcon, FactoryIcon, RouteIcon } from './components/icons/Icons';
 import { CTPackingLogo } from './assets/logo';
 import { getInventory } from './services/storageService';
 import { InventoryItem } from './types';
 
-type Tab = 'dashboard' | 'orders' | 'molding' | 'logs' | 'qc' | 'inventory' | 'stats' | 'employees' | 'reports';
+type Tab = 'dashboard' | 'orders' | 'molding' | 'production_status' | 'logs' | 'qc' | 'inventory' | 'stats' | 'employees' | 'reports';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -52,6 +54,8 @@ const App: React.FC = () => {
         return <OrderManagementTab />;
       case 'molding':
         return <MoldingTab />;
+      case 'production_status':
+        return <ProductionStatusTab />;
       case 'logs':
         return <PackingLogTab setLowStockCheck={checkLowStock} />;
       case 'qc':
@@ -91,7 +95,7 @@ const App: React.FC = () => {
             <div className="flex items-center gap-4">
                <img src={CTPackingLogo} alt="CT.ELECTRIC Logo" className="h-12" />
                <div className="border-l border-gray-300 h-10"></div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-800">ระบบจัดการออเดอร์แพ็คกิ้ง</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-800">ระบบจัดการการผลิต</h1>
             </div>
             <div className="flex items-center gap-4">
               <div className="relative">
@@ -128,11 +132,15 @@ const App: React.FC = () => {
                 </TabButton>
                 <TabButton tabName="orders" currentTab={activeTab} setTab={setActiveTab}>
                   <ListOrderedIcon className="w-5 h-5" />
-                  <span>สร้างออเดอร์</span>
+                  <span>ออเดอร์</span>
                 </TabButton>
                 <TabButton tabName="molding" currentTab={activeTab} setTab={setActiveTab}>
                   <FactoryIcon className="w-5 h-5" />
                   <span>แผนกฉีด</span>
+                </TabButton>
+                 <TabButton tabName="production_status" currentTab={activeTab} setTab={setActiveTab}>
+                  <RouteIcon className="w-5 h-5" />
+                  <span>สถานะการผลิต</span>
                 </TabButton>
                 <TabButton tabName="logs" currentTab={activeTab} setTab={setActiveTab}>
                   <BoxIcon className="w-5 h-5" />
@@ -173,7 +181,7 @@ const App: React.FC = () => {
         </div>
       </main>
       <footer className="text-center py-4 text-gray-500 text-sm">
-        <p>CT.ELECTRIC Packing Order Management System © {new Date().getFullYear()}</p>
+        <p>CT.ELECTRIC Production Management System © {new Date().getFullYear()}</p>
       </footer>
     </div>
   );

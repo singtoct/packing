@@ -1,4 +1,5 @@
 
+
 export interface OrderItem {
   id: string;
   name: string;
@@ -23,6 +24,7 @@ export interface MoldingLogEntry {
   quantityRejected: number;
   machine: string;
   operatorName: string;
+  status: string; // e.g., 'รอแปะกันรอย', 'รอประกบ', 'เสร็จสิ้น'
 }
 
 export interface InventoryItem {

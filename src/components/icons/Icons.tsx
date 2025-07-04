@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 
 export const BoxIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -131,5 +132,14 @@ export const FactoryIcon = (props: React.SVGProps<SVGSVGElement>) => (
         <path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4l-3 3z"/>
         <path d="M19 12h-2"/>
         <path d="M19 8h-2"/>
+    </svg>
+);
+
+export const RouteIcon = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <circle cx="6" cy="18" r="3"/>
+        <circle cx="18" cy="6" r="3"/>
+        <path d="M18 9v1a2 2 0 0 1-2 2H8.7a2 2 0 0 0-1.7 1L4 21"/>
+        <path d="M6 9V8a2 2 0 0 1 2-2h4.1a2 2 0 0 0 1.7-1L15 2"/>
     </svg>
 );

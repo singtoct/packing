@@ -1,4 +1,5 @@
 
+
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI } from "@google/genai";
 
@@ -95,13 +96,14 @@ Example response format:
         const prompt = `You are a senior manufacturing and operations consultant. A web app for managing a factory with Thai and Burmese workers needs new features.
 Current features: 
 1.  **Order Management:** Create, edit, print (with Thai/Burmese translations), and ship packing orders.
-2.  **Molding Department:** Log daily production runs of plastic parts, including good parts, rejects, machine used, and operator. This is the upstream process before packing.
-3.  **Packing Log:** Log daily packed items, assigning each log to a specific employee.
-4.  **Inventory Management:** Inventory of packed goods is automatically updated from packing logs and shipping actions. Users can set minimum stock levels for items, triggering low-stock alerts.
-5.  **Employee Management:** Manage employee profiles and view individual performance statistics.
-6.  **Dashboard:** A comprehensive overview of key metrics like upcoming orders, low stock items, top performing employees, today's molding production, and recent packing trends.
-7.  **Advanced Reporting:** Export packing history, molding history, and inventory status to Excel.
-8.  **Quality Control (QC) Module:** After an item is packed, a QC entry is automatically created. A dedicated QC tab allows inspectors to Pass/Fail items, add notes, specify failure reasons, and upload photo evidence. This links packing performance directly to quality outcomes.
+2.  **Molding Department:** Log daily production runs of plastic parts, including good parts, rejects, machine used, and operator. This is the upstream process.
+3.  **Production Status Tracking:** A Kanban-style board to visualize the entire production workflow after molding. Batches are tracked through intermediate steps like 'scratch-proofing' and 'sub-assembly' before reaching the final packing or assembly rooms.
+4.  **Packing Log:** Log daily packed items, assigning each log to a specific employee.
+5.  **Inventory Management:** Inventory of packed goods is automatically updated from packing logs and shipping actions. Users can set minimum stock levels for items, triggering low-stock alerts.
+6.  **Employee Management:** Manage employee profiles and view individual performance statistics.
+7.  **Dashboard:** A comprehensive overview of key metrics like upcoming orders, low stock items, top performing employees, today's molding production, Work-In-Progress (WIP) count, and recent packing trends.
+8.  **Advanced Reporting:** Export packing history, molding history, and inventory status to Excel.
+9.  **Quality Control (QC) Module:** After an item is packed, a QC entry is automatically created. A dedicated QC tab allows inspectors to Pass/Fail items, add notes, specify failure reasons, and upload photo evidence. This links packing performance directly to quality outcomes.
 
 Based on this powerful existing system, suggest 3 highly innovative new features that would provide the most business value by integrating the departments or improving efficiency. For each feature, provide a 'title' and a short 'description'. Format the response as a JSON array of objects.`;
         const response = await ai.models.generateContent({

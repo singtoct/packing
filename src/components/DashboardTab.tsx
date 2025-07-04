@@ -1,11 +1,12 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { getOrders, getPackingLogs, getInventory, getQCEntries, getMoldingLogs } from '../services/storageService';
 import { OrderItem, PackingLogEntry, InventoryItem, QCEntry, MoldingLogEntry } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { ListOrderedIcon, AlertTriangleIcon, TrophyIcon, TrendingUpIcon, CheckCircle2Icon, ClipboardCheckIcon, FactoryIcon } from './icons/Icons';
+import { ListOrderedIcon, AlertTriangleIcon, TrophyIcon, TrendingUpIcon, CheckCircle2Icon, ClipboardCheckIcon, FactoryIcon, RouteIcon } from './icons/Icons';
 
-type Tab = 'dashboard' | 'orders' | 'logs' | 'inventory' | 'stats' | 'qc' | 'molding';
+type Tab = 'dashboard' | 'orders' | 'logs' | 'inventory' | 'stats' | 'qc' | 'molding' | 'production_status' | 'employees' | 'reports';
 
 const StatCard: React.FC<{ title: string; icon: React.ReactNode; children: React.ReactNode; onClick?: () => void; className?: string }> = ({ title, icon, children, onClick, className = '' }) => (
     <div 
@@ -16,7 +17,7 @@ const StatCard: React.FC<{ title: string; icon: React.ReactNode; children: React
             {icon}
             <h3 className="text-lg font-bold text-gray-700">{title}</h3>
         </div>
-        <div className="flex-grow">{children}</div>
+        <div className="flex-grow flex flex-col justify-center">{children}</div>
     </div>
 );
 
@@ -27,6 +28,7 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
     const [topPacker, setTopPacker] = useState<{ name: string; quantity: number } | null>(null);
     const [pendingQCCount, setPendingQCCount] = useState(0);
     const [moldingTodayCount, setMoldingTodayCount] = useState(0);
+    const [wipCount, setWipCount] = useState(0);
 
     useEffect(() => {
         const fetchData = () => {
@@ -43,6 +45,7 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
             const todayStr = new Date().toISOString().split('T')[0];
             const todayMoldingLogs = moldingLogs.filter(log => log.date === todayStr);
             setMoldingTodayCount(todayMoldingLogs.reduce((sum, log) => sum + log.quantityProduced, 0));
+            setWipCount(moldingLogs.filter(log => log.status && log.status !== 'เสร็จสิ้น').length);
 
 
             const sevenDaysAgo = new Date();
@@ -122,7 +125,7 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
                 
                 <StatCard title="รอตรวจสอบคุณภาพ (QC)" icon={<ClipboardCheckIcon className="w-6 h-6 text-purple-500" />} onClick={() => setActiveTab('qc')}>
                     {pendingQCCount > 0 ? (
-                        <div className="flex flex-col items-center justify-center h-full text-center">
+                        <div className="text-center">
                             <p className="text-4xl font-bold text-purple-600">{pendingQCCount}</p>
                             <p className="text-lg text-purple-800">รายการ</p>
                         </div>
@@ -135,22 +138,29 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
                 </StatCard>
                 
                 <StatCard title="ยอดผลิต (แผนกฉีด)" icon={<FactoryIcon className="w-6 h-6 text-slate-500" />} onClick={() => setActiveTab('molding')}>
-                     <div className="flex flex-col items-center justify-center h-full text-center">
+                     <div className="text-center">
                         <p className="text-4xl font-bold text-slate-600">{moldingTodayCount.toLocaleString()}</p>
                         <p className="text-lg text-slate-800">ชิ้น (วันนี้)</p>
                     </div>
                 </StatCard>
+
+                 <StatCard title="งานระหว่างผลิต (WIP)" icon={<RouteIcon className="w-6 h-6 text-cyan-500" />} onClick={() => setActiveTab('production_status')}>
+                    <div className="text-center">
+                        <p className="text-4xl font-bold text-cyan-600">{wipCount}</p>
+                        <p className="text-lg text-cyan-800">ล็อต</p>
+                    </div>
+                </StatCard>
                 
-                <StatCard title="พนักงานดีเด่น (7 วัน)" icon={<TrophyIcon className="w-6 h-6 text-amber-500" />} onClick={() => setActiveTab('stats')} className="bg-amber-50 lg:col-span-2">
+                <StatCard title="พนักงานดีเด่น (7 วัน)" icon={<TrophyIcon className="w-6 h-6 text-amber-500" />} onClick={() => setActiveTab('stats')} className="bg-amber-50">
                     {topPacker ? (
-                        <div className="flex flex-col items-center justify-center h-full text-center">
-                            <div className="bg-amber-400 rounded-full p-4 mb-3">
-                                <TrophyIcon className="w-10 h-10 text-white"/>
+                        <div className="text-center">
+                            <div className="bg-amber-400 rounded-full p-3 mb-2 inline-block">
+                                <TrophyIcon className="w-8 h-8 text-white"/>
                             </div>
                             <p className="text-xl font-bold text-amber-900">{topPacker.name}</p>
                             <p className="text-lg text-amber-700">แพ็คได้ {topPacker.quantity} ลัง</p>
                         </div>
-                    ) : <p className="text-gray-500 text-center pt-8">ไม่มีข้อมูลการแพ็คใน 7 วันล่าสุด</p>}
+                    ) : <p className="text-gray-500 text-center">ไม่มีข้อมูล</p>}
                 </StatCard>
 
                 <StatCard title="ยอดแพ็ค 7 วันล่าสุด" icon={<TrendingUpIcon className="w-6 h-6 text-green-500" />} onClick={() => setActiveTab('stats')} className="col-span-1 sm:col-span-2 lg:col-span-2">
@@ -163,7 +173,7 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
                                 <Bar dataKey="quantity" name="จำนวน" fill="#10b981" radius={[4, 4, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
-                    ) : <p className="text-gray-500 text-center pt-8">ไม่มีข้อมูลการแพ็คใน 7 วันล่าสุด</p>}
+                    ) : <p className="text-gray-500 text-center">ไม่มีข้อมูลการแพ็คใน 7 วันล่าสุด</p>}
                 </StatCard>
             </div>
         </div>
