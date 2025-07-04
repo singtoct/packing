@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { PackingLogEntry } from '../types';
@@ -24,7 +25,7 @@ export const PackingLogTab: React.FC = () => {
             setLogItemName(uniqueItemNames[0]);
         }
 
-    }, []);
+    }, [logItemName]);
 
     useEffect(() => {
         savePackingLogs(logs);
@@ -92,7 +93,9 @@ export const PackingLogTab: React.FC = () => {
         ];
 
         ws["!rows"] = [ { hpt: 24 }, {}, { hpt: 18 }, {}, { hpt: 36 } ];
-        Array.from({ length: 20 }).forEach((_, i) => ws["!rows"]![5 + i] = { hpt: 22 });
+        Array.from({ length: 20 }).forEach((_, i) => { 
+            if (ws["!rows"]) ws["!rows"][5 + i] = { hpt: 22 };
+        });
 
 
         const titleStyle = { font: { sz: 18, bold: true }, alignment: { horizontal: "center", vertical: "center" } };
