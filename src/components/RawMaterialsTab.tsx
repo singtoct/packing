@@ -2,12 +2,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { RawMaterial, BillOfMaterial, MoldingLogEntry } from '../types';
 import { getRawMaterials, saveRawMaterials, getBOMs, saveBOMs, getMoldingLogs } from '../services/storageService';
-<<<<<<< HEAD
 import { PlusCircleIcon, Trash2Icon, EditIcon, SparklesIcon } from './icons/Icons';
 import { IntelligentMaterialImportModal } from './IntelligentMaterialImportModal';
-=======
-import { PlusCircleIcon, Trash2Icon, EditIcon } from './icons/Icons';
->>>>>>> 1840fa9cc8c9710c8a62cf78725126560f1855c9
 
 type View = 'inventory' | 'bom';
 
@@ -67,11 +63,8 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
     const [quantity, setQuantity] = useState(0);
     const [unit, setUnit] = useState('kg');
     const [costPerUnit, setCostPerUnit] = useState<number | ''>('');
-<<<<<<< HEAD
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
-=======
->>>>>>> 1840fa9cc8c9710c8a62cf78725126560f1855c9
 
     const handleAddMaterial = (e: React.FormEvent) => {
         e.preventDefault();
@@ -105,7 +98,6 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
             saveRawMaterials(updated);
         }
     };
-<<<<<<< HEAD
     
     const handleSaveImportedMaterials = (newMaterials: RawMaterial[]) => {
         const updatedMaterials = [...rawMaterials, ...newMaterials].sort((a,b) => a.name.localeCompare(b.name));
@@ -131,11 +123,6 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
                     นำเข้าอัจฉริยะ
                 </button>
             </div>
-=======
-
-    return (
-        <div>
->>>>>>> 1840fa9cc8c9710c8a62cf78725126560f1855c9
             <form onSubmit={handleAddMaterial} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end bg-gray-50 p-4 rounded-lg border mb-8">
                 <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700">ชื่อวัตถุดิบ</label>

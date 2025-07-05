@@ -128,7 +128,6 @@ Example format:
           config: { responseMimeType: "application/json", temperature: 0.7 },
         });
 
-<<<<<<< HEAD
         const responseText = response.text;
         if(responseText) {
           result = parseJsonResponse(responseText);
@@ -221,13 +220,11 @@ ${payload.text}`;
           config: { responseMimeType: "application/json", temperature: 0.1 },
         });
 
-=======
->>>>>>> 1840fa9cc8c9710c8a62cf78725126560f1855c9
         const responseText = response.text;
-        if(responseText) {
-          result = parseJsonResponse(responseText);
+        if (responseText) {
+            result = parseJsonResponse(responseText);
         } else {
-          result = null;
+            result = null;
         }
         break;
       }
