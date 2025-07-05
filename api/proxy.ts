@@ -1,3 +1,4 @@
+
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI } from "@google/genai";
 
@@ -156,39 +157,42 @@ ${payload.text}`;
         }
         const prompt = `You are an intelligent data entry assistant for a factory's inventory system. Your task is to parse a block of free-form or tabular text containing multiple raw material entries and convert it into a structured JSON array.
 
-Each object in the array represents a single raw material and must have the following keys:
-- "name": string, The name of the raw material.
-- "quantity": number, The initial quantity of the material. If not mentioned in the text, you MUST default this to 0.
-- "unit": string, The unit of measurement (e.g., 'kg', 'Pcs.', 'ชิ้น', 'ม้วน').
-- "costPerUnit": number, The cost or price per unit. This is optional. If not mentioned, omit the key.
+Each object in the array represents a single raw material and MUST have the following keys with primitive values:
+- "name": string. The name of the raw material.
+- "quantity": number. The initial quantity. If not mentioned in the text for an item, you MUST default this value to 0.
+- "unit": string. The unit of measurement (e.g., 'kg', 'Pcs.', 'ชิ้น').
+- "costPerUnit": number. The cost per unit. This is optional. If not mentioned or empty, omit this key from the object.
 
-The input might be multi-line text where each line is an item, potentially with columns separated by spaces.
+The input is often tabular data copied from a spreadsheet, where columns might be separated by tabs or multiple spaces. The first line might be a header (e.g., "ชื่อ หน่วยนับ ราคาซื้อ"); you should ignore this header row.
 
-Here's an example of tabular input:
+Example of tabular input from a spreadsheet:
 Input:
-กล่อง GN2 2นิ้วx4นิ้ว ขนาด 280x390x440 mm. CT       Pcs.      14.00
-พลาสติกแพค BOX Gpower 4x4 (1 kg แพคได้ 450 ชิ้น)     kg      104.40
-เม็ด ABS ดำ                                        kg      47.50
+ชื่อ	หน่วยนับ	ราคาซื้อ
+กล่อง GN2 2นิ้วx4นิ้ว ขนาด 280x390x440 mm. CT	Pcs.	14.00
+พลาสติกกันรอย NEW 2 153 mm. (1 ม้วน แปะได้ 1,730 ชิ้น)	Pcs.	
+เม็ด ABS ดำ			kg		47.50
 
 Expected Output:
 [
   { "name": "กล่อง GN2 2นิ้วx4นิ้ว ขนาด 280x390x440 mm. CT", "quantity": 0, "unit": "Pcs.", "costPerUnit": 14.00 },
-  { "name": "พลาสติกแพค BOX Gpower 4x4 (1 kg แพคได้ 450 ชิ้น)", "quantity": 0, "unit": "kg", "costPerUnit": 104.40 },
+  { "name": "พลาสติกกันรอย NEW 2 153 mm. (1 ม้วน แปะได้ 1,730 ชิ้น)", "quantity": 0, "unit": "Pcs." },
   { "name": "เม็ด ABS ดำ", "quantity": 0, "unit": "kg", "costPerUnit": 47.50 }
 ]
 
-Here's an example of free-form text input:
+Example of free-form text input:
 Input:
 เม็ดพลาสติก PP สีขาว 100 kg ราคา 55 บาทต่อโล
-สกรู M3x10 5000 ชิ้น 0.25 บาท
 ฟิล์มกันรอย 10 ม้วน
 
 Expected Output:
 [
   { "name": "เม็ดพลาสติก PP สีขาว", "quantity": 100, "unit": "kg", "costPerUnit": 55 },
-  { "name": "สกรู M3x10", "quantity": 5000, "unit": "ชิ้น", "costPerUnit": 0.25 },
   { "name": "ฟิล์มกันรอย", "quantity": 10, "unit": "ม้วน" }
 ]
+
+CRITICAL:
+- The "quantity" field MUST ALWAYS be a number. Default to 0 if not provided in the source text.
+- All other values must be strings or numbers. Do NOT use nested objects for any field.
 
 Now, parse the following text and provide ONLY the JSON array as a response:
 
