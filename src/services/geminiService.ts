@@ -1,7 +1,10 @@
-import { AiSuggestion, BurmeseTranslation } from "../types";
+
+
+
+import { AiSuggestion, BurmeseTranslation, OrderItem, RawMaterial } from "../types";
 
 // This function communicates with our secure, serverless API proxy
-async function callApiProxy<T>(type: 'translate' | 'suggest', payload: object): Promise<T> {
+async function callApiProxy<T>(type: 'translate' | 'suggest' | 'parseOrders' | 'parseRawMaterials', payload: object): Promise<T> {
     try {
         const response = await fetch('/api/proxy', {
             method: 'POST',
@@ -44,7 +47,6 @@ export const translateToBurmese = async (items: string[]): Promise<BurmeseTransl
     }
 };
 
-
 export const getFeatureSuggestions = async (): Promise<AiSuggestion[]> => {
     try {
         // No payload is needed for suggestions
@@ -54,5 +56,33 @@ export const getFeatureSuggestions = async (): Promise<AiSuggestion[]> => {
         console.error("Feature suggestion fetch failed.", error);
         // Return an empty array so the UI doesn't break
         return [];
+    }
+};
+
+export const parseIntelligentOrders = async (text: string): Promise<Partial<OrderItem>[]> => {
+    if (!text.trim()) {
+        return [];
+    }
+    try {
+        const payload = { text };
+        const orders = await callApiProxy<Partial<OrderItem>[]>('parseOrders', payload);
+        return orders || [];
+    } catch (error) {
+        console.error("Intelligent order parsing failed.", error);
+        throw error; // Re-throw to be handled by the UI
+    }
+};
+
+export const parseIntelligentRawMaterials = async (text: string): Promise<Partial<RawMaterial>[]> => {
+    if (!text.trim()) {
+        return [];
+    }
+    try {
+        const payload = { text };
+        const materials = await callApiProxy<Partial<RawMaterial>[]>('parseRawMaterials', payload);
+        return materials || [];
+    } catch (error) {
+        console.error("Intelligent raw material parsing failed.", error);
+        throw error;
     }
 };

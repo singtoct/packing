@@ -1,17 +1,17 @@
 
 import React, { useState, useEffect } from 'react';
-import { getPackingLogs } from '../services/storageService';
-import { PackingLogEntry } from '../types';
+import { getPackingLogs, getEmployees } from '../services/storageService';
+import { PackingLogEntry, Employee } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 type ChartData = {
     name: string;
+    shortName: string;
     quantity: number;
 }
 
 type DateRange = 7 | 30 | 0; // 0 for all time
 
-const EMPLOYEES = ['สมชาย', 'สมศรี', 'มานะ', 'ปิติ', 'ชูใจ', 'สมศักดิ์', 'อมรรัตน์'];
 const COLORS = ['#3b82f6', '#10b981', '#ef4444', '#f97316', '#8b5cf6', '#ec4899', '#6b7280', '#f59e0b'];
 const RADIAN = Math.PI / 180;
 const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
@@ -30,8 +30,13 @@ const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, per
 
 export const StatisticsTab: React.FC = () => {
     const [data, setData] = useState<ChartData[]>([]);
+    const [employees, setEmployees] = useState<Employee[]>([]);
     const [dateRange, setDateRange] = useState<DateRange>(7);
     const [selectedPacker, setSelectedPacker] = useState('All');
+
+    useEffect(() => {
+        setEmployees(getEmployees());
+    }, []);
 
     useEffect(() => {
         const logs = getPackingLogs();
@@ -106,7 +111,7 @@ export const StatisticsTab: React.FC = () => {
                             className="px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                         >
                            <option value="All">พนักงานทั้งหมด</option>
-                           {EMPLOYEES.map(name => <option key={name} value={name}>{name}</option>)}
+                           {employees.map(emp => <option key={emp.id} value={emp.name}>{emp.name}</option>)}
                         </select>
                     </div>
                 </div>
