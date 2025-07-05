@@ -163,9 +163,9 @@ Each object in the array represents a single raw material and MUST have the foll
 - "unit": string. The unit of measurement (e.g., 'kg', 'Pcs.', 'ชิ้น').
 - "costPerUnit": number. The cost per unit. This is optional. If not mentioned or empty, omit this key from the object.
 
-The input is often tabular data copied from a spreadsheet, where columns might be separated by tabs or multiple spaces. The first line might be a header (e.g., "ชื่อ หน่วยนับ ราคาซื้อ"); you should ignore this header row.
+The input can be tabular data copied from a spreadsheet, where columns might be separated by tabs or multiple spaces. The first line might be a header (e.g., "ชื่อ หน่วยนับ ราคาซื้อ"); you should ignore this header row. The data format can be inconsistent.
 
-Example of tabular input from a spreadsheet:
+Example 1: Tabular input from a spreadsheet
 Input:
 ชื่อ	หน่วยนับ	ราคาซื้อ
 กล่อง GN2 2นิ้วx4นิ้ว ขนาด 280x390x440 mm. CT	Pcs.	14.00
@@ -179,7 +179,25 @@ Expected Output:
   { "name": "เม็ด ABS ดำ", "quantity": 0, "unit": "kg", "costPerUnit": 47.50 }
 ]
 
-Example of free-form text input:
+Example 2: Tabular format with interleaved labels
+Input:
+กล่อง GN2 2นิ้วx4นิ้ว ขนาด 280x390x440 mm. G-Power	ราคา	14.00	ต่อ 1	Pcs.
+
+Expected Output:
+[
+  { "name": "กล่อง GN2 2นิ้วx4นิ้ว ขนาด 280x390x440 mm. G-Power", "quantity": 0, "unit": "Pcs.", "costPerUnit": 14.00 }
+]
+
+Example 3: Tabular format with quantity and price labels. This is a very important case.
+Input:
+กล่อง GN2 2นิ้วx4นิ้ว ขนาด 280x390x440 mm. CT  	1	Pcs.	ราคา	14.00	บาท
+
+Expected Output:
+[
+  { "name": "กล่อง GN2 2นิ้วx4นิ้ว ขนาด 280x390x440 mm. CT", "quantity": 1, "unit": "Pcs.", "costPerUnit": 14.00 }
+]
+
+Example 4: Free-form text input
 Input:
 เม็ดพลาสติก PP สีขาว 100 kg ราคา 55 บาทต่อโล
 ฟิล์มกันรอย 10 ม้วน
@@ -190,9 +208,13 @@ Expected Output:
   { "name": "ฟิล์มกันรอย", "quantity": 10, "unit": "ม้วน" }
 ]
 
-CRITICAL:
+CRITICAL INSTRUCTIONS:
+- Your output MUST be a valid JSON array.
+- Each object in the array MUST only contain the keys: "name", "quantity", "unit", "costPerUnit".
+- Every value in the objects MUST be a primitive (string, number). DO NOT use nested objects.
 - The "quantity" field MUST ALWAYS be a number. Default to 0 if not provided in the source text.
-- All other values must be strings or numbers. Do NOT use nested objects for any field.
+- IGNORE text labels like 'ราคา', 'ต่อ 1', or 'บาท'. Find the numeric price and assign it to "costPerUnit".
+- The columns can be in different orders. Be robust in parsing the values. For example, in 'Name Qty Unit ราคา Price บาท', you must extract Name, Qty, Unit, and Price correctly.
 
 Now, parse the following text and provide ONLY the JSON array as a response:
 
