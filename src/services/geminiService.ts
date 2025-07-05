@@ -1,6 +1,7 @@
 
 
 
+
 import { BurmeseTranslation, OrderItem, RawMaterial } from "../types";
 
 // This function communicates with our secure, serverless API proxy
@@ -53,8 +54,21 @@ export const parseIntelligentOrders = async (text: string): Promise<Partial<Orde
     }
     try {
         const payload = { text };
-        const orders = await callApiProxy<Partial<OrderItem>[]>('parseOrders', payload);
-        return orders || [];
+        const result = await callApiProxy<Partial<OrderItem>[] | Partial<OrderItem>>('parseOrders', payload);
+        
+        if (Array.isArray(result)) {
+            return result || [];
+        }
+        
+        // Handle case where AI returns a single object instead of an array
+        if (result && typeof result === 'object' && !Array.isArray(result)) {
+            if ('error' in result && typeof (result as any).error === 'string') {
+                 throw new Error((result as any).error);
+            }
+            return [result as Partial<OrderItem>];
+        }
+
+        return [];
     } catch (error) {
         console.error("Intelligent order parsing failed.", error);
         throw error; // Re-throw to be handled by the UI
@@ -67,8 +81,21 @@ export const parseIntelligentRawMaterials = async (text: string): Promise<Partia
     }
     try {
         const payload = { text };
-        const materials = await callApiProxy<Partial<RawMaterial>[]>('parseRawMaterials', payload);
-        return materials || [];
+        const result = await callApiProxy<Partial<RawMaterial>[] | Partial<RawMaterial>>('parseRawMaterials', payload);
+        
+        if (Array.isArray(result)) {
+            return result || [];
+        }
+        
+        // Handle case where AI returns a single object instead of an array
+        if (result && typeof result === 'object' && !Array.isArray(result)) {
+            if ('error' in result && typeof (result as any).error === 'string') {
+                 throw new Error((result as any).error);
+            }
+            return [result as Partial<RawMaterial>];
+        }
+
+        return []; // Return empty array if result is not an array or object
     } catch (error) {
         console.error("Intelligent raw material parsing failed.", error);
         throw error;

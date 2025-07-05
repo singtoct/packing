@@ -30,7 +30,15 @@ export const IntelligentOrderImportModal: React.FC<Props> = ({ onClose, onSave }
             }));
             setStagedOrders(withTempIds);
         } catch (err: any) {
-            setError(err.message || 'เกิดข้อผิดพลาดในการประมวลผลข้อมูล');
+            let errorMessage = 'เกิดข้อผิดพลาดในการประมวลผลข้อมูล';
+            if (err instanceof Error) {
+                errorMessage = err.message;
+            } else if (typeof err === 'string') {
+                errorMessage = err;
+            } else if (typeof err === 'object' && err !== null && err.message && typeof err.message === 'string') {
+                errorMessage = err.message;
+            }
+            setError(errorMessage);
         } finally {
             setIsLoading(false);
         }
