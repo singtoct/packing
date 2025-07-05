@@ -148,4 +148,82 @@ export const MaintenanceTab: React.FC = () => {
                         <input type="text" value={newMachineName} onChange={e => setNewMachineName(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">ตำแหน่ง</
+                        <label className="block text-sm font-medium text-gray-700">ตำแหน่ง</label>
+                        <input type="text" value={newMachineLocation} onChange={e => setNewMachineLocation(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    </div>
+                    <button type="submit" className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700">
+                        <PlusCircleIcon className="w-5 h-5"/> เพิ่มเครื่องจักร
+                    </button>
+                </form>
+
+                <h3 className="text-xl font-semibold mb-4">รายการเครื่องจักร</h3>
+                <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
+                    {machines.map(machine => (
+                        <div key={machine.id} className="bg-white p-4 rounded-lg shadow-sm border">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="font-semibold text-gray-800">{machine.name}</p>
+                                    <p className="text-sm text-gray-500">{machine.location}</p>
+                                </div>
+                                <StatusBadge status={machine.status} />
+                            </div>
+                            <div className="mt-4 pt-3 border-t flex justify-between items-center">
+                                <div className="flex items-center gap-2 text-sm">
+                                    <span className="font-medium">Status:</span>
+                                    <select value={machine.status} onChange={e => handleUpdateStatus(machine.id, e.target.value as any)} className="text-sm border-gray-200 rounded p-1">
+                                        <option value="Running">Running</option>
+                                        <option value="Down">Down</option>
+                                        <option value="Maintenance">Maintenance</option>
+                                    </select>
+                                </div>
+                                <div className="flex gap-2">
+                                     <button onClick={() => openModal(machine)} className="p-2 text-blue-600 hover:bg-blue-100 rounded-full" title="บันทึกการซ่อมบำรุง">
+                                        <WrenchIcon className="w-5 h-5" />
+                                    </button>
+                                    <button onClick={() => handleDeleteMachine(machine.id)} className="p-2 text-red-600 hover:bg-red-100 rounded-full" title="ลบเครื่องจักร">
+                                        <Trash2Icon className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <div className="md:col-span-2">
+                <h2 className="text-2xl font-bold mb-6">ประวัติการซ่อมบำรุง</h2>
+                 <div className="overflow-x-auto bg-white rounded-lg shadow-sm border">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">วันที่</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">เครื่องจักร</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ประเภท</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">รายละเอียด</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ผู้ดำเนินการ</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                             {logs.length > 0 ? (
+                                logs.map(log => {
+                                    const machine = machines.find(m => m.id === log.machineId);
+                                    return (
+                                        <tr key={log.id}>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm">{new Date(log.date).toLocaleDateString('th-TH')}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold">{machine?.name || 'N/A'}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm">{log.type}</td>
+                                            <td className="px-6 py-4 text-sm text-gray-600">{log.description}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm">{log.technician}</td>
+                                        </tr>
+                                    )
+                                })
+                            ) : (
+                                <tr><td colSpan={5} className="text-center text-gray-500 py-8">ไม่มีประวัติการซ่อมบำรุง</td></tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+};
