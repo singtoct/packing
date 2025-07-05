@@ -35,6 +35,13 @@ export interface InventoryItem {
     minStock?: number;
 }
 
+export interface Product {
+  id: string;
+  name: string;
+  color: string;
+  salePrice: number;
+}
+
 export interface Employee {
   id: string;
   name: string;

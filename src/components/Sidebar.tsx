@@ -1,11 +1,13 @@
 
+
 import React, { useState } from 'react';
-import { CTPackingLogo } from '../assets/logo';
+import { CTElectricLogo } from '../assets/logo';
 import { Tab } from '../App';
 import { 
     LayoutDashboardIcon, ListOrderedIcon, TruckIcon, SigmaIcon, ShoppingCartIcon, 
     FactoryIcon, RouteIcon, BoxIcon, ClipboardCheckIcon, ArchiveIcon, BeakerIcon, 
-    UsersIcon, WrenchIcon, DollarSignIcon, BarChart3Icon, FileTextIcon, ChevronDownIcon
+    UsersIcon, WrenchIcon, DollarSignIcon, BarChart3Icon, FileTextIcon, ChevronDownIcon,
+    PackageIcon, DatabaseIcon
 } from './icons/Icons';
 
 interface MenuItemProps {
@@ -25,7 +27,7 @@ const MenuItem: React.FC<MenuItemProps> = ({ tab, title, icon, activeTab, setAct
         }}
         className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
             activeTab === tab 
-                ? 'bg-blue-600 text-white shadow-inner' 
+                ? 'bg-green-600 text-white shadow-inner' 
                 : 'text-gray-300 hover:bg-gray-700 hover:text-white'
         }`}
     >
@@ -102,6 +104,7 @@ const menuConfig = [
         title: 'คลังสินค้าและวัตถุดิบ',
         icon: <ArchiveIcon className="w-5 h-5"/>,
         children: [
+            { tab: 'products', title: 'จัดการสินค้า', icon: <DatabaseIcon className="w-5 h-5"/> },
             { tab: 'inventory', title: 'สต็อกสินค้าสำเร็จรูป', icon: <ArchiveIcon className="w-5 h-5"/> },
             { tab: 'raw_materials', title: 'คลังวัตถุดิบ/BOM', icon: <BeakerIcon className="w-5 h-5"/> },
         ],
@@ -128,7 +131,7 @@ const menuConfig = [
 ];
 
 export const Sidebar: React.FC<{ activeTab: Tab, setActiveTab: (tab: Tab) => void }> = ({ activeTab, setActiveTab }) => {
-    const [openMenus, setOpenMenus] = useState<Set<string>>(new Set(['การผลิต', 'การขายและจัดส่ง']));
+    const [openMenus, setOpenMenus] = useState<Set<string>>(new Set(['การผลิต', 'การขายและจัดส่ง', 'คลังสินค้าและวัตถุดิบ']));
 
     const toggleMenu = (title: string) => {
         setOpenMenus(prev => {
@@ -146,8 +149,7 @@ export const Sidebar: React.FC<{ activeTab: Tab, setActiveTab: (tab: Tab) => voi
         <aside className="w-64 bg-gray-800 text-white flex-shrink-0 flex flex-col">
             <div className="bg-gray-900 h-16 flex items-center justify-center px-4">
                 <div className="flex items-center gap-3">
-                    <img src={CTPackingLogo} alt="CT.ELECTRIC Logo" className="h-8" />
-                    <h1 className="font-bold text-lg whitespace-nowrap">Production System</h1>
+                    <img src={CTElectricLogo} alt="CT.ELECTRIC Logo" className="h-10" />
                 </div>
             </div>
 

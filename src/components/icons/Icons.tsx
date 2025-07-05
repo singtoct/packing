@@ -1,9 +1,5 @@
 
 
-
-
-
-
 import React from 'react';
 
 export const BoxIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -176,4 +172,12 @@ export const SparklesIcon = (props: React.SVGProps<SVGSVGElement>) => (
         <path d="m5.64 5.64.01.01"/><path d="m18.36 18.36.01.01"/>
         <path d="m5.64 18.36.01-.01"/><path d="m18.36 5.64.01-.01"/>
     </svg>
+);
+
+export const PackageIcon = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v2"/><path d="M21 14v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M3 10h18"/><path d="M12 10v12"/></svg>
+);
+
+export const DatabaseIcon = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 9 0 0 0 18 0V5"/><path d="M3 12a9 9 0 0 0 18 0"/></svg>
 );

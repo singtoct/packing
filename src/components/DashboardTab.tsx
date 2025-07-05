@@ -10,7 +10,7 @@ type Tab = 'dashboard' | 'orders' | 'logs' | 'inventory' | 'stats' | 'qc' | 'mol
 
 const StatCard: React.FC<{ title: string; icon: React.ReactNode; children: React.ReactNode; onClick?: () => void; className?: string }> = ({ title, icon, children, onClick, className = '' }) => (
     <div 
-      className={`bg-white p-6 rounded-xl shadow-lg border border-gray-200 flex flex-col ${onClick ? 'cursor-pointer hover:shadow-xl hover:border-blue-300 transition-all duration-300' : ''} ${className}`}
+      className={`bg-white p-6 rounded-xl shadow-lg border border-gray-200 flex flex-col ${onClick ? 'cursor-pointer hover:shadow-xl hover:border-green-300 transition-all duration-300' : ''} ${className}`}
       onClick={onClick}
     >
         <div className="flex items-center gap-3 mb-4">
@@ -89,7 +89,7 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
             <h2 className="text-3xl font-bold mb-8 text-gray-800">แดชบอร์ดภาพรวม</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 
-                <StatCard title="ออเดอร์ใกล้ถึงกำหนดส่ง" icon={<ListOrderedIcon className="w-6 h-6 text-blue-500" />} onClick={() => setActiveTab('orders')}>
+                <StatCard title="ออเดอร์ใกล้ถึงกำหนดส่ง" icon={<ListOrderedIcon className="w-6 h-6 text-green-500" />} onClick={() => setActiveTab('orders')}>
                     {upcomingOrders.length > 0 ? (
                         <ul className="space-y-3">
                             {upcomingOrders.map(order => (
@@ -123,11 +123,11 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
                     )}
                 </StatCard>
                 
-                <StatCard title="รอตรวจสอบคุณภาพ (QC)" icon={<ClipboardCheckIcon className="w-6 h-6 text-purple-500" />} onClick={() => setActiveTab('qc')}>
+                <StatCard title="รอตรวจสอบคุณภาพ (QC)" icon={<ClipboardCheckIcon className="w-6 h-6 text-teal-500" />} onClick={() => setActiveTab('qc')}>
                     {pendingQCCount > 0 ? (
                         <div className="text-center">
-                            <p className="text-4xl font-bold text-purple-600">{pendingQCCount}</p>
-                            <p className="text-lg text-purple-800">รายการ</p>
+                            <p className="text-4xl font-bold text-teal-600">{pendingQCCount}</p>
+                            <p className="text-lg text-teal-800">รายการ</p>
                         </div>
                     ) : (
                         <div className="flex flex-col items-center justify-center h-full text-green-600">
@@ -163,7 +163,7 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
                     ) : <p className="text-gray-500 text-center">ไม่มีข้อมูล</p>}
                 </StatCard>
 
-                <StatCard title="ยอดแพ็ค 7 วันล่าสุด" icon={<TrendingUpIcon className="w-6 h-6 text-green-500" />} onClick={() => setActiveTab('stats')} className="col-span-1 sm:col-span-2 lg:col-span-2">
+                <StatCard title="ยอดแพ็ค 7 วันล่าสุด" icon={<TrendingUpIcon className="w-6 h-6 text-emerald-500" />} onClick={() => setActiveTab('stats')} className="col-span-1 sm:col-span-2 lg:col-span-2">
                     {packingSummary.reduce((sum, item) => sum + item.quantity, 0) > 0 ? (
                         <ResponsiveContainer width="100%" height="100%" minHeight={150}>
                             <BarChart data={packingSummary} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>

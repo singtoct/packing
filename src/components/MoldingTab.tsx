@@ -1,9 +1,10 @@
 
 
 import React, { useState, useEffect, useMemo } from 'react';
+import * as XLSX from 'xlsx';
 import { MoldingLogEntry, Employee, RawMaterial, BillOfMaterial } from '../types';
 import { getMoldingLogs, saveMoldingLogs, getEmployees, getRawMaterials, saveRawMaterials, getBOMs } from '../services/storageService';
-import { PlusCircleIcon, Trash2Icon, AlertTriangleIcon } from './icons/Icons';
+import { PlusCircleIcon, Trash2Icon, AlertTriangleIcon, DownloadIcon } from './icons/Icons';
 
 const NEXT_STEPS = ['แปะกันรอย', 'ประกบ', 'ห้องประกอบ', 'ห้องแพ็ค'];
 
@@ -133,11 +134,24 @@ export const MoldingTab: React.FC = () => {
             saveMoldingLogs(updatedLogs);
         }
     };
+    
+    const handleExportTemplate = () => {
+        const headers = [['Date', 'ProductName', 'QuantityProduced', 'QuantityRejected', 'Machine', 'OperatorName', 'Status']];
+        const ws = XLSX.utils.aoa_to_sheet(headers);
+        ws['!cols'] = [{wch: 15}, {wch: 40}, {wch: 15}, {wch: 15}, {wch: 20}, {wch: 20}, {wch: 20}];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Molding_Log_Template");
+        XLSX.writeFile(wb, "Molding_Log_Import_Template.xlsx");
+    };
 
     return (
         <div>
             <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">บันทึกข้อมูลการผลิต (แผนกฉีด)</h2>
+                 <button onClick={handleExportTemplate} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none">
+                    <DownloadIcon className="w-5 h-5"/>
+                    ส่งออกฟอร์มเปล่า
+                </button>
             </div>
 
             <form onSubmit={handleAddLog} className="space-y-6 bg-gray-50 p-6 rounded-lg border mb-10">
@@ -177,8 +191,8 @@ export const MoldingTab: React.FC = () => {
                 </div>
 
                 {materialCheck.required.length > 0 && (
-                    <div className="mt-4 p-4 border-l-4 border-blue-400 bg-blue-50 rounded-md">
-                        <h4 className="font-bold text-blue-800 mb-2">วัตถุดิบที่ต้องใช้</h4>
+                    <div className="mt-4 p-4 border-l-4 border-green-400 bg-green-50 rounded-md">
+                        <h4 className="font-bold text-green-800 mb-2">วัตถุดิบที่ต้องใช้</h4>
                         <ul className="space-y-1 text-sm">
                             {materialCheck.required.map((mat, idx) => (
                                 <li key={idx} className={`flex justify-between ${mat.sufficient ? 'text-gray-700' : 'text-red-600 font-bold'}`}>

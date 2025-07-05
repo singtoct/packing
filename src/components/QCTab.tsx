@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { getQCEntries, saveQCEntries, getEmployees } from '../services/storageService';
 import { QCEntry, Employee } from '../types';
@@ -76,7 +77,7 @@ const QCInspectionModal: React.FC<{
                 <div className="space-y-6">
                     <div>
                         <label htmlFor="qcInspector" className="block text-sm font-medium text-gray-700">ผู้ตรวจสอบ</label>
-                        <select id="qcInspector" value={qcInspector} onChange={e => setQcInspector(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <select id="qcInspector" value={qcInspector} onChange={e => setQcInspector(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500">
                             {employees.map(emp => <option key={emp.id} value={emp.name}>{emp.name}</option>)}
                         </select>
                     </div>
@@ -109,7 +110,7 @@ const QCInspectionModal: React.FC<{
                     
                     <div>
                         <label htmlFor="notes" className="block text-sm font-medium text-gray-700">หมายเหตุเพิ่มเติม</label>
-                        <textarea id="notes" value={notes} onChange={e => setNotes(e.target.value)} rows={3} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
+                        <textarea id="notes" value={notes} onChange={e => setNotes(e.target.value)} rows={3} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"></textarea>
                     </div>
 
                     <div>
@@ -124,7 +125,7 @@ const QCInspectionModal: React.FC<{
                                 <div className="space-y-1 text-center">
                                     <CameraIcon className="mx-auto h-12 w-12 text-gray-400"/>
                                     <div className="flex text-sm text-gray-600">
-                                        <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
+                                        <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-green-600 hover:text-green-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-green-500">
                                             <span>อัปโหลดไฟล์</span>
                                             <input id="file-upload" name="file-upload" type="file" className="sr-only" accept="image/*" onChange={handleImageUpload}/>
                                         </label>
@@ -139,7 +140,7 @@ const QCInspectionModal: React.FC<{
 
                 <div className="flex justify-end gap-4 pt-8">
                     <button type="button" onClick={onClose} className="px-6 py-2 border border-gray-300 text-base font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50">ยกเลิก</button>
-                    <button type="button" onClick={handleSave} className="px-6 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">บันทึกผล</button>
+                    <button type="button" onClick={handleSave} className="px-6 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700">บันทึกผล</button>
                 </div>
             </div>
         </div>
@@ -186,8 +187,8 @@ export const QCTab: React.FC = () => {
     }, [filter, qcEntries]);
 
     const FilterButton: React.FC<{ status: 'All' | 'Pending' | 'Passed' | 'Failed'; label: string; count: number }> = ({ status, label, count }) => (
-        <button onClick={() => setFilter(status)} className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${filter === status ? 'bg-blue-600 text-white shadow' : 'bg-white text-gray-700 hover:bg-gray-100'}`}>
-            {label} <span className={`px-2 py-0.5 rounded-full text-xs ${filter === status ? 'bg-white text-blue-600' : 'bg-gray-200 text-gray-600'}`}>{count}</span>
+        <button onClick={() => setFilter(status)} className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${filter === status ? 'bg-green-600 text-white shadow' : 'bg-white text-gray-700 hover:bg-gray-100'}`}>
+            {label} <span className={`px-2 py-0.5 rounded-full text-xs ${filter === status ? 'bg-white text-green-600' : 'bg-gray-200 text-gray-600'}`}>{count}</span>
         </button>
     );
     
@@ -235,13 +236,13 @@ export const QCTab: React.FC = () => {
                                 <div className="mt-2 text-sm">
                                     <p className="font-bold text-red-700">เหตุผล: {entry.reasons.join(', ')}</p>
                                     {entry.notes && <p className="text-gray-600 mt-1"><strong>หมายเหตุ:</strong> {entry.notes}</p>}
-                                     {entry.imageUrl && <a href={entry.imageUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline mt-1 inline-block">ดูรูปภาพ</a>}
+                                     {entry.imageUrl && <a href={entry.imageUrl} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline mt-1 inline-block">ดูรูปภาพ</a>}
                                 </div>
                             )}
                         </div>
                         {entry.status === 'Pending' && (
                             <div className="bg-gray-50 p-3">
-                                <button onClick={() => openModal(entry)} className="w-full bg-blue-500 text-white font-bold py-2 px-4 rounded hover:bg-blue-600 transition-colors">
+                                <button onClick={() => openModal(entry)} className="w-full bg-green-500 text-white font-bold py-2 px-4 rounded hover:bg-green-600 transition-colors">
                                     ตรวจสอบ
                                 </button>
                             </div>

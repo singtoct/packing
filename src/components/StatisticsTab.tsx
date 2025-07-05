@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { getPackingLogs, getEmployees } from '../services/storageService';
 import { PackingLogEntry, Employee } from '../types';
@@ -12,7 +13,7 @@ type ChartData = {
 
 type DateRange = 7 | 30 | 0; // 0 for all time
 
-const COLORS = ['#3b82f6', '#10b981', '#ef4444', '#f97316', '#8b5cf6', '#ec4899', '#6b7280', '#f59e0b'];
+const COLORS = ['#10b981', '#059669', '#34d399', '#6ee7b7', '#a7f3d0', '#047857', '#065f46', '#064e3b'];
 const RADIAN = Math.PI / 180;
 const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
     if (percent === 0) return null;
@@ -78,7 +79,7 @@ export const StatisticsTab: React.FC = () => {
             onClick={() => setDateRange(range)}
             className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                 dateRange === range
-                    ? 'bg-blue-600 text-white shadow'
+                    ? 'bg-green-600 text-white shadow'
                     : 'bg-white text-gray-700 hover:bg-gray-100'
             }`}
         >
@@ -108,7 +109,7 @@ export const StatisticsTab: React.FC = () => {
                          <select 
                             value={selectedPacker} 
                             onChange={e => setSelectedPacker(e.target.value)} 
-                            className="px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            className="px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
                         >
                            <option value="All">พนักงานทั้งหมด</option>
                            {employees.map(emp => <option key={emp.id} value={emp.name}>{emp.name}</option>)}
@@ -138,7 +139,7 @@ export const StatisticsTab: React.FC = () => {
                                     }}
                                 />
                                 <Legend wrapperStyle={{paddingTop: '20px'}} />
-                                <Bar dataKey="quantity" name="จำนวน (ลัง)" fill="#3b82f6" />
+                                <Bar dataKey="quantity" name="จำนวน (ลัง)" fill="#10b981" />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>

@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { PackingLogEntry, Employee, QCEntry } from '../types';
@@ -163,7 +164,7 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
             <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">บันทึกข้อมูลการแพ็คสินค้า</h2>
                 <div className="flex gap-2 flex-wrap">
-                    <button onClick={handleExportHistory} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <button onClick={handleExportHistory} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
                         <DownloadIcon className="w-5 h-5"/>
                         ส่งออกประวัติ (Excel)
                     </button>
@@ -177,24 +178,24 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
             <form onSubmit={handleAddLog} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end bg-gray-50 p-4 rounded-lg border mb-10">
                 <div className="md:col-span-2">
                     <label htmlFor="logItemName" className="block text-sm font-medium text-gray-700">สินค้าที่แพ็ค</label>
-                    <select id="logItemName" value={logItemName} onChange={e => setLogItemName(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
+                    <select id="logItemName" value={logItemName} onChange={e => setLogItemName(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" required>
                        <option value="" disabled>-- เลือกสินค้า --</option>
                        {availableItems.map(item => <option key={item} value={item}>{item}</option>)}
                     </select>
                 </div>
                 <div>
                     <label htmlFor="logQuantity" className="block text-sm font-medium text-gray-700">จำนวน (ลัง)</label>
-                    <input type="number" id="logQuantity" min="1" value={logQuantity} onChange={e => setLogQuantity(Number(e.target.value))} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
+                    <input type="number" id="logQuantity" min="1" value={logQuantity} onChange={e => setLogQuantity(Number(e.target.value))} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" required />
                 </div>
                 <div>
                     <label htmlFor="packerName" className="block text-sm font-medium text-gray-700">ผู้บันทึก</label>
-                     <select id="packerName" value={packerName} onChange={e => setPackerName(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
+                     <select id="packerName" value={packerName} onChange={e => setPackerName(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" required>
                        {employees.map(emp => <option key={emp.id} value={emp.name}>{emp.name}</option>)}
                     </select>
                 </div>
                 <div>
                     <label htmlFor="logDate" className="block text-sm font-medium text-gray-700">วันที่แพ็ค</label>
-                    <input type="date" id="logDate" value={logDate} onChange={e => setLogDate(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
+                    <input type="date" id="logDate" value={logDate} onChange={e => setLogDate(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" required />
                 </div>
                 <div className="col-span-1 md:col-span-5 flex justify-end">
                      <button type="submit" className="inline-flex items-center justify-center gap-2 w-full md:w-auto px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">

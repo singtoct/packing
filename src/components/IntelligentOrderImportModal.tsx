@@ -35,7 +35,7 @@ export const IntelligentOrderImportModal: React.FC<Props> = ({ onClose, onSave }
                 errorMessage = err.message;
             } else if (typeof err === 'string') {
                 errorMessage = err;
-            } else if (typeof err === 'object' && err !== null && err.message && typeof err.message === 'string') {
+            } else if (typeof err === 'object' && err !== null && 'message' in err && typeof err.message === 'string') {
                 errorMessage = err.message;
             }
             setError(errorMessage);
@@ -97,7 +97,7 @@ export const IntelligentOrderImportModal: React.FC<Props> = ({ onClose, onSave }
                             className="flex-grow p-3 border border-gray-300 rounded-md resize-none font-mono text-sm"
                             placeholder="เช่น: ฝาหน้ากาก CT-101 สีขาว 100 ลัง ราคา 550 บาท ส่ง 25/12/2024..."
                         />
-                        <button onClick={handleParse} disabled={isLoading || !rawText.trim()} className="mt-4 inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent font-semibold rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400">
+                        <button onClick={handleParse} disabled={isLoading || !rawText.trim()} className="mt-4 inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent font-semibold rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400">
                             {isLoading ? <LoaderIcon className="w-5 h-5"/> : <SparklesIcon className="w-5 h-5" />}
                             ประมวลผลข้อมูล
                         </button>
@@ -128,7 +128,7 @@ export const IntelligentOrderImportModal: React.FC<Props> = ({ onClose, onSave }
                                 </div>
                              )}
                         </div>
-                         <button onClick={handleConfirm} disabled={stagedOrders.length === 0} className="mt-4 inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent font-semibold rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400">
+                         <button onClick={handleConfirm} disabled={stagedOrders.length === 0} className="mt-4 inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent font-semibold rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400">
                             ยืนยันและเพิ่ม {stagedOrders.length} รายการ
                         </button>
                     </div>

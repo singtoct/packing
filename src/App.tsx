@@ -18,12 +18,13 @@ import { MaintenanceTab } from './components/MaintenanceTab';
 import { ProcurementTab } from './components/ProcurementTab';
 import { CostAnalysisTab } from './components/CostAnalysisTab';
 import { ShipmentTrackingTab } from './components/ShipmentTrackingTab';
+import { ProductsTab } from './components/ProductsTab'; // New Product Tab
 import { BellIcon } from './components/icons/Icons';
-import { CTPackingLogo } from './assets/logo';
+import { CTElectricLogo } from './assets/logo';
 import { getInventory } from './services/storageService';
 import { InventoryItem } from './types';
 
-export type Tab = 'dashboard' | 'orders' | 'analysis' | 'procurement' | 'molding' | 'production_status' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'stats' | 'reports';
+export type Tab = 'dashboard' | 'orders' | 'analysis' | 'procurement' | 'molding' | 'production_status' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'stats' | 'reports' | 'products';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -40,7 +41,7 @@ const App: React.FC = () => {
     document.title = 'CT.ELECTRIC - Production System';
     const favicon = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
     if (favicon) {
-      favicon.href = CTPackingLogo;
+      favicon.href = CTElectricLogo;
     }
     
     checkLowStock(); // Initial check
@@ -74,6 +75,8 @@ const App: React.FC = () => {
         return <ShipmentTrackingTab />;
       case 'inventory':
         return <InventoryTab setLowStockCheck={checkLowStock}/>;
+      case 'products': // New Case for Products
+        return <ProductsTab />;
       case 'raw_materials':
         return <RawMaterialsTab />;
       case 'maintenance':
@@ -100,7 +103,7 @@ const App: React.FC = () => {
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-end items-center py-2 h-16">
               <div className="relative">
-                <button onClick={() => setIsAlertsOpen(!isAlertsOpen)} className="relative p-2 text-gray-600 hover:text-blue-600 hover:bg-gray-100 rounded-full">
+                <button onClick={() => setIsAlertsOpen(!isAlertsOpen)} className="relative p-2 text-gray-600 hover:text-green-600 hover:bg-gray-100 rounded-full">
                   <BellIcon className="w-6 h-6" />
                   {lowStockItems.length > 0 && (
                     <span className="absolute top-0 right-0 block h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center ring-2 ring-white">

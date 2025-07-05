@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import { OrderItem, BurmeseTranslation } from '../types';
 import { getOrders, saveOrders } from '../services/storageService';
 import { translateToBurmese } from '../services/geminiService';
 import { PlusCircleIcon, Trash2Icon, PrinterIcon, LoaderIcon } from './icons/Icons';
-import { CTPackingLogo } from '../assets/logo';
+import { CTElectricLogo } from '../assets/logo';
 
 // This component is redesigned to handle multiple orders in a single print-friendly table view.
 const PrintOrderView: React.FC<{ orders: OrderItem[], translations: BurmeseTranslation }> = ({ orders, translations }) => {
@@ -27,7 +28,7 @@ const PrintOrderView: React.FC<{ orders: OrderItem[], translations: BurmeseTrans
                 }
             `}</style>
             <div className="flex justify-between items-center mb-6 border-b-2 border-black pb-4">
-                <img src={CTPackingLogo} alt="CT.ELECTRIC Logo" className="h-20" />
+                <img src={CTElectricLogo} alt="CT.ELECTRIC Logo" className="h-20" />
                 <div className="text-right">
                     <h1 className="text-3xl font-bold">ใบรวมสั่งงานแพ็คสินค้า</h1>
                     <h2 className="text-xl font-semibold text-gray-700">Consolidated Packing Order</h2>

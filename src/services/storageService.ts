@@ -1,5 +1,5 @@
 
-import { OrderItem, PackingLogEntry, InventoryItem, Employee, QCEntry, MoldingLogEntry, RawMaterial, BillOfMaterial, Machine, MaintenanceLog, Supplier, PurchaseOrder, Shipment } from '../types';
+import { OrderItem, PackingLogEntry, InventoryItem, Employee, QCEntry, MoldingLogEntry, RawMaterial, BillOfMaterial, Machine, MaintenanceLog, Supplier, PurchaseOrder, Shipment, Product } from '../types';
 
 const ORDERS_KEY = 'packing_orders';
 const LOGS_KEY = 'packing_logs';
@@ -14,6 +14,7 @@ const MAINTENANCE_LOGS_KEY = 'maintenance_logs';
 const SUPPLIERS_KEY = 'factory_suppliers';
 const PURCHASE_ORDERS_KEY = 'factory_purchase_orders';
 const SHIPMENTS_KEY = 'factory_shipments';
+const PRODUCTS_KEY = 'factory_products';
 
 
 // Generic getter
@@ -51,6 +52,22 @@ export const saveMoldingLogs = (logs: MoldingLogEntry[]): void => saveItems<Mold
 // Inventory specific functions
 export const getInventory = (): InventoryItem[] => getItems<InventoryItem>(INVENTORY_KEY);
 export const saveInventory = (inventory: InventoryItem[]): void => saveItems<InventoryItem>(INVENTORY_KEY, inventory);
+
+// Product specific functions
+export const getProducts = (): Product[] => {
+    const items = getItems<Product>(PRODUCTS_KEY);
+     if (items.length === 0) {
+        const defaultProducts: Product[] = [
+            { id: crypto.randomUUID(), name: "ฝาหน้ากาก CT A-103", color: "ขาว", salePrice: 550 },
+            { id: crypto.randomUUID(), name: "สายไฟ VAF 2x1.5", color: "ขาว", salePrice: 2500 },
+        ];
+        saveItems<Product>(PRODUCTS_KEY, defaultProducts);
+        return defaultProducts;
+    }
+    return items.sort((a, b) => a.name.localeCompare(b.name));
+};
+export const saveProducts = (products: Product[]): void => saveItems<Product>(PRODUCTS_KEY, products);
+
 
 // Employee specific functions
 const INITIAL_EMPLOYEES = ['สมชาย', 'สมศรี', 'มานะ', 'ปิติ', 'ชูใจ', 'สมศักดิ์', 'อมรรัตน์'];

@@ -1,11 +1,12 @@
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom/client';
-import { OrderItem, BurmeseTranslation, InventoryItem } from '../types';
-import { getOrders, saveOrders, getInventory, saveInventory } from '../services/storageService';
+import { OrderItem, BurmeseTranslation, InventoryItem, Product } from '../types';
+import { getOrders, saveOrders, getInventory, saveInventory, getProducts } from '../services/storageService';
 import { translateToBurmese } from '../services/geminiService';
 import { PlusCircleIcon, Trash2Icon, PrinterIcon, LoaderIcon, TruckIcon, EditIcon, SparklesIcon } from './icons/Icons';
-import { CTPackingLogo } from '../assets/logo';
+import { CTElectricLogo } from '../assets/logo';
 import { IntelligentOrderImportModal } from './IntelligentOrderImportModal';
 
 // Modal for editing an order
@@ -36,29 +37,29 @@ const EditOrderModal: React.FC<{
                 <form onSubmit={handleSubmit} className="space-y-4">
                      <div>
                         <label htmlFor="editItemName" className="block text-sm font-medium text-gray-700">ชื่อสินค้า</label>
-                        <input type="text" id="editItemName" name="name" value={editedOrder.name} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
+                        <input type="text" id="editItemName" name="name" value={editedOrder.name} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" required />
                     </div>
                     <div>
                         <label htmlFor="editItemColor" className="block text-sm font-medium text-gray-700">สี</label>
-                        <input type="text" id="editItemColor" name="color" value={editedOrder.color} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
+                        <input type="text" id="editItemColor" name="color" value={editedOrder.color} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" required />
                     </div>
                     <div>
                         <label htmlFor="editItemQuantity" className="block text-sm font-medium text-gray-700">จำนวน (ลัง)</label>
-                        <input type="number" id="editItemQuantity" name="quantity" min="1" value={editedOrder.quantity} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
+                        <input type="number" id="editItemQuantity" name="quantity" min="1" value={editedOrder.quantity} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" required />
                     </div>
                      <div>
                         <label htmlFor="editSalePrice" className="block text-sm font-medium text-gray-700">ราคาขาย (ต่อลัง)</label>
-                        <input type="number" id="editSalePrice" name="salePrice" min="0" value={editedOrder.salePrice || ''} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Optional" />
+                        <input type="number" id="editSalePrice" name="salePrice" min="0" value={editedOrder.salePrice || ''} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" placeholder="Optional" />
                     </div>
                     <div>
                         <label htmlFor="editDueDate" className="block text-sm font-medium text-gray-700">วันครบกำหนด</label>
-                        <input type="date" id="editDueDate" name="dueDate" value={editedOrder.dueDate} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
+                        <input type="date" id="editDueDate" name="dueDate" value={editedOrder.dueDate} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" required />
                     </div>
                     <div className="flex justify-end gap-4 pt-4">
                         <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
                             ยกเลิก
                         </button>
-                        <button type="submit" className="px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <button type="submit" className="px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
                             บันทึกการเปลี่ยนแปลง
                         </button>
                     </div>
@@ -83,7 +84,7 @@ const PrintOrderView: React.FC<{ orders: OrderItem[], translations: BurmeseTrans
                 }
             `}</style>
             <div className="flex justify-between items-center mb-6 border-b-2 border-black pb-4">
-                <img src={CTPackingLogo} alt="CT.ELECTRIC Logo" className="h-20" />
+                <img src={CTElectricLogo} alt="CT.ELECTRIC Logo" className="h-20" />
                 <div className="text-right">
                     <h1 className="text-3xl font-bold">ใบรวมสั่งงานแพ็คสินค้า</h1>
                     <h2 className="text-xl font-semibold text-gray-700">Consolidated Packing Order</h2>
@@ -128,11 +129,10 @@ const PrintOrderView: React.FC<{ orders: OrderItem[], translations: BurmeseTrans
 export const OrderManagementTab: React.FC = () => {
     const [orders, setOrders] = useState<OrderItem[]>([]);
     const [inventory, setInventory] = useState<InventoryItem[]>([]);
-    const [newItemName, setNewItemName] = useState('');
-    const [newItemColor, setNewItemColor] = useState('');
+    const [products, setProducts] = useState<Product[]>([]);
+    const [selectedProductId, setSelectedProductId] = useState<string>('');
     const [newItemQuantity, setNewItemQuantity] = useState(1);
     const [newDueDate, setNewDueDate] = useState('');
-    const [newSalePrice, setNewSalePrice] = useState<number | ''>('');
     const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
     const [isPrintingSelected, setIsPrintingSelected] = useState(false);
     const [editingOrder, setEditingOrder] = useState<OrderItem | null>(null);
@@ -146,12 +146,17 @@ export const OrderManagementTab: React.FC = () => {
         const handleStorageChange = () => {
             setOrders(getOrders());
             setInventory(getInventory());
+            const prods = getProducts();
+            setProducts(prods);
+            if (!selectedProductId && prods.length > 0) {
+                setSelectedProductId(prods[0].id);
+            }
         };
 
         handleStorageChange();
         window.addEventListener('storage', handleStorageChange);
         return () => window.removeEventListener('storage', handleStorageChange);
-    }, []);
+    }, [selectedProductId]);
 
     useEffect(() => {
         saveOrders(orders);
@@ -163,20 +168,19 @@ export const OrderManagementTab: React.FC = () => {
 
     const handleAddOrder = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newItemName.trim() || !newItemColor.trim() || !newDueDate) return;
+        const selectedProduct = products.find(p => p.id === selectedProductId);
+        if (!selectedProduct || !newDueDate) return;
+
         const newOrder: OrderItem = {
             id: new Date().toISOString(),
-            name: newItemName.trim(),
-            color: newItemColor.trim(),
+            name: selectedProduct.name,
+            color: selectedProduct.color,
             quantity: newItemQuantity,
             dueDate: newDueDate,
-            salePrice: newSalePrice === '' ? undefined : Number(newSalePrice),
+            salePrice: selectedProduct.salePrice,
         };
         setOrders(prevOrders => [newOrder, ...prevOrders]);
-        setNewItemName('');
-        setNewItemColor('');
         setNewItemQuantity(1);
-        setNewSalePrice('');
     };
 
      const handleUpdateOrder = (updatedOrder: OrderItem) => {
@@ -309,35 +313,40 @@ export const OrderManagementTab: React.FC = () => {
                 <h2 className="text-2xl font-bold">สร้างออเดอร์ใหม่</h2>
                  <button 
                     onClick={() => setIsImportModalOpen(true)}
-                    className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-violet-600 hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-violet-500"
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
                 >
                     <SparklesIcon className="w-5 h-5"/>
                     นำเข้าอัจฉริยะ
                 </button>
             </div>
-            <form onSubmit={handleAddOrder} className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end bg-gray-50 p-4 rounded-lg border">
+            <form onSubmit={handleAddOrder} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end bg-gray-50 p-4 rounded-lg border">
                 <div className="col-span-1 md:col-span-2">
-                    <label htmlFor="itemName" className="block text-sm font-medium text-gray-700">ชื่อสินค้า</label>
-                    <input type="text" id="itemName" value={newItemName} onChange={e => setNewItemName(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="เช่น ฝาหน้ากาก CT A-103" required />
+                    <label htmlFor="productSelect" className="block text-sm font-medium text-gray-700">สินค้า</label>
+                    <select 
+                        id="productSelect"
+                        value={selectedProductId}
+                        onChange={e => setSelectedProductId(e.target.value)}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                        required
+                    >
+                        <option value="" disabled>-- เลือกสินค้า --</option>
+                        {products.map(p => (
+                            <option key={p.id} value={p.id}>{p.name} ({p.color})</option>
+                        ))}
+                    </select>
                 </div>
-                <div>
-                    <label htmlFor="itemColor" className="block text-sm font-medium text-gray-700">สี</label>
-                    <input type="text" id="itemColor" value={newItemColor} onChange={e => setNewItemColor(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="เช่น สีขาว" required />
-                </div>
+
                 <div>
                     <label htmlFor="itemQuantity" className="block text-sm font-medium text-gray-700">จำนวน (ลัง)</label>
-                    <input type="number" id="itemQuantity" min="1" value={newItemQuantity} onChange={e => setNewItemQuantity(Number(e.target.value))} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
+                    <input type="number" id="itemQuantity" min="1" value={newItemQuantity} onChange={e => setNewItemQuantity(Number(e.target.value))} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" required />
                 </div>
-                <div>
-                    <label htmlFor="salePrice" className="block text-sm font-medium text-gray-700">ราคาขาย (ต่อลัง)</label>
-                    <input type="number" id="salePrice" min="0" step="0.01" value={newSalePrice} onChange={e => setNewSalePrice(e.target.value === '' ? '' : Number(e.target.value))} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Optional" />
-                </div>
+                
                 <div>
                     <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700">วันครบกำหนด</label>
-                    <input type="date" id="dueDate" value={newDueDate} onChange={e => setNewDueDate(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
+                    <input type="date" id="dueDate" value={newDueDate} onChange={e => setNewDueDate(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" required />
                 </div>
                 <div className="col-span-full flex justify-end">
-                    <button type="submit" className="inline-flex items-center justify-center gap-2 w-full md:w-auto px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <button type="submit" className="inline-flex items-center justify-center gap-2 w-full md:w-auto px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
                         <PlusCircleIcon className="w-5 h-5" />
                         เพิ่มออเดอร์
                     </button>
@@ -350,7 +359,7 @@ export const OrderManagementTab: React.FC = () => {
                      <button 
                         onClick={handlePrintSelected} 
                         disabled={selectedOrders.size === 0 || isPrintingSelected}
-                        className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
                     >
                         {isPrintingSelected ? <LoaderIcon className="w-5 h-5"/> : <PrinterIcon className="w-5 h-5" />}
                         <span>ปริ้นท์ ({selectedOrders.size}) รายการที่เลือก</span>
@@ -360,7 +369,7 @@ export const OrderManagementTab: React.FC = () => {
                     <div className="bg-gray-50 p-4 flex items-center gap-4">
                         <input 
                             type="checkbox"
-                            className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
                             onChange={(e) => handleSelectAll(e.target.checked)}
                             checked={orders.length > 0 && selectedOrders.size === orders.length}
                             disabled={orders.length === 0}
@@ -380,7 +389,7 @@ export const OrderManagementTab: React.FC = () => {
                                     <div className="flex items-center gap-4 flex-grow min-w-[250px]">
                                         <input 
                                             type="checkbox"
-                                            className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 flex-shrink-0"
+                                            className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500 flex-shrink-0"
                                             checked={selectedOrders.has(order.id)}
                                             onChange={(e) => handleSelectOrder(order.id, e.target.checked)}
                                             aria-labelledby={`order-name-${order.id}`}
@@ -398,7 +407,7 @@ export const OrderManagementTab: React.FC = () => {
                                         <button 
                                             onClick={() => handleShipOrder(order.id)} 
                                             disabled={!hasEnoughStock}
-                                            className="p-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-full transition-colors disabled:text-gray-400 disabled:bg-gray-100 disabled:cursor-not-allowed" 
+                                            className="p-2 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-100 rounded-full transition-colors disabled:text-gray-400 disabled:bg-gray-100 disabled:cursor-not-allowed" 
                                             aria-label={hasEnoughStock ? `Ship order ${order.name}`: `Not enough stock for ${order.name}`}
                                             title={hasEnoughStock ? `จัดส่งออเดอร์ (มี ${availableStock} ในสต็อก)` : `สต็อกไม่พอ (มี ${availableStock} / ต้องการ ${order.quantity})`}
                                         >

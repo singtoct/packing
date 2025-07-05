@@ -1,14 +1,16 @@
 
+
 import React, { useState, useEffect, useMemo } from 'react';
-import { RawMaterial, BillOfMaterial, MoldingLogEntry } from '../types';
-import { getRawMaterials, saveRawMaterials, getBOMs, saveBOMs, getMoldingLogs } from '../services/storageService';
-import { PlusCircleIcon, Trash2Icon, EditIcon, SparklesIcon } from './icons/Icons';
+import * as XLSX from 'xlsx';
+import { RawMaterial, BillOfMaterial, MoldingLogEntry, Product } from '../types';
+import { getRawMaterials, saveRawMaterials, getBOMs, saveBOMs, getMoldingLogs, getProducts } from '../services/storageService';
+import { PlusCircleIcon, Trash2Icon, EditIcon, SparklesIcon, DownloadIcon } from './icons/Icons';
 import { IntelligentMaterialImportModal } from './IntelligentMaterialImportModal';
 
 type View = 'inventory' | 'bom';
 
-const commonInputStyle = "px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500";
-const buttonPrimaryStyle = "inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700";
+const commonInputStyle = "px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500";
+const buttonPrimaryStyle = "inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700";
 const buttonSecondaryStyle = "inline-flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50";
 
 export const RawMaterialsTab: React.FC = () => {
@@ -31,7 +33,7 @@ export const RawMaterialsTab: React.FC = () => {
             onClick={() => setView(targetView)}
             className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                 view === targetView
-                    ? 'bg-blue-600 text-white shadow'
+                    ? 'bg-green-600 text-white shadow'
                     : 'bg-white text-gray-700 hover:bg-gray-100'
             }`}
         >
@@ -105,6 +107,15 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
         saveRawMaterials(updatedMaterials);
     };
 
+    const handleExportTemplate = () => {
+        const headers = [['Name', 'Quantity', 'Unit', 'CostPerUnit']];
+        const ws = XLSX.utils.aoa_to_sheet(headers);
+        ws['!cols'] = [{wch: 40}, {wch: 15}, {wch: 15}, {wch: 15}];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Raw_Material_Template");
+        XLSX.writeFile(wb, "Raw_Material_Import_Template.xlsx");
+    };
+
     return (
         <div>
              {isImportModalOpen && (
@@ -115,13 +126,19 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
             )}
             <div className="flex flex-wrap gap-4 justify-between items-center mb-4">
                 <h3 className="text-xl font-semibold">เพิ่ม/แก้ไข วัตถุดิบ</h3>
-                <button 
-                    onClick={() => setIsImportModalOpen(true)}
-                    className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-violet-600 hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-violet-500"
-                >
-                    <SparklesIcon className="w-5 h-5"/>
-                    นำเข้าอัจฉริยะ
-                </button>
+                <div className="flex gap-2">
+                    <button 
+                        onClick={() => setIsImportModalOpen(true)}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+                    >
+                        <SparklesIcon className="w-5 h-5"/>
+                        นำเข้าอัจฉริยะ
+                    </button>
+                    <button onClick={handleExportTemplate} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none">
+                        <DownloadIcon className="w-5 h-5"/>
+                        ส่งออกฟอร์มเปล่า
+                    </button>
+                </div>
             </div>
             <form onSubmit={handleAddMaterial} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end bg-gray-50 p-4 rounded-lg border mb-8">
                 <div className="md:col-span-2">
@@ -197,6 +214,7 @@ const BOMView: React.FC<{ boms: BillOfMaterial[], setBoms: React.Dispatch<React.
     const availableProducts = useMemo(() => {
         const productSet = new Set<string>();
         getMoldingLogs().forEach(log => productSet.add(log.productName));
+        getProducts().forEach(prod => productSet.add(`${prod.name} (${prod.color})`));
         return Array.from(productSet).sort();
     }, []);
     
@@ -246,9 +264,9 @@ const BOMView: React.FC<{ boms: BillOfMaterial[], setBoms: React.Dispatch<React.
                 <h3 className="text-xl font-semibold mb-4">เลือกสินค้า</h3>
                 <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
                     {availableProducts.map(prod => (
-                        <div key={prod} onClick={() => setSelectedProduct(prod)} className={`p-3 rounded-lg cursor-pointer ${selectedProduct === prod ? 'bg-blue-600 text-white' : 'bg-white hover:bg-blue-50 border'}`}>
+                        <div key={prod} onClick={() => setSelectedProduct(prod)} className={`p-3 rounded-lg cursor-pointer ${selectedProduct === prod ? 'bg-green-600 text-white' : 'bg-white hover:bg-green-50 border'}`}>
                             {prod}
-                            {boms.some(b => b.productName === prod) && <span className="ml-2 text-xs bg-green-200 text-green-800 px-2 py-0.5 rounded-full">มี BOM</span>}
+                            {boms.some(b => b.productName === prod) && <span className="ml-2 text-xs bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded-full">มี BOM</span>}
                         </div>
                     ))}
                 </div>
@@ -256,7 +274,7 @@ const BOMView: React.FC<{ boms: BillOfMaterial[], setBoms: React.Dispatch<React.
             <div className="md:col-span-2">
                 {editingBom ? (
                     <div className="bg-white p-6 rounded-lg shadow-inner border h-full">
-                        <h3 className="text-2xl font-bold mb-4 text-blue-700">{editingBom.productName}</h3>
+                        <h3 className="text-2xl font-bold mb-4 text-green-700">{editingBom.productName}</h3>
                         <div className="space-y-4">
                             {editingBom.components.map((comp, index) => (
                                 <div key={index} className="flex items-center gap-2 bg-gray-50 p-3 rounded-md">

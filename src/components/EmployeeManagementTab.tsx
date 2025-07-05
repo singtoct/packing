@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Employee, PackingLogEntry } from '../types';
 import { getEmployees, saveEmployees, getPackingLogs } from '../services/storageService';
@@ -52,11 +53,11 @@ export const EmployeeManagementTab: React.FC = () => {
                             id="employeeName"
                             value={newEmployeeName}
                             onChange={e => setNewEmployeeName(e.target.value)}
-                            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
                             placeholder="เช่น สมใจ"
                             required
                         />
-                        <button type="submit" className="inline-flex items-center justify-center p-2 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
+                        <button type="submit" className="inline-flex items-center justify-center p-2 border border-transparent rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700">
                             <PlusCircleIcon className="w-5 h-5" />
                         </button>
                     </div>
@@ -68,17 +69,17 @@ export const EmployeeManagementTab: React.FC = () => {
                         <div
                             key={emp.id}
                             onClick={() => setSelectedEmployee(emp)}
-                            className={`p-4 rounded-lg cursor-pointer transition-all flex justify-between items-center ${selectedEmployee?.id === emp.id ? 'bg-blue-600 text-white shadow-lg' : 'bg-white hover:bg-blue-50 border'}`}
+                            className={`p-4 rounded-lg cursor-pointer transition-all flex justify-between items-center ${selectedEmployee?.id === emp.id ? 'bg-green-600 text-white shadow-lg' : 'bg-white hover:bg-green-50 border'}`}
                         >
                             <div>
                                 <p className="font-semibold">{emp.name}</p>
-                                <p className={`text-xs ${selectedEmployee?.id === emp.id ? 'text-blue-200' : 'text-gray-500'}`}>
+                                <p className={`text-xs ${selectedEmployee?.id === emp.id ? 'text-green-200' : 'text-gray-500'}`}>
                                     เริ่มงาน: {new Date(emp.hireDate).toLocaleDateString('th-TH')}
                                 </p>
                             </div>
                              <button 
                                 onClick={(e) => { e.stopPropagation(); handleDeleteEmployee(emp.id); }} 
-                                className={`p-1 rounded-full ${selectedEmployee?.id === emp.id ? 'hover:bg-blue-500' : 'text-gray-400 hover:bg-red-100 hover:text-red-600'}`}
+                                className={`p-1 rounded-full ${selectedEmployee?.id === emp.id ? 'hover:bg-green-500' : 'text-gray-400 hover:bg-red-100 hover:text-red-600'}`}
                                 aria-label={`Delete ${emp.name}`}
                             >
                                 <Trash2Icon className="w-4 h-4" />
@@ -143,17 +144,17 @@ const EmployeeDetails: React.FC<{ employee: Employee }> = ({ employee }) => {
 
     return (
         <div className="bg-white p-6 rounded-lg shadow-inner border h-full">
-            <h2 className="text-3xl font-bold mb-1 text-blue-700">{employee.name}</h2>
+            <h2 className="text-3xl font-bold mb-1 text-green-700">{employee.name}</h2>
             <p className="text-gray-500 mb-6">เริ่มงานวันที่: {new Date(employee.hireDate).toLocaleDateString('th-TH', { dateStyle: 'long' })}</p>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                <div className="bg-blue-50 p-4 rounded-lg text-center">
-                    <p className="text-sm font-medium text-blue-800">ยอดแพ็ครวมทั้งหมด</p>
-                    <p className="text-4xl font-bold text-blue-600">{stats.totalPacks.toLocaleString()}</p>
-                    <p className="text-sm text-blue-800">ลัง</p>
+                <div className="bg-green-50 p-4 rounded-lg text-center">
+                    <p className="text-sm font-medium text-green-800">ยอดแพ็ครวมทั้งหมด</p>
+                    <p className="text-4xl font-bold text-green-600">{stats.totalPacks.toLocaleString()}</p>
+                    <p className="text-sm text-green-800">ลัง</p>
                 </div>
-                <div className="bg-green-50 p-4 rounded-lg">
-                    <h4 className="text-sm font-medium text-green-800 text-center mb-2">ยอดแพ็ค 7 วันล่าสุด</h4>
+                <div className="bg-emerald-50 p-4 rounded-lg">
+                    <h4 className="text-sm font-medium text-emerald-800 text-center mb-2">ยอดแพ็ค 7 วันล่าสุด</h4>
                     <ResponsiveContainer width="100%" height={80}>
                         <BarChart data={weeklyChartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
                              <XAxis dataKey="name" tick={{ fontSize: 10 }} />

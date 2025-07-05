@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { getMachines, saveMachines, getMaintenanceLogs, saveMaintenanceLogs, getEmployees } from '../services/storageService';
 import { Machine, MaintenanceLog, Employee } from '../types';
@@ -61,7 +62,7 @@ const MaintenanceModal: React.FC<{
                     </div>
                     <div className="flex justify-end gap-4 pt-4">
                         <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-md">ยกเลิก</button>
-                        <button type="submit" className="px-4 py-2 border border-transparent rounded-md text-white bg-blue-600 hover:bg-blue-700">บันทึก</button>
+                        <button type="submit" className="px-4 py-2 border border-transparent rounded-md text-white bg-green-600 hover:bg-green-700">บันทึก</button>
                     </div>
                 </form>
             </div>
@@ -147,75 +148,4 @@ export const MaintenanceTab: React.FC = () => {
                         <input type="text" value={newMachineName} onChange={e => setNewMachineName(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">ตำแหน่ง</label>
-                        <input type="text" value={newMachineLocation} onChange={e => setNewMachineLocation(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-                    </div>
-                    <button type="submit" className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                        <PlusCircleIcon className="w-5 h-5" /> เพิ่มเครื่องจักร
-                    </button>
-                </form>
-
-                <h3 className="text-xl font-semibold mb-4">รายการเครื่องจักร</h3>
-                <div className="space-y-3">
-                {machines.map(machine => (
-                    <div key={machine.id} className="bg-white p-4 rounded-lg shadow-sm border">
-                        <div className="flex justify-between items-start">
-                           <div>
-                                <p className="font-bold text-gray-800">{machine.name}</p>
-                                <p className="text-sm text-gray-500">{machine.location}</p>
-                           </div>
-                            <StatusBadge status={machine.status} />
-                        </div>
-                        <div className="mt-3 flex items-center justify-between">
-                            <select value={machine.status} onChange={e => handleUpdateStatus(machine.id, e.target.value as any)} className="text-sm border border-gray-200 rounded-md p-1">
-                                <option value="Running">Running</option>
-                                <option value="Down">Down</option>
-                                <option value="Maintenance">Maintenance</option>
-                            </select>
-                            <div className="flex gap-1">
-                                <button onClick={() => openModal(machine)} className="p-2 text-gray-600 hover:text-blue-700 hover:bg-blue-100 rounded-full" title="บันทึกการซ่อมบำรุง"><WrenchIcon className="w-5 h-5" /></button>
-                                <button onClick={() => handleDeleteMachine(machine.id)} className="p-2 text-gray-500 hover:text-red-700 hover:bg-red-100 rounded-full" title="ลบเครื่องจักร"><Trash2Icon className="w-5 h-5" /></button>
-                            </div>
-                        </div>
-                    </div>
-                ))}
-                </div>
-            </div>
-
-            <div className="md:col-span-2">
-                <h2 className="text-2xl font-bold mb-6">ประวัติการซ่อมบำรุง</h2>
-                 <div className="overflow-x-auto">
-                <table className="min-w-full bg-white divide-y divide-gray-200 rounded-lg shadow-sm border">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">วันที่</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">เครื่องจักร</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ประเภท</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">รายละเอียด</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ผู้ดำเนินการ</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Downtime (ชม.)</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                        {logs.length > 0 ? logs.map(log => {
-                            const machine = machines.find(m => m.id === log.machineId);
-                            return (
-                                <tr key={log.id}>
-                                    <td className="px-4 py-4 whitespace-nowrap text-sm">{new Date(log.date).toLocaleDateString('th-TH')}</td>
-                                    <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold">{machine?.name || 'N/A'}</td>
-                                    <td className="px-4 py-4 whitespace-nowrap text-sm">{log.type}</td>
-                                    <td className="px-4 py-4 text-sm text-gray-600 max-w-xs truncate">{log.description}</td>
-                                    <td className="px-4 py-4 whitespace-nowrap text-sm">{log.technician}</td>
-                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-center">{log.downtimeHours}</td>
-                                </tr>
-                            )
-                        }) : (
-                             <tr><td colSpan={6} className="text-center text-gray-500 py-8">ยังไม่มีประวัติการซ่อมบำรุง</td></tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
-            </div>
-        </div>
-    );
-};
+                        <label className="block text-sm font-medium text-gray-700">ตำแหน่ง</
