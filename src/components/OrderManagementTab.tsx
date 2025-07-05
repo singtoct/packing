@@ -305,6 +305,7 @@ export const OrderManagementTab: React.FC = () => {
                     onSave={handleUpdateOrder}
                 />
             )}
+<<<<<<< HEAD
             <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">สร้างออเดอร์ใหม่</h2>
                  <button 
@@ -315,6 +316,9 @@ export const OrderManagementTab: React.FC = () => {
                     นำเข้าอัจฉริยะ
                 </button>
             </div>
+=======
+            <h2 className="text-2xl font-bold mb-6">สร้างออเดอร์ใหม่</h2>
+>>>>>>> 1840fa9cc8c9710c8a62cf78725126560f1855c9
             <form onSubmit={handleAddOrder} className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end bg-gray-50 p-4 rounded-lg border">
                 <div className="col-span-1 md:col-span-2">
                     <label htmlFor="itemName" className="block text-sm font-medium text-gray-700">ชื่อสินค้า</label>

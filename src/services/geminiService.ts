@@ -1,7 +1,11 @@
 
 
+<<<<<<< HEAD
 
 import { AiSuggestion, BurmeseTranslation, OrderItem, RawMaterial } from "../types";
+=======
+import { AiSuggestion, BurmeseTranslation } from "../types";
+>>>>>>> 1840fa9cc8c9710c8a62cf78725126560f1855c9
 
 // This function communicates with our secure, serverless API proxy
 async function callApiProxy<T>(type: 'translate' | 'suggest' | 'parseOrders' | 'parseRawMaterials', payload: object): Promise<T> {
@@ -58,6 +62,7 @@ export const getFeatureSuggestions = async (): Promise<AiSuggestion[]> => {
         return [];
     }
 };
+<<<<<<< HEAD
 
 export const parseIntelligentOrders = async (text: string): Promise<Partial<OrderItem>[]> => {
     if (!text.trim()) {
@@ -86,3 +91,5 @@ export const parseIntelligentRawMaterials = async (text: string): Promise<Partia
         throw error;
     }
 };
+=======
+>>>>>>> 1840fa9cc8c9710c8a62cf78725126560f1855c9
