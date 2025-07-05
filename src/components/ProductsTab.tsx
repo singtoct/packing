@@ -1,11 +1,12 @@
 
 
 
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { Product, BillOfMaterial, RawMaterial } from '../types';
 import { getProducts, saveProducts, getBOMs, getRawMaterials } from '../services/storageService';
-import { PlusCircleIcon, Trash2Icon, EditIcon, DownloadIcon, DatabaseIcon, UploadIcon } from './icons/Icons';
+import { PlusCircleIcon, Trash2Icon, EditIcon, DownloadIcon, DatabaseIcon, UploadIcon, XCircleIcon } from './icons/Icons';
 
 const EditProductModal: React.FC<{
     product: Product;
@@ -54,8 +55,63 @@ const EditProductModal: React.FC<{
     );
 };
 
+const ImportReviewModal: React.FC<{
+    stagedData: any[],
+    onClose: () => void,
+    onConfirm: (finalData: any[]) => void
+}> = ({ stagedData, onClose, onConfirm }) => {
+    const [data, setData] = useState(stagedData.map(d => ({...d, _tempId: crypto.randomUUID() })));
+
+    const handleItemChange = (tempId: string, field: string, value: any) => {
+        setData(current =>
+            current.map(item =>
+                item._tempId === tempId ? { ...item, [field]: value } : item
+            )
+        );
+    };
+
+    const handleRemoveItem = (tempId: string) => {
+        setData(current => current.filter(item => item._tempId !== tempId));
+    };
+
+    const handleSubmit = () => {
+        onConfirm(data);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
+            <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-2xl font-bold text-gray-800">ตรวจสอบข้อมูลสินค้า</h2>
+                    <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-200"><XCircleIcon className="w-6 h-6 text-gray-500"/></button>
+                </div>
+                <div className="flex-grow overflow-y-auto border rounded-lg bg-gray-50 p-2">
+                    <div className="space-y-2">
+                        <div className="grid grid-cols-[3fr,2fr,2fr,auto] gap-2 text-xs font-bold px-2 py-1">
+                            <span>ชื่อสินค้า (Name)</span><span>สี (Color)</span><span>ราคาขาย (SalePrice)</span><span></span>
+                        </div>
+                        {data.map(p => (
+                            <div key={p._tempId} className="grid grid-cols-[3fr,2fr,2fr,auto] gap-2 items-center bg-white p-2 rounded shadow-sm">
+                                <input type="text" value={p.Name} onChange={e => handleItemChange(p._tempId, 'Name', e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
+                                <input type="text" value={p.Color} onChange={e => handleItemChange(p._tempId, 'Color', e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
+                                <input type="number" value={p.SalePrice} onChange={e => handleItemChange(p._tempId, 'SalePrice', Number(e.target.value))} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
+                                <button onClick={() => handleRemoveItem(p._tempId)} className="p-1 text-red-500 hover:text-red-700"><Trash2Icon className="w-4 h-4"/></button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                <div className="flex justify-end gap-4 pt-4">
+                    <button onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-md">ยกเลิก</button>
+                    <button onClick={handleSubmit} disabled={data.length === 0} className="px-4 py-2 border border-transparent rounded-md text-white bg-green-600 hover:bg-green-700">ยืนยันและนำเข้า</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export const ProductsTab: React.FC = () => {
     const [products, setProducts] = useState<Product[]>([]);
+    const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
     const [boms, setBoms] = useState<BillOfMaterial[]>([]);
     const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
     
@@ -64,6 +120,8 @@ export const ProductsTab: React.FC = () => {
     const [salePrice, setSalePrice] = useState<number | ''>('');
 
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+    const [stagedData, setStagedData] = useState<any[]>([]);
+    const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
     const importFileRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -131,6 +189,31 @@ export const ProductsTab: React.FC = () => {
         }
     };
 
+    const handleSelectProduct = (id: string, checked: boolean) => {
+        setSelectedProducts(prev => {
+            const newSet = new Set(prev);
+            if (checked) newSet.add(id);
+            else newSet.delete(id);
+            return newSet;
+        });
+    };
+
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) setSelectedProducts(new Set(products.map(p => p.id)));
+        else setSelectedProducts(new Set());
+    };
+
+    const handleDeleteSelected = () => {
+        if (selectedProducts.size === 0) return;
+        if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบ ${selectedProducts.size} สินค้าที่เลือก?`)) {
+            const updated = products.filter(p => !selectedProducts.has(p.id));
+            setProducts(updated);
+            saveProducts(updated);
+            setSelectedProducts(new Set());
+        }
+    };
+
+
     const handleExportTemplate = () => {
         const headers = [['Name', 'Color', 'SalePrice']];
         const ws = XLSX.utils.aoa_to_sheet(headers);
@@ -153,25 +236,11 @@ export const ProductsTab: React.FC = () => {
                 const worksheet = workbook.Sheets[sheetName];
                 const json = XLSX.utils.sheet_to_json<any>(worksheet);
                 
-                const newProducts: Product[] = [];
-                json.forEach((row, index) => {
-                    if (row.Name && row.Color && row.SalePrice > 0) {
-                        newProducts.push({
-                            id: crypto.randomUUID(),
-                            name: row.Name,
-                            color: row.Color,
-                            salePrice: Number(row.SalePrice)
-                        });
-                    } else {
-                        console.warn(`Skipping invalid product row ${index + 2}:`, row);
-                    }
-                });
-
-                if(newProducts.length > 0) {
-                    const updated = [...products, ...newProducts].sort((a,b) => a.name.localeCompare(b.name));
-                    setProducts(updated);
-                    saveProducts(updated);
-                    alert(`นำเข้าสำเร็จ ${newProducts.length} รายการ`);
+                if (json.length > 0) {
+                    setStagedData(json);
+                    setIsReviewModalOpen(true);
+                } else {
+                     alert("ไม่พบข้อมูลในไฟล์ Excel");
                 }
 
             } catch (error) {
@@ -184,12 +253,40 @@ export const ProductsTab: React.FC = () => {
         reader.readAsBinaryString(file);
     };
 
+    const handleConfirmImport = (finalData: any[]) => {
+        const productMap = new Map(products.map(p => [`${p.name}-${p.color}`, p]));
+        
+        finalData.forEach(row => {
+            const name = row.Name;
+            const color = row.Color;
+            const salePrice = Number(row.SalePrice);
+
+            if (name && color && !isNaN(salePrice)) {
+                const key = `${name}-${color}`;
+                const existing = productMap.get(key);
+                if (existing) {
+                    existing.salePrice = salePrice;
+                } else {
+                    productMap.set(key, { id: crypto.randomUUID(), name, color, salePrice });
+                }
+            }
+        });
+        
+        const updated = Array.from(productMap.values()).sort((a,b) => a.name.localeCompare(b.name));
+        setProducts(updated);
+        saveProducts(updated);
+        alert(`นำเข้าและอัปเดตสำเร็จ ${finalData.length} รายการ`);
+        setIsReviewModalOpen(false);
+    };
+
     return (
         <div>
             {editingProduct && <EditProductModal product={editingProduct} onClose={() => setEditingProduct(null)} onSave={handleUpdateProduct} />}
+            {isReviewModalOpen && <ImportReviewModal stagedData={stagedData} onClose={() => setIsReviewModalOpen(false)} onConfirm={handleConfirmImport} />}
+
             <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
                  <h2 className="text-2xl font-bold">จัดการรายการสินค้า (Master Data)</h2>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                     <input type="file" ref={importFileRef} onChange={handleImportFromExcel} accept=".xlsx, .xls" className="hidden"/>
                     <button onClick={() => importFileRef.current?.click()} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-teal-600 hover:bg-teal-700 focus:outline-none">
                         <UploadIcon className="w-5 h-5"/>
@@ -222,10 +319,29 @@ export const ProductsTab: React.FC = () => {
                 </div>
             </form>
 
+            <div className="flex justify-end mb-4">
+                 <button 
+                    onClick={handleDeleteSelected}
+                    disabled={selectedProducts.size === 0}
+                    className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                    <Trash2Icon className="w-5 h-5"/>
+                    ลบ ({selectedProducts.size})
+                </button>
+            </div>
+
             <div className="overflow-x-auto">
                  <table className="min-w-full bg-white divide-y divide-gray-200 rounded-lg shadow-sm border">
                     <thead className="bg-gray-50">
                         <tr>
+                             <th className="p-4">
+                                <input 
+                                    type="checkbox"
+                                    className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                    onChange={e => handleSelectAll(e.target.checked)}
+                                    checked={products.length > 0 && selectedProducts.size === products.length}
+                                />
+                            </th>
                             <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">สินค้า</th>
                             <th className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase">ราคาขาย</th>
                             <th className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase">ต้นทุนวัตถุดิบ</th>
@@ -238,7 +354,15 @@ export const ProductsTab: React.FC = () => {
                             const cost = productCosts.get(p.id) || 0;
                             const profit = p.salePrice - cost;
                             return (
-                                <tr key={p.id}>
+                                <tr key={p.id} className={selectedProducts.has(p.id) ? 'bg-green-50' : ''}>
+                                    <td className="p-4">
+                                        <input 
+                                            type="checkbox"
+                                            className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                            checked={selectedProducts.has(p.id)}
+                                            onChange={e => handleSelectProduct(p.id, e.target.checked)}
+                                        />
+                                    </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <p className="text-sm font-semibold text-gray-800">{p.name}</p>
                                         <p className="text-sm text-gray-500">{p.color}</p>
@@ -255,7 +379,7 @@ export const ProductsTab: React.FC = () => {
                                 </tr>
                             )
                         }) : (
-                            <tr><td colSpan={5} className="text-center text-gray-500 py-8">
+                            <tr><td colSpan={6} className="text-center text-gray-500 py-8">
                                 <DatabaseIcon className="mx-auto w-12 h-12 text-gray-300"/>
                                 <p className="mt-2">ยังไม่มีสินค้าในระบบ</p>
                             </td></tr>

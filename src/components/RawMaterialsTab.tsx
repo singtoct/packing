@@ -1,11 +1,12 @@
 
 
 
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { RawMaterial, BillOfMaterial, MoldingLogEntry, Product } from '../types';
 import { getRawMaterials, saveRawMaterials, getBOMs, saveBOMs, getMoldingLogs, getProducts } from '../services/storageService';
-import { PlusCircleIcon, Trash2Icon, EditIcon, SparklesIcon, DownloadIcon, UploadIcon } from './icons/Icons';
+import { PlusCircleIcon, Trash2Icon, EditIcon, SparklesIcon, DownloadIcon, UploadIcon, XCircleIcon } from './icons/Icons';
 import { IntelligentMaterialImportModal } from './IntelligentMaterialImportModal';
 
 type View = 'inventory' | 'bom';
@@ -13,6 +14,59 @@ type View = 'inventory' | 'bom';
 const commonInputStyle = "px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500";
 const buttonPrimaryStyle = "inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700";
 const buttonSecondaryStyle = "inline-flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50";
+
+const ImportReviewModal: React.FC<{
+    stagedData: any[],
+    onClose: () => void,
+    onConfirm: (finalData: any[]) => void
+}> = ({ stagedData, onClose, onConfirm }) => {
+    const [data, setData] = useState(stagedData.map(d => ({...d, _tempId: crypto.randomUUID() })));
+
+    const handleItemChange = (tempId: string, field: string, value: any) => {
+        setData(current =>
+            current.map(item =>
+                item._tempId === tempId ? { ...item, [field]: value } : item
+            )
+        );
+    };
+
+    const handleRemoveItem = (tempId: string) => {
+        setData(current => current.filter(item => item._tempId !== tempId));
+    };
+
+    const handleSubmit = () => onConfirm(data);
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
+            <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-2xl font-bold text-gray-800">ตรวจสอบข้อมูลวัตถุดิบ</h2>
+                    <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-200"><XCircleIcon className="w-6 h-6 text-gray-500"/></button>
+                </div>
+                <div className="flex-grow overflow-y-auto border rounded-lg bg-gray-50 p-2">
+                    <div className="space-y-2">
+                        <div className="grid grid-cols-[3fr,1.5fr,1fr,1.5fr,auto] gap-2 text-xs font-bold px-2 py-1">
+                            <span>ชื่อ (Name)</span><span>จำนวน (Quantity)</span><span>หน่วย (Unit)</span><span>ต้นทุน/หน่วย (Cost)</span><span></span>
+                        </div>
+                        {data.map(d => (
+                             <div key={d._tempId} className="grid grid-cols-[3fr,1.5fr,1fr,1.5fr,auto] gap-2 items-center bg-white p-2 rounded shadow-sm">
+                                <input type="text" value={d.Name} onChange={e => handleItemChange(d._tempId, 'Name', e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"/>
+                                <input type="number" value={d.Quantity} onChange={e => handleItemChange(d._tempId, 'Quantity', Number(e.target.value))} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"/>
+                                <input type="text" value={d.Unit} onChange={e => handleItemChange(d._tempId, 'Unit', e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"/>
+                                <input type="number" value={d.CostPerUnit} onChange={e => handleItemChange(d._tempId, 'CostPerUnit', Number(e.target.value))} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"/>
+                                <button onClick={() => handleRemoveItem(d._tempId)} className="p-1 text-red-500 hover:text-red-700"><Trash2Icon className="w-4 h-4"/></button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                <div className="flex justify-end gap-4 pt-4">
+                    <button onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-md">ยกเลิก</button>
+                    <button onClick={handleSubmit} disabled={data.length === 0} className="px-4 py-2 border border-transparent rounded-md text-white bg-green-600 hover:bg-green-700">ยืนยันและนำเข้า</button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 export const RawMaterialsTab: React.FC = () => {
     const [view, setView] = useState<View>('inventory');
@@ -66,7 +120,10 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
     const [quantity, setQuantity] = useState(0);
     const [unit, setUnit] = useState('kg');
     const [costPerUnit, setCostPerUnit] = useState<number | ''>('');
+    const [selectedMaterials, setSelectedMaterials] = useState<Set<string>>(new Set());
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [isExcelReviewModalOpen, setIsExcelReviewModalOpen] = useState(false);
+    const [stagedData, setStagedData] = useState<any[]>([]);
     const importFileRef = useRef<HTMLInputElement>(null);
 
 
@@ -103,6 +160,30 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
         }
     };
     
+    const handleSelectMaterial = (id: string, checked: boolean) => {
+        setSelectedMaterials(prev => {
+            const newSet = new Set(prev);
+            if (checked) newSet.add(id);
+            else newSet.delete(id);
+            return newSet;
+        });
+    };
+
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) setSelectedMaterials(new Set(rawMaterials.map(m => m.id)));
+        else setSelectedMaterials(new Set());
+    };
+
+    const handleDeleteSelected = () => {
+        if (selectedMaterials.size === 0) return;
+        if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบ ${selectedMaterials.size} รายการที่เลือก?`)) {
+            const updated = rawMaterials.filter(m => !selectedMaterials.has(m.id));
+            setRawMaterials(updated);
+            saveRawMaterials(updated);
+            setSelectedMaterials(new Set());
+        }
+    };
+
     const handleSaveImportedMaterials = (newMaterials: RawMaterial[]) => {
         const updatedMaterials = [...rawMaterials, ...newMaterials].sort((a,b) => a.name.localeCompare(b.name));
         setRawMaterials(updatedMaterials);
@@ -121,7 +202,6 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
      const handleImportFromExcel = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
-
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
@@ -131,37 +211,12 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
                 const worksheet = workbook.Sheets[sheetName];
                 const json = XLSX.utils.sheet_to_json<any>(worksheet);
 
-                const materialsMap = new Map(rawMaterials.map(m => [m.name, m]));
-                let importedCount = 0;
-
-                json.forEach(row => {
-                    const name = row.Name;
-                    if (name) {
-                        const existing = materialsMap.get(name);
-                        if (existing) { // Update existing
-                            existing.quantity = Number(row.Quantity ?? existing.quantity);
-                            existing.unit = row.Unit ?? existing.unit;
-                            existing.costPerUnit = row.CostPerUnit !== undefined ? Number(row.CostPerUnit) : existing.costPerUnit;
-                        } else { // Add new
-                            materialsMap.set(name, {
-                                id: crypto.randomUUID(),
-                                name: name,
-                                quantity: Number(row.Quantity || 0),
-                                unit: row.Unit || '',
-                                costPerUnit: row.CostPerUnit !== undefined ? Number(row.CostPerUnit) : undefined,
-                            });
-                        }
-                        importedCount++;
-                    }
-                });
-                
-                if (importedCount > 0) {
-                    const updatedList = Array.from(materialsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-                    saveRawMaterials(updatedList);
-                    setRawMaterials(updatedList);
-                    alert(`นำเข้าและอัปเดตสำเร็จ ${importedCount} รายการ`);
+                if (json.length > 0) {
+                    setStagedData(json);
+                    setIsExcelReviewModalOpen(true);
+                } else {
+                    alert('ไม่พบข้อมูลในไฟล์');
                 }
-
             } catch (error) {
                 console.error("Error importing from Excel:", error);
                 alert("เกิดข้อผิดพลาดในการอ่านไฟล์ Excel");
@@ -170,6 +225,34 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
             }
         };
         reader.readAsBinaryString(file);
+    };
+
+    const handleConfirmExcelImport = (finalData: any[]) => {
+        const materialsMap = new Map(rawMaterials.map(m => [m.name, m]));
+        finalData.forEach(row => {
+            const name = row.Name;
+            if (name) {
+                const existing = materialsMap.get(name);
+                if (existing) {
+                    existing.quantity = Number(row.Quantity ?? existing.quantity);
+                    existing.unit = row.Unit ?? existing.unit;
+                    existing.costPerUnit = row.CostPerUnit !== undefined ? Number(row.CostPerUnit) : existing.costPerUnit;
+                } else {
+                    materialsMap.set(name, {
+                        id: crypto.randomUUID(),
+                        name: name,
+                        quantity: Number(row.Quantity || 0),
+                        unit: row.Unit || '',
+                        costPerUnit: row.CostPerUnit !== undefined ? Number(row.CostPerUnit) : undefined,
+                    });
+                }
+            }
+        });
+        const updatedList = Array.from(materialsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+        saveRawMaterials(updatedList);
+        setRawMaterials(updatedList);
+        alert(`นำเข้าและอัปเดตสำเร็จ ${finalData.length} รายการ`);
+        setIsExcelReviewModalOpen(false);
     };
 
 
@@ -181,22 +264,23 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
                     onSave={handleSaveImportedMaterials}
                 />
             )}
+            {isExcelReviewModalOpen && <ImportReviewModal stagedData={stagedData} onClose={() => setIsExcelReviewModalOpen(false)} onConfirm={handleConfirmExcelImport} />}
             <div className="flex flex-wrap gap-4 justify-between items-center mb-4">
                 <h3 className="text-xl font-semibold">เพิ่ม/แก้ไข วัตถุดิบ</h3>
                 <div className="flex gap-2 flex-wrap">
                     <button 
                         onClick={() => setIsImportModalOpen(true)}
-                        className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-teal-600 hover:bg-teal-700"
                     >
                         <SparklesIcon className="w-5 h-5"/>
                         นำเข้าอัจฉริยะ
                     </button>
                     <input type="file" ref={importFileRef} onChange={handleImportFromExcel} accept=".xlsx, .xls" className="hidden"/>
-                    <button onClick={() => importFileRef.current?.click()} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none">
+                    <button onClick={() => importFileRef.current?.click()} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-cyan-600 hover:bg-cyan-700">
                         <UploadIcon className="w-5 h-5"/>
                         นำเข้า (Excel)
                     </button>
-                    <button onClick={handleExportTemplate} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none">
+                    <button onClick={handleExportTemplate} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700">
                         <DownloadIcon className="w-5 h-5"/>
                         ส่งออกฟอร์มเปล่า
                     </button>
@@ -220,13 +304,31 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
                     <input type="number" step="0.01" value={costPerUnit} onChange={e => setCostPerUnit(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Optional" className={`mt-1 block w-full ${commonInputStyle}`} />
                 </div>
                 <button type="submit" className={`${buttonPrimaryStyle} self-end h-10 col-span-full md:col-span-1`}>
-                    <PlusCircleIcon className="w-5 h-5" /> เพิ่มวัตถุดิบ
+                    <PlusCircleIcon className="w-5 h-5" /> เพิ่ม
                 </button>
             </form>
+            <div className="flex justify-end mb-4">
+                <button 
+                    onClick={handleDeleteSelected}
+                    disabled={selectedMaterials.size === 0}
+                    className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                    <Trash2Icon className="w-5 h-5"/>
+                    ลบ ({selectedMaterials.size})
+                </button>
+            </div>
             <div className="overflow-x-auto">
                 <table className="min-w-full bg-white divide-y divide-gray-200 rounded-lg shadow-sm border">
                     <thead className="bg-gray-50">
                         <tr>
+                            <th className="p-4">
+                               <input 
+                                    type="checkbox"
+                                    className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                    onChange={e => handleSelectAll(e.target.checked)}
+                                    checked={rawMaterials.length > 0 && selectedMaterials.size === rawMaterials.length}
+                                />
+                            </th>
                             <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">ชื่อวัตถุดิบ</th>
                             <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">จำนวนในสต็อก</th>
                             <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">หน่วย</th>
@@ -236,7 +338,15 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                         {rawMaterials.map(mat => (
-                            <tr key={mat.id}>
+                            <tr key={mat.id} className={selectedMaterials.has(mat.id) ? 'bg-green-50' : ''}>
+                                <td className="p-4">
+                                    <input 
+                                        type="checkbox"
+                                        className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                        checked={selectedMaterials.has(mat.id)}
+                                        onChange={e => handleSelectMaterial(mat.id, e.target.checked)}
+                                    />
+                                </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{mat.name}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                     <input 

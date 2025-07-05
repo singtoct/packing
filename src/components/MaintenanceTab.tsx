@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect } from 'react';
 import { getMachines, saveMachines, getMaintenanceLogs, saveMaintenanceLogs, getEmployees } from '../services/storageService';
 import { Machine, MaintenanceLog, Employee } from '../types';
@@ -73,6 +74,7 @@ const MaintenanceModal: React.FC<{
 
 export const MaintenanceTab: React.FC = () => {
     const [machines, setMachines] = useState<Machine[]>([]);
+    const [selectedMachines, setSelectedMachines] = useState<Set<string>>(new Set());
     const [logs, setLogs] = useState<MaintenanceLog[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [newMachineName, setNewMachineName] = useState('');
@@ -116,6 +118,25 @@ export const MaintenanceTab: React.FC = () => {
             saveMachines(updated);
         }
     };
+    
+    const handleSelectMachine = (id: string, checked: boolean) => {
+        setSelectedMachines(prev => {
+            const newSet = new Set(prev);
+            if (checked) newSet.add(id);
+            else newSet.delete(id);
+            return newSet;
+        });
+    };
+
+    const handleDeleteSelected = () => {
+        if(selectedMachines.size === 0) return;
+        if(window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบเครื่องจักร ${selectedMachines.size} เครื่องที่เลือก?`)) {
+            const updated = machines.filter(m => !selectedMachines.has(m.id));
+            setMachines(updated);
+            saveMachines(updated);
+            setSelectedMachines(new Set());
+        }
+    };
 
     const openModal = (machine: Machine) => {
         setSelectedMachine(machine);
@@ -156,15 +177,32 @@ export const MaintenanceTab: React.FC = () => {
                     </button>
                 </form>
 
-                <h3 className="text-xl font-semibold mb-4">รายการเครื่องจักร</h3>
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-semibold">รายการเครื่องจักร</h3>
+                    <button
+                        onClick={handleDeleteSelected}
+                        disabled={selectedMachines.size === 0}
+                        className="inline-flex items-center gap-1 px-3 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 disabled:bg-gray-400"
+                    >
+                        <Trash2Icon className="w-4 h-4"/> ลบที่เลือก
+                    </button>
+                </div>
                 <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
                     {machines.map(machine => (
                         <div key={machine.id} className="bg-white p-4 rounded-lg shadow-sm border">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <p className="font-semibold text-gray-800">{machine.name}</p>
-                                    <p className="text-sm text-gray-500">{machine.location}</p>
-                                </div>
+                           <div className="flex justify-between items-start">
+                               <div className="flex items-start gap-3">
+                                   <input
+                                        type="checkbox"
+                                        className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500 mt-1"
+                                        checked={selectedMachines.has(machine.id)}
+                                        onChange={e => handleSelectMachine(machine.id, e.target.checked)}
+                                    />
+                                    <div>
+                                        <p className="font-semibold text-gray-800">{machine.name}</p>
+                                        <p className="text-sm text-gray-500">{machine.location}</p>
+                                    </div>
+                               </div>
                                 <StatusBadge status={machine.status} />
                             </div>
                             <div className="mt-4 pt-3 border-t flex justify-between items-center">

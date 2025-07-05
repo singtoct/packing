@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { getShipments, saveShipments } from '../services/storageService';
 import { Shipment } from '../types';
@@ -9,6 +10,7 @@ const buttonPrimaryStyle = "inline-flex items-center justify-center gap-2 px-4 p
 
 export const ShipmentTrackingTab: React.FC = () => {
     const [shipments, setShipments] = useState<Shipment[]>([]);
+    const [selectedShipments, setSelectedShipments] = useState<Set<string>>(new Set());
     const [orderIds, setOrderIds] = useState('');
     const [carrier, setCarrier] = useState('');
     const [trackingNumber, setTrackingNumber] = useState('');
@@ -54,6 +56,30 @@ export const ShipmentTrackingTab: React.FC = () => {
         saveShipments(updated);
     };
 
+    const handleSelectShipment = (id: string, checked: boolean) => {
+        setSelectedShipments(prev => {
+            const newSet = new Set(prev);
+            if(checked) newSet.add(id);
+            else newSet.delete(id);
+            return newSet;
+        });
+    };
+
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) setSelectedShipments(new Set(shipments.map(s => s.id)));
+        else setSelectedShipments(new Set());
+    };
+
+    const handleDeleteSelected = () => {
+        if (selectedShipments.size === 0) return;
+        if(window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลการจัดส่ง ${selectedShipments.size} รายการที่เลือก?`)) {
+            const updated = shipments.filter(s => !selectedShipments.has(s.id));
+            setShipments(updated);
+            saveShipments(updated);
+            setSelectedShipments(new Set());
+        }
+    };
+
     return (
         <div>
             <h2 className="text-2xl font-bold mb-6">บันทึกและติดตามการจัดส่ง</h2>
@@ -81,11 +107,29 @@ export const ShipmentTrackingTab: React.FC = () => {
                 </div>
             </form>
 
-            <h3 className="text-xl font-semibold mb-4">ประวัติการจัดส่ง</h3>
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-semibold">ประวัติการจัดส่ง</h3>
+                <button
+                    onClick={handleDeleteSelected}
+                    disabled={selectedShipments.size === 0}
+                    className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 disabled:bg-gray-400"
+                >
+                    <Trash2Icon className="w-5 h-5"/>
+                    ลบ ({selectedShipments.size})
+                </button>
+            </div>
             <div className="overflow-x-auto">
                 <table className="min-w-full bg-white divide-y divide-gray-200 rounded-lg shadow-sm border">
                     <thead className="bg-gray-50">
                         <tr>
+                            <th className="p-4">
+                                <input
+                                    type="checkbox"
+                                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    onChange={e => handleSelectAll(e.target.checked)}
+                                    checked={shipments.length > 0 && selectedShipments.size === shipments.length}
+                                />
+                            </th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">วันที่ส่ง</th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ออเดอร์</th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">บริษัทขนส่ง</th>
@@ -96,7 +140,15 @@ export const ShipmentTrackingTab: React.FC = () => {
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                         {shipments.map(s => (
-                            <tr key={s.id}>
+                            <tr key={s.id} className={selectedShipments.has(s.id) ? 'bg-blue-50' : ''}>
+                                <td className="p-4">
+                                    <input
+                                        type="checkbox"
+                                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        checked={selectedShipments.has(s.id)}
+                                        onChange={e => handleSelectShipment(s.id, e.target.checked)}
+                                    />
+                                </td>
                                 <td className="px-4 py-4 whitespace-nowrap text-sm">{new Date(s.shipmentDate).toLocaleDateString('th-TH')}</td>
                                 <td className="px-4 py-4 text-sm">{s.orderIds.join(', ')}</td>
                                 <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold">{s.carrier}</td>

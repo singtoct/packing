@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Employee, PackingLogEntry } from '../types';
 import { getEmployees, saveEmployees, getPackingLogs } from '../services/storageService';
@@ -8,6 +9,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recha
 
 export const EmployeeManagementTab: React.FC = () => {
     const [employees, setEmployees] = useState<Employee[]>([]);
+    const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
     const [newEmployeeName, setNewEmployeeName] = useState('');
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
 
@@ -39,6 +41,28 @@ export const EmployeeManagementTab: React.FC = () => {
             }
         }
     };
+    
+    const handleSelectEmployee = (id: string, checked: boolean) => {
+        setSelectedEmployees(prev => {
+            const newSet = new Set(prev);
+            if (checked) newSet.add(id);
+            else newSet.delete(id);
+            return newSet;
+        });
+    };
+
+    const handleDeleteSelected = () => {
+        if (selectedEmployees.size === 0) return;
+         if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบพนักงาน ${selectedEmployees.size} คนที่เลือก?`)) {
+            const updatedEmployees = employees.filter(emp => !selectedEmployees.has(emp.id));
+            setEmployees(updatedEmployees);
+            saveEmployees(updatedEmployees);
+            if (selectedEmployee && selectedEmployees.has(selectedEmployee.id)) {
+                setSelectedEmployee(null);
+            }
+            setSelectedEmployees(new Set());
+        }
+    };
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -63,7 +87,16 @@ export const EmployeeManagementTab: React.FC = () => {
                     </div>
                 </form>
 
-                <h3 className="text-xl font-semibold mb-4">รายชื่อพนักงาน</h3>
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-semibold">รายชื่อพนักงาน</h3>
+                    <button 
+                        onClick={handleDeleteSelected}
+                        disabled={selectedEmployees.size === 0}
+                        className="inline-flex items-center gap-1 px-3 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 disabled:bg-gray-400"
+                    >
+                        <Trash2Icon className="w-4 h-4" /> ลบที่เลือก
+                    </button>
+                </div>
                 <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
                     {employees.map(emp => (
                         <div
@@ -71,11 +104,20 @@ export const EmployeeManagementTab: React.FC = () => {
                             onClick={() => setSelectedEmployee(emp)}
                             className={`p-4 rounded-lg cursor-pointer transition-all flex justify-between items-center ${selectedEmployee?.id === emp.id ? 'bg-green-600 text-white shadow-lg' : 'bg-white hover:bg-green-50 border'}`}
                         >
-                            <div>
-                                <p className="font-semibold">{emp.name}</p>
-                                <p className={`text-xs ${selectedEmployee?.id === emp.id ? 'text-green-200' : 'text-gray-500'}`}>
-                                    เริ่มงาน: {new Date(emp.hireDate).toLocaleDateString('th-TH')}
-                                </p>
+                            <div className="flex items-center gap-3">
+                                <input
+                                    type="checkbox"
+                                    className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                    checked={selectedEmployees.has(emp.id)}
+                                    onChange={(e) => handleSelectEmployee(emp.id, e.target.checked)}
+                                    onClick={(e) => e.stopPropagation()}
+                                />
+                                <div>
+                                    <p className="font-semibold">{emp.name}</p>
+                                    <p className={`text-xs ${selectedEmployee?.id === emp.id ? 'text-green-200' : 'text-gray-500'}`}>
+                                        เริ่มงาน: {new Date(emp.hireDate).toLocaleDateString('th-TH')}
+                                    </p>
+                                </div>
                             </div>
                              <button 
                                 onClick={(e) => { e.stopPropagation(); handleDeleteEmployee(emp.id); }} 

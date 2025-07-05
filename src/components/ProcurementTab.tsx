@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { getSuppliers, saveSuppliers, getPurchaseOrders, savePurchaseOrders, getRawMaterials, saveRawMaterials, getAnalysisShortfall } from '../services/storageService';
 import { Supplier, PurchaseOrder, RawMaterial } from '../types';
@@ -94,6 +95,7 @@ const SupplierView: React.FC<{
     setSuppliers: React.Dispatch<React.SetStateAction<Supplier[]>>;
 }> = ({ suppliers, setSuppliers }) => {
     const [isEditing, setIsEditing] = useState<Supplier | null>(null);
+    const [selectedSuppliers, setSelectedSuppliers] = useState<Set<string>>(new Set());
     const [name, setName] = useState('');
     const [contact, setContact] = useState('');
     const [phone, setPhone] = useState('');
@@ -141,6 +143,30 @@ const SupplierView: React.FC<{
         }
     };
 
+    const handleSelectSupplier = (id: string, checked: boolean) => {
+        setSelectedSuppliers(prev => {
+            const newSet = new Set(prev);
+            if(checked) newSet.add(id);
+            else newSet.delete(id);
+            return newSet;
+        });
+    };
+
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) setSelectedSuppliers(new Set(suppliers.map(s => s.id)));
+        else setSelectedSuppliers(new Set());
+    };
+
+    const handleDeleteSelected = () => {
+        if (selectedSuppliers.size === 0) return;
+        if(window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบซัพพลายเออร์ ${selectedSuppliers.size} รายที่เลือก?`)) {
+            const updated = suppliers.filter(s => !selectedSuppliers.has(s.id));
+            setSuppliers(updated);
+            saveSuppliers(updated);
+            setSelectedSuppliers(new Set());
+        }
+    };
+
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="md:col-span-1">
@@ -175,15 +201,39 @@ const SupplierView: React.FC<{
                     <table className="min-w-full bg-white divide-y divide-gray-200 rounded-lg shadow-sm border">
                         <thead className="bg-gray-50">
                              <tr>
+                                 <th className="p-4">
+                                     <input
+                                        type="checkbox"
+                                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        onChange={e => handleSelectAll(e.target.checked)}
+                                        checked={suppliers.length > 0 && selectedSuppliers.size === suppliers.length}
+                                     />
+                                 </th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ชื่อ</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ผู้ติดต่อ</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">เบอร์โทร</th>
-                                <th className="px-4 py-3"></th>
+                                <th className="px-4 py-3 text-right">
+                                    <button
+                                        onClick={handleDeleteSelected}
+                                        disabled={selectedSuppliers.size === 0}
+                                        className="text-red-600 hover:text-red-800 disabled:text-gray-300"
+                                    >
+                                        <Trash2Icon className="w-5 h-5"/>
+                                    </button>
+                                </th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
                             {suppliers.map(s => (
-                                <tr key={s.id}>
+                                <tr key={s.id} className={selectedSuppliers.has(s.id) ? 'bg-blue-50' : ''}>
+                                    <td className="p-4">
+                                        <input
+                                            type="checkbox"
+                                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                            checked={selectedSuppliers.has(s.id)}
+                                            onChange={e => handleSelectSupplier(s.id, e.target.checked)}
+                                        />
+                                    </td>
                                     <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold">{s.name}</td>
                                     <td className="px-4 py-4 whitespace-nowrap text-sm">{s.contactPerson}</td>
                                     <td className="px-4 py-4 whitespace-nowrap text-sm">{s.phone}</td>

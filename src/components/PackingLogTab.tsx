@@ -5,16 +5,84 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { PackingLogEntry, Employee, QCEntry } from '../types';
 import { getPackingLogs, savePackingLogs, getOrders, getInventory, saveInventory, getEmployees, getQCEntries, saveQCEntries } from '../services/storageService';
-import { PlusCircleIcon, Trash2Icon, FileSpreadsheetIcon, DownloadIcon, UploadIcon } from './icons/Icons';
+import { PlusCircleIcon, Trash2Icon, FileSpreadsheetIcon, DownloadIcon, UploadIcon, XCircleIcon } from './icons/Icons';
+
+type StagedLog = Omit<PackingLogEntry, 'id'> & { _tempId: string };
+
+const ImportReviewModal: React.FC<{
+    stagedLogs: StagedLog[],
+    onClose: () => void,
+    onConfirm: (finalLogs: StagedLog[]) => void
+}> = ({ stagedLogs, onClose, onConfirm }) => {
+    const [logs, setLogs] = useState(stagedLogs);
+
+    const handleItemChange = (tempId: string, field: keyof StagedLog, value: any) => {
+        setLogs(current =>
+            current.map(item =>
+                item._tempId === tempId ? { ...item, [field]: value } : item
+            )
+        );
+    };
+
+    const handleRemoveItem = (tempId: string) => {
+        setLogs(current => current.filter(item => item._tempId !== tempId));
+    };
+
+    const handleSubmit = () => {
+        // Basic validation
+        for (const log of logs) {
+            if (!log.name || !log.date || !log.packerName || !log.quantity || log.quantity <= 0) {
+                alert(`กรุณากรอกข้อมูลให้ครบถ้วนสำหรับแถวที่มีข้อมูล: "${log.name || 'N/A'}"`);
+                return;
+            }
+        }
+        onConfirm(logs);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
+            <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-2xl font-bold text-gray-800">ตรวจสอบข้อมูลนำเข้า</h2>
+                    <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-200"><XCircleIcon className="w-6 h-6 text-gray-500"/></button>
+                </div>
+                <p className="text-sm text-gray-600 mb-4">โปรดตรวจสอบและแก้ไขข้อมูลก่อนบันทึกลงในระบบ</p>
+                <div className="flex-grow overflow-y-auto border rounded-lg bg-gray-50 p-2">
+                    <div className="space-y-2">
+                        <div className="grid grid-cols-[2fr,1fr,2fr,1fr,auto] gap-2 text-xs font-bold px-2 py-1">
+                            <span>ชื่อสินค้า</span><span>จำนวน</span><span>ผู้บันทึก</span><span>วันที่</span><span></span>
+                        </div>
+                        {logs.map(log => (
+                             <div key={log._tempId} className="grid grid-cols-[2fr,1fr,2fr,1fr,auto] gap-2 items-center bg-white p-2 rounded shadow-sm">
+                                <input type="text" value={log.name} onChange={e => handleItemChange(log._tempId, 'name', e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"/>
+                                <input type="number" value={log.quantity} onChange={e => handleItemChange(log._tempId, 'quantity', Number(e.target.value))} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"/>
+                                <input type="text" value={log.packerName} onChange={e => handleItemChange(log._tempId, 'packerName', e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"/>
+                                <input type="date" value={log.date} onChange={e => handleItemChange(log._tempId, 'date', e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"/>
+                                <button onClick={() => handleRemoveItem(log._tempId)} className="p-1 text-red-500 hover:text-red-700"><Trash2Icon className="w-4 h-4"/></button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                <div className="flex justify-end gap-4 pt-4">
+                    <button onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-md">ยกเลิก</button>
+                    <button onClick={handleSubmit} disabled={logs.length === 0} className="px-4 py-2 border border-transparent rounded-md text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400">ยืนยันและบันทึก</button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ setLowStockCheck }) => {
     const [logs, setLogs] = useState<PackingLogEntry[]>([]);
+    const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set());
     const [logItemName, setLogItemName] = useState('');
     const [logQuantity, setLogQuantity] = useState(1);
     const [logDate, setLogDate] = useState('');
     const [packerName, setPackerName] = useState('');
     const [availableItems, setAvailableItems] = useState<string[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
+    const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+    const [stagedLogs, setStagedLogs] = useState<StagedLog[]>([]);
     const importFileRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -116,6 +184,54 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
         setLogs(prevLogs => prevLogs.filter(log => log.id !== id));
     };
 
+    const handleSelectLog = (id: string, checked: boolean) => {
+        setSelectedLogs(prev => {
+            const newSet = new Set(prev);
+            if (checked) newSet.add(id);
+            else newSet.delete(id);
+            return newSet;
+        });
+    };
+
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) setSelectedLogs(new Set(logs.map(l => l.id)));
+        else setSelectedLogs(new Set());
+    };
+
+    const handleDeleteSelected = () => {
+        if (selectedLogs.size === 0) return;
+        if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบ ${selectedLogs.size} รายการที่เลือก? การกระทำนี้จะลบสินค้าออกจากสต็อกด้วย`)) {
+            const logsToDelete = new Set(selectedLogs);
+            const logsToDeleteArray = logs.filter(log => logsToDelete.has(log.id));
+
+            // Reverse inventory update
+            const currentInventory = getInventory();
+            const logsByProduct = logsToDeleteArray.reduce((acc, log) => {
+                acc[log.name] = (acc[log.name] || 0) + log.quantity;
+                return acc;
+            }, {} as Record<string, number>);
+
+            const updatedInventory = currentInventory.map(item => {
+                if (logsByProduct[item.name]) {
+                    item.quantity -= logsByProduct[item.name];
+                    if (item.quantity < 0) item.quantity = 0;
+                }
+                return item;
+            });
+
+            // Delete associated QC entries
+            const currentQCEntries = getQCEntries();
+            const updatedQCEntries = currentQCEntries.filter(entry => !logsToDelete.has(entry.packingLogId));
+            
+            saveInventory(updatedInventory);
+            saveQCEntries(updatedQCEntries);
+            setLowStockCheck();
+
+            setLogs(prevLogs => prevLogs.filter(log => !logsToDelete.has(log.id)));
+            setSelectedLogs(new Set());
+        }
+    };
+
     const handleExportHistory = () => {
         const dataToExport = logs.map(log => ({
             'วันที่': new Date(log.date).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }),
@@ -144,37 +260,27 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
                 const worksheet = workbook.Sheets[sheetName];
                 const json = XLSX.utils.sheet_to_json<any>(worksheet);
 
-                const currentInventory = getInventory();
-                const currentQCEntries = getQCEntries();
-                const newLogs: PackingLogEntry[] = [];
-                
-                json.forEach((row, index) => {
+                const newStagedLogs: StagedLog[] = [];
+                json.forEach((row) => {
                     const productName = row['ชื่อสินค้า'];
                     const quantity = row['จำนวน (ลัง)'];
                     const packer = row['ผู้บันทึก'];
-                    // XLSX can parse dates, or we handle strings
-                    const rowDate = row['วันที่'] instanceof Date ? row['วันที่'] : new Date(row['วันที่']);
+                    const rowDate = row['วันที่'];
 
-                    if (productName && quantity > 0 && packer && !isNaN(rowDate.getTime())) {
-                        const newLog = addLogEntry({
-                            date: rowDate.toISOString().split('T')[0],
+                    if (productName && quantity > 0 && packer && rowDate) {
+                        newStagedLogs.push({
+                            _tempId: crypto.randomUUID(),
+                            date: (rowDate instanceof Date ? rowDate : new Date(rowDate)).toISOString().split('T')[0],
                             name: productName.trim(),
                             quantity: Number(quantity),
                             packerName: packer.trim(),
-                        }, currentInventory, currentQCEntries);
-                        newLogs.push(newLog);
-                    } else {
-                        console.warn(`Skipping invalid row ${index + 2}:`, row);
+                        });
                     }
                 });
-
-                if (newLogs.length > 0) {
-                    saveInventory(currentInventory);
-                    saveQCEntries(currentQCEntries);
-                    const updatedLogs = [...newLogs, ...logs].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-                    setLogs(updatedLogs);
-                    setLowStockCheck();
-                    alert(`นำเข้าสำเร็จ ${newLogs.length} รายการ`);
+                
+                if (newStagedLogs.length > 0) {
+                    setStagedLogs(newStagedLogs);
+                    setIsReviewModalOpen(true);
                 } else {
                     alert('ไม่พบข้อมูลที่ถูกต้องในไฟล์');
                 }
@@ -188,10 +294,33 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
         };
         reader.readAsBinaryString(file);
     };
+    
+    const handleConfirmImport = (finalLogs: StagedLog[]) => {
+        const currentInventory = getInventory();
+        const currentQCEntries = getQCEntries();
+        const newLogs: PackingLogEntry[] = [];
+
+        finalLogs.forEach(logData => {
+            const newLog = addLogEntry(logData, currentInventory, currentQCEntries);
+            newLogs.push(newLog);
+        });
+
+        if (newLogs.length > 0) {
+            saveInventory(currentInventory);
+            saveQCEntries(currentQCEntries);
+            const updatedLogs = [...newLogs, ...logs].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            setLogs(updatedLogs);
+            setLowStockCheck();
+            alert(`นำเข้าสำเร็จ ${newLogs.length} รายการ`);
+        }
+        setIsReviewModalOpen(false);
+        setStagedLogs([]);
+    };
 
 
     return (
         <div>
+            {isReviewModalOpen && <ImportReviewModal stagedLogs={stagedLogs} onClose={() => setIsReviewModalOpen(false)} onConfirm={handleConfirmImport} />}
             <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">บันทึกข้อมูลการแพ็คสินค้า</h2>
                 <div className="flex gap-2 flex-wrap">
@@ -200,16 +329,17 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
                         <UploadIcon className="w-5 h-5"/>
                         นำเข้า (Excel)
                     </button>
-                    <button onClick={handleExportHistory} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                    <button onClick={handleExportHistory} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none">
                         <DownloadIcon className="w-5 h-5"/>
                         ส่งออกประวัติ (Excel)
                     </button>
                     <button onClick={() => {
                         const wb = XLSX.utils.book_new();
                         const ws = XLSX.utils.aoa_to_sheet([["วันที่", "ชื่อสินค้า", "จำนวน (ลัง)", "ผู้บันทึก"]]);
+                        ws['!cols'] = [{ wch: 15 }, { wch: 50 }, { wch: 15 }, { wch: 20 }];
                         XLSX.utils.book_append_sheet(wb, ws, "Packing Import Template");
                         XLSX.writeFile(wb, "Packing_Import_Template.xlsx");
-                    }} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500">
+                    }} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none">
                         <FileSpreadsheetIcon className="w-5 h-5"/>
                         ส่งออกฟอร์มเปล่า
                     </button>
@@ -245,12 +375,29 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
                     </button>
                 </div>
             </form>
-
-             <h2 className="text-2xl font-bold mb-4">ประวัติการบันทึก</h2>
+            <div className="flex flex-wrap gap-4 justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold">ประวัติการบันทึก</h2>
+                <button 
+                    onClick={handleDeleteSelected}
+                    disabled={selectedLogs.size === 0}
+                    className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                    <Trash2Icon className="w-5 h-5"/>
+                    ลบ ({selectedLogs.size})
+                </button>
+            </div>
              <div className="overflow-x-auto">
                 <table className="min-w-full bg-white divide-y divide-gray-200 rounded-lg shadow-sm border">
                     <thead className="bg-gray-50">
                         <tr>
+                            <th scope="col" className="p-4">
+                                <input 
+                                    type="checkbox"
+                                    className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                    onChange={e => handleSelectAll(e.target.checked)}
+                                    checked={logs.length > 0 && selectedLogs.size === logs.length}
+                                />
+                            </th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">วันที่</th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อสินค้า</th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">จำนวน (ลัง)</th>
@@ -261,7 +408,15 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
                     <tbody className="divide-y divide-gray-200">
                         {logs.length > 0 ? (
                             logs.map(log => (
-                                <tr key={log.id}>
+                                <tr key={log.id} className={selectedLogs.has(log.id) ? 'bg-green-50' : ''}>
+                                    <td className="p-4">
+                                        <input 
+                                            type="checkbox"
+                                            className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                            checked={selectedLogs.has(log.id)}
+                                            onChange={e => handleSelectLog(log.id, e.target.checked)}
+                                        />
+                                    </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{new Date(log.date).toLocaleDateString('th-TH')}</td>
                                     <td className="px-6 py-4 whitespace-normal text-sm text-gray-500">{log.name}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.quantity}</td>
@@ -272,7 +427,7 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
                                 </tr>
                             ))
                         ) : (
-                            <tr><td colSpan={5} className="text-center text-gray-500 py-8">ยังไม่มีการบันทึก</td></tr>
+                            <tr><td colSpan={6} className="text-center text-gray-500 py-8">ยังไม่มีการบันทึก</td></tr>
                         )}
                     </tbody>
                 </table>
