@@ -1,10 +1,11 @@
 
 
-import React, { useState, useEffect, useMemo } from 'react';
+
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { MoldingLogEntry, Employee, RawMaterial, BillOfMaterial } from '../types';
 import { getMoldingLogs, saveMoldingLogs, getEmployees, getRawMaterials, saveRawMaterials, getBOMs } from '../services/storageService';
-import { PlusCircleIcon, Trash2Icon, AlertTriangleIcon, DownloadIcon } from './icons/Icons';
+import { PlusCircleIcon, Trash2Icon, AlertTriangleIcon, DownloadIcon, UploadIcon } from './icons/Icons';
 
 const NEXT_STEPS = ['แปะกันรอย', 'ประกบ', 'ห้องประกอบ', 'ห้องแพ็ค'];
 
@@ -22,6 +23,7 @@ export const MoldingTab: React.FC = () => {
     // New state for BOM and Raw Materials
     const [boms, setBoms] = useState<BillOfMaterial[]>([]);
     const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
+    const importFileRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const handleStorageChange = () => {
@@ -79,7 +81,6 @@ export const MoldingTab: React.FC = () => {
         e.preventDefault();
         if (!productName.trim() || !date || !operatorName || !machine || !nextStep || !materialCheck.isSufficient) return;
         
-        // Final check before saving
         const currentRawMaterials = getRawMaterials();
         const bom = boms.find(b => b.productName === productName);
         if (bom) {
@@ -104,7 +105,6 @@ export const MoldingTab: React.FC = () => {
             status: `รอ${nextStep}`,
         };
 
-        // Deduct raw materials from stock
         if (bom) {
             const updatedRawMaterials = currentRawMaterials.map(rm => {
                 const component = bom.components.find(c => c.rawMaterialId === rm.id);
@@ -114,14 +114,13 @@ export const MoldingTab: React.FC = () => {
                 return rm;
             });
             saveRawMaterials(updatedRawMaterials);
-            setRawMaterials(updatedRawMaterials); // Update local state
+            setRawMaterials(updatedRawMaterials);
         }
 
         const updatedLogs = [newLog, ...logs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         setLogs(updatedLogs);
         saveMoldingLogs(updatedLogs);
 
-        // Reset form
         setProductName('');
         setQuantityProduced(1);
         setQuantityRejected(0);
@@ -144,14 +143,109 @@ export const MoldingTab: React.FC = () => {
         XLSX.writeFile(wb, "Molding_Log_Import_Template.xlsx");
     };
 
+    const handleImportFromExcel = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = e.target?.result;
+                const workbook = XLSX.read(data, { type: 'binary', cellDates: true });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const jsonLogs = XLSX.utils.sheet_to_json<any>(worksheet);
+
+                // Pre-flight check
+                const bomsMap = new Map(getBOMs().map(b => [b.productName, b]));
+                const materialsMap = new Map(getRawMaterials().map(m => [m.id, m.quantity]));
+                const requiredMaterials = new Map<string, number>();
+
+                for (const row of jsonLogs) {
+                    const bom = bomsMap.get(row.ProductName);
+                    if (bom) {
+                        for (const comp of bom.components) {
+                            const needed = comp.quantity * (row.QuantityProduced || 0);
+                            requiredMaterials.set(comp.rawMaterialId, (requiredMaterials.get(comp.rawMaterialId) || 0) + needed);
+                        }
+                    }
+                }
+                
+                for (const [id, needed] of requiredMaterials.entries()) {
+                    if ((materialsMap.get(id) || 0) < needed) {
+                        const materialName = getRawMaterials().find(m => m.id === id)?.name || id;
+                        alert(`วัตถุดิบไม่เพียงพอสำหรับนำเข้าทั้งหมด: ${materialName}. ต้องการ ${needed}, มี ${(materialsMap.get(id) || 0)}`);
+                        return;
+                    }
+                }
+
+                // Proceed with import
+                const newLogs: MoldingLogEntry[] = [];
+                const updatedRawMaterials = getRawMaterials();
+
+                jsonLogs.forEach((row, index) => {
+                    if (row.ProductName && row.QuantityProduced > 0) {
+                        const newLog: MoldingLogEntry = {
+                            id: crypto.randomUUID(),
+                            date: (row.Date instanceof Date ? row.Date : new Date()).toISOString().split('T')[0],
+                            productName: row.ProductName,
+                            quantityProduced: Number(row.QuantityProduced),
+                            quantityRejected: Number(row.QuantityRejected || 0),
+                            machine: row.Machine,
+                            operatorName: row.OperatorName,
+                            status: row.Status || 'รอแปะกันรอย'
+                        };
+                        newLogs.push(newLog);
+
+                        const bom = bomsMap.get(row.ProductName);
+                        if(bom) {
+                            bom.components.forEach(comp => {
+                                const matIndex = updatedRawMaterials.findIndex(m => m.id === comp.rawMaterialId);
+                                if(matIndex > -1) {
+                                    updatedRawMaterials[matIndex].quantity -= comp.quantity * newLog.quantityProduced;
+                                }
+                            });
+                        }
+
+                    } else {
+                        console.warn(`Skipping invalid row ${index + 2}:`, row);
+                    }
+                });
+
+                if (newLogs.length > 0) {
+                    saveRawMaterials(updatedRawMaterials);
+                    setRawMaterials(updatedRawMaterials);
+                    const allLogs = [...newLogs, ...logs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                    saveMoldingLogs(allLogs);
+                    setLogs(allLogs);
+                    alert(`นำเข้าสำเร็จ ${newLogs.length} รายการ`);
+                }
+
+            } catch (error) {
+                console.error("Error importing from Excel:", error);
+                alert("เกิดข้อผิดพลาดในการอ่านไฟล์ Excel");
+            } finally {
+                 if (importFileRef.current) importFileRef.current.value = '';
+            }
+        };
+        reader.readAsBinaryString(file);
+    };
+
     return (
         <div>
             <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">บันทึกข้อมูลการผลิต (แผนกฉีด)</h2>
-                 <button onClick={handleExportTemplate} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none">
-                    <DownloadIcon className="w-5 h-5"/>
-                    ส่งออกฟอร์มเปล่า
-                </button>
+                 <div className="flex gap-2">
+                    <input type="file" ref={importFileRef} onChange={handleImportFromExcel} accept=".xlsx, .xls" className="hidden"/>
+                    <button onClick={() => importFileRef.current?.click()} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-teal-600 hover:bg-teal-700 focus:outline-none">
+                        <UploadIcon className="w-5 h-5"/>
+                        นำเข้า (Excel)
+                    </button>
+                    <button onClick={handleExportTemplate} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none">
+                        <DownloadIcon className="w-5 h-5"/>
+                        ส่งออกฟอร์มเปล่า
+                    </button>
+                </div>
             </div>
 
             <form onSubmit={handleAddLog} className="space-y-6 bg-gray-50 p-6 rounded-lg border mb-10">

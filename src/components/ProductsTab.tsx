@@ -1,9 +1,11 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+
+
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { Product, BillOfMaterial, RawMaterial } from '../types';
 import { getProducts, saveProducts, getBOMs, getRawMaterials } from '../services/storageService';
-import { PlusCircleIcon, Trash2Icon, EditIcon, DownloadIcon, DatabaseIcon } from './icons/Icons';
+import { PlusCircleIcon, Trash2Icon, EditIcon, DownloadIcon, DatabaseIcon, UploadIcon } from './icons/Icons';
 
 const EditProductModal: React.FC<{
     product: Product;
@@ -62,6 +64,7 @@ export const ProductsTab: React.FC = () => {
     const [salePrice, setSalePrice] = useState<number | ''>('');
 
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+    const importFileRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const refreshData = () => {
@@ -137,15 +140,66 @@ export const ProductsTab: React.FC = () => {
         XLSX.writeFile(wb, "Product_Import_Template.xlsx");
     };
 
+    const handleImportFromExcel = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = e.target?.result;
+                const workbook = XLSX.read(data, { type: 'binary' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const json = XLSX.utils.sheet_to_json<any>(worksheet);
+                
+                const newProducts: Product[] = [];
+                json.forEach((row, index) => {
+                    if (row.Name && row.Color && row.SalePrice > 0) {
+                        newProducts.push({
+                            id: crypto.randomUUID(),
+                            name: row.Name,
+                            color: row.Color,
+                            salePrice: Number(row.SalePrice)
+                        });
+                    } else {
+                        console.warn(`Skipping invalid product row ${index + 2}:`, row);
+                    }
+                });
+
+                if(newProducts.length > 0) {
+                    const updated = [...products, ...newProducts].sort((a,b) => a.name.localeCompare(b.name));
+                    setProducts(updated);
+                    saveProducts(updated);
+                    alert(`นำเข้าสำเร็จ ${newProducts.length} รายการ`);
+                }
+
+            } catch (error) {
+                console.error("Error importing products:", error);
+                alert("เกิดข้อผิดพลาดในการอ่านไฟล์ Excel");
+            } finally {
+                if(importFileRef.current) importFileRef.current.value = '';
+            }
+        };
+        reader.readAsBinaryString(file);
+    };
+
     return (
         <div>
             {editingProduct && <EditProductModal product={editingProduct} onClose={() => setEditingProduct(null)} onSave={handleUpdateProduct} />}
             <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
                  <h2 className="text-2xl font-bold">จัดการรายการสินค้า (Master Data)</h2>
-                <button onClick={handleExportTemplate} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none">
-                    <DownloadIcon className="w-5 h-5"/>
-                    ส่งออกฟอร์มเปล่า
-                </button>
+                <div className="flex gap-2">
+                    <input type="file" ref={importFileRef} onChange={handleImportFromExcel} accept=".xlsx, .xls" className="hidden"/>
+                    <button onClick={() => importFileRef.current?.click()} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-teal-600 hover:bg-teal-700 focus:outline-none">
+                        <UploadIcon className="w-5 h-5"/>
+                        นำเข้า (Excel)
+                    </button>
+                    <button onClick={handleExportTemplate} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none">
+                        <DownloadIcon className="w-5 h-5"/>
+                        ส่งออกฟอร์มเปล่า
+                    </button>
+                </div>
             </div>
              <form onSubmit={handleAddProduct} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end bg-gray-50 p-4 rounded-lg border mb-10">
                 <div className="md:col-span-2">

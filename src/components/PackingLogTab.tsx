@@ -1,10 +1,11 @@
 
 
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { PackingLogEntry, Employee, QCEntry } from '../types';
 import { getPackingLogs, savePackingLogs, getOrders, getInventory, saveInventory, getEmployees, getQCEntries, saveQCEntries } from '../services/storageService';
-import { PlusCircleIcon, Trash2Icon, FileSpreadsheetIcon, DownloadIcon } from './icons/Icons';
+import { PlusCircleIcon, Trash2Icon, FileSpreadsheetIcon, DownloadIcon, UploadIcon } from './icons/Icons';
 
 export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ setLowStockCheck }) => {
     const [logs, setLogs] = useState<PackingLogEntry[]>([]);
@@ -14,6 +15,7 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
     const [packerName, setPackerName] = useState('');
     const [availableItems, setAvailableItems] = useState<string[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
+    const importFileRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const storedLogs = getPackingLogs();
@@ -41,33 +43,17 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
     useEffect(() => {
         savePackingLogs(logs);
     }, [logs]);
+    
+    const addLogEntry = (logData: Omit<PackingLogEntry, 'id'>, currentInventory: any[], currentQCEntries: any[]) => {
+        const newLog: PackingLogEntry = { ...logData, id: crypto.randomUUID() };
 
-    const handleAddLog = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!logItemName.trim() || !logDate || !packerName) return;
-        
-        const newLog: PackingLogEntry = {
-            id: crypto.randomUUID(),
-            date: logDate,
-            name: logItemName.trim(),
-            quantity: logQuantity,
-            packerName: packerName,
-        };
-
-        const currentInventory = getInventory();
         const itemIndex = currentInventory.findIndex(item => item.name === newLog.name);
         if (itemIndex > -1) {
             currentInventory[itemIndex].quantity += newLog.quantity;
         } else {
             currentInventory.push({ name: newLog.name, quantity: newLog.quantity });
         }
-        saveInventory(currentInventory);
-        setLowStockCheck();
-
-        const updatedLogs = [newLog, ...logs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        setLogs(updatedLogs);
         
-        // Create corresponding QC Entry
         const newQCEntry: QCEntry = {
             id: newLog.id,
             packingLogId: newLog.id,
@@ -77,10 +63,33 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
             packingDate: newLog.date,
             status: 'Pending',
         };
+        currentQCEntries.push(newQCEntry);
+
+        return newLog;
+    };
+
+
+    const handleAddLog = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!logItemName.trim() || !logDate || !packerName) return;
+        
+        const currentInventory = getInventory();
         const currentQCEntries = getQCEntries();
-        saveQCEntries([newQCEntry, ...currentQCEntries]);
 
+        const newLog = addLogEntry({
+            date: logDate,
+            name: logItemName.trim(),
+            quantity: logQuantity,
+            packerName: packerName,
+        }, currentInventory, currentQCEntries);
 
+        saveInventory(currentInventory);
+        saveQCEntries(currentQCEntries);
+        
+        const updatedLogs = [newLog, ...logs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setLogs(updatedLogs);
+        
+        setLowStockCheck();
         setLogQuantity(1);
     };
 
@@ -107,43 +116,6 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
         setLogs(prevLogs => prevLogs.filter(log => log.id !== id));
     };
 
-    const handleExportToExcel = () => {
-        const wb = XLSX.utils.book_new();
-        const title = [["ใบรายงานการแพ็คสินค้าประจำวัน / DAILY PACKING REPORT"]];
-        const info = [["วันที่ / DATE:", "", "", "ผู้บันทึก / RECORDER:", ""]];
-        const headers = [["ลำดับ\nNo.", "รายการสินค้า\nကုန်ပစ္စည်းအမည်", "จำนวน (ลัง)\nအရေအတွက်", "พร้อมส่ง\nအသင့်", "หมายเหตุ\nမှတ်ချက်"]];
-        const emptyData = Array.from({ length: 20 }, () => ["", "", "", "", ""]);
-        const footer = [["", "", "", "ผู้ตรวจสอบ / CHECKED BY:"]];
-
-        const finalData = [...title, [], ...info, [], ...headers, ...emptyData, [], ...footer];
-        const ws = XLSX.utils.aoa_to_sheet(finalData);
-
-        ws["!merges"] = [
-            { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } },
-            { s: { r: finalData.length - 1, c: 3 }, e: { r: finalData.length - 1, c: 4 } },
-        ];
-        ws["!cols"] = [{ wch: 10 }, { wch: 45 }, { wch: 20 }, { wch: 15 }, { wch: 35 }];
-        ws["!rows"] = [{ hpt: 24 }, {}, { hpt: 18 }, {}, { hpt: 36 }];
-        Array.from({ length: 20 }).forEach((_, i) => { if (ws["!rows"]) ws["!rows"][5 + i] = { hpt: 22 }; });
-
-        const titleStyle = { font: { sz: 18, bold: true }, alignment: { horizontal: "center", vertical: "center" } };
-        if(ws['A1']) ws['A1'].s = titleStyle;
-        const headerStyle = { font: { bold: true, sz: 12 }, alignment: { horizontal: "center", vertical: "center", wrapText: true }, fill: { fgColor: { rgb: "EAEAEA" } } };
-        ['A5', 'B5', 'C5', 'D5', 'E5'].forEach(cellRef => { if (ws[cellRef]) ws[cellRef].s = headerStyle; });
-
-        const border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
-        for (let R = 4; R < 5 + emptyData.length; ++R) {
-            for (let C = 0; C < 5; ++C) {
-                const cell_address = XLSX.utils.encode_cell({ c: C, r: R });
-                if (!ws[cell_address]) ws[cell_address] = { t: 's', v: '' };
-                ws[cell_address].s = { ...(ws[cell_address].s || {}), border, alignment: { ...(ws[cell_address].s?.alignment || {}), vertical: "center" } };
-            }
-        }
-        
-        XLSX.utils.book_append_sheet(wb, ws, "Packing Report");
-        XLSX.writeFile(wb, `CT_Packing_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
-    };
-
     const handleExportHistory = () => {
         const dataToExport = logs.map(log => ({
             'วันที่': new Date(log.date).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }),
@@ -159,16 +131,85 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
         XLSX.writeFile(wb, `Packing_History_${new Date().toISOString().split('T')[0]}.xlsx`);
     };
 
+    const handleImportFromExcel = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = e.target?.result;
+                const workbook = XLSX.read(data, { type: 'binary', cellDates: true });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const json = XLSX.utils.sheet_to_json<any>(worksheet);
+
+                const currentInventory = getInventory();
+                const currentQCEntries = getQCEntries();
+                const newLogs: PackingLogEntry[] = [];
+                
+                json.forEach((row, index) => {
+                    const productName = row['ชื่อสินค้า'];
+                    const quantity = row['จำนวน (ลัง)'];
+                    const packer = row['ผู้บันทึก'];
+                    // XLSX can parse dates, or we handle strings
+                    const rowDate = row['วันที่'] instanceof Date ? row['วันที่'] : new Date(row['วันที่']);
+
+                    if (productName && quantity > 0 && packer && !isNaN(rowDate.getTime())) {
+                        const newLog = addLogEntry({
+                            date: rowDate.toISOString().split('T')[0],
+                            name: productName.trim(),
+                            quantity: Number(quantity),
+                            packerName: packer.trim(),
+                        }, currentInventory, currentQCEntries);
+                        newLogs.push(newLog);
+                    } else {
+                        console.warn(`Skipping invalid row ${index + 2}:`, row);
+                    }
+                });
+
+                if (newLogs.length > 0) {
+                    saveInventory(currentInventory);
+                    saveQCEntries(currentQCEntries);
+                    const updatedLogs = [...newLogs, ...logs].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                    setLogs(updatedLogs);
+                    setLowStockCheck();
+                    alert(`นำเข้าสำเร็จ ${newLogs.length} รายการ`);
+                } else {
+                    alert('ไม่พบข้อมูลที่ถูกต้องในไฟล์');
+                }
+
+            } catch (error) {
+                console.error("Error importing from Excel:", error);
+                alert("เกิดข้อผิดพลาดในการอ่านไฟล์ Excel");
+            } finally {
+                if (importFileRef.current) importFileRef.current.value = '';
+            }
+        };
+        reader.readAsBinaryString(file);
+    };
+
+
     return (
         <div>
             <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">บันทึกข้อมูลการแพ็คสินค้า</h2>
                 <div className="flex gap-2 flex-wrap">
+                    <input type="file" ref={importFileRef} onChange={handleImportFromExcel} accept=".xlsx, .xls" className="hidden"/>
+                     <button onClick={() => importFileRef.current?.click()} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-teal-600 hover:bg-teal-700 focus:outline-none">
+                        <UploadIcon className="w-5 h-5"/>
+                        นำเข้า (Excel)
+                    </button>
                     <button onClick={handleExportHistory} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
                         <DownloadIcon className="w-5 h-5"/>
                         ส่งออกประวัติ (Excel)
                     </button>
-                    <button onClick={handleExportToExcel} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500">
+                    <button onClick={() => {
+                        const wb = XLSX.utils.book_new();
+                        const ws = XLSX.utils.aoa_to_sheet([["วันที่", "ชื่อสินค้า", "จำนวน (ลัง)", "ผู้บันทึก"]]);
+                        XLSX.utils.book_append_sheet(wb, ws, "Packing Import Template");
+                        XLSX.writeFile(wb, "Packing_Import_Template.xlsx");
+                    }} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500">
                         <FileSpreadsheetIcon className="w-5 h-5"/>
                         ส่งออกฟอร์มเปล่า
                     </button>

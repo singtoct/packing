@@ -1,10 +1,11 @@
 
 
-import React, { useState, useEffect, useMemo } from 'react';
+
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { RawMaterial, BillOfMaterial, MoldingLogEntry, Product } from '../types';
 import { getRawMaterials, saveRawMaterials, getBOMs, saveBOMs, getMoldingLogs, getProducts } from '../services/storageService';
-import { PlusCircleIcon, Trash2Icon, EditIcon, SparklesIcon, DownloadIcon } from './icons/Icons';
+import { PlusCircleIcon, Trash2Icon, EditIcon, SparklesIcon, DownloadIcon, UploadIcon } from './icons/Icons';
 import { IntelligentMaterialImportModal } from './IntelligentMaterialImportModal';
 
 type View = 'inventory' | 'bom';
@@ -66,6 +67,7 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
     const [unit, setUnit] = useState('kg');
     const [costPerUnit, setCostPerUnit] = useState<number | ''>('');
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const importFileRef = useRef<HTMLInputElement>(null);
 
 
     const handleAddMaterial = (e: React.FormEvent) => {
@@ -116,6 +118,61 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
         XLSX.writeFile(wb, "Raw_Material_Import_Template.xlsx");
     };
 
+     const handleImportFromExcel = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = e.target?.result;
+                const workbook = XLSX.read(data, { type: 'binary' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const json = XLSX.utils.sheet_to_json<any>(worksheet);
+
+                const materialsMap = new Map(rawMaterials.map(m => [m.name, m]));
+                let importedCount = 0;
+
+                json.forEach(row => {
+                    const name = row.Name;
+                    if (name) {
+                        const existing = materialsMap.get(name);
+                        if (existing) { // Update existing
+                            existing.quantity = Number(row.Quantity ?? existing.quantity);
+                            existing.unit = row.Unit ?? existing.unit;
+                            existing.costPerUnit = row.CostPerUnit !== undefined ? Number(row.CostPerUnit) : existing.costPerUnit;
+                        } else { // Add new
+                            materialsMap.set(name, {
+                                id: crypto.randomUUID(),
+                                name: name,
+                                quantity: Number(row.Quantity || 0),
+                                unit: row.Unit || '',
+                                costPerUnit: row.CostPerUnit !== undefined ? Number(row.CostPerUnit) : undefined,
+                            });
+                        }
+                        importedCount++;
+                    }
+                });
+                
+                if (importedCount > 0) {
+                    const updatedList = Array.from(materialsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+                    saveRawMaterials(updatedList);
+                    setRawMaterials(updatedList);
+                    alert(`นำเข้าและอัปเดตสำเร็จ ${importedCount} รายการ`);
+                }
+
+            } catch (error) {
+                console.error("Error importing from Excel:", error);
+                alert("เกิดข้อผิดพลาดในการอ่านไฟล์ Excel");
+            } finally {
+                if (importFileRef.current) importFileRef.current.value = '';
+            }
+        };
+        reader.readAsBinaryString(file);
+    };
+
+
     return (
         <div>
              {isImportModalOpen && (
@@ -126,13 +183,18 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
             )}
             <div className="flex flex-wrap gap-4 justify-between items-center mb-4">
                 <h3 className="text-xl font-semibold">เพิ่ม/แก้ไข วัตถุดิบ</h3>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                     <button 
                         onClick={() => setIsImportModalOpen(true)}
                         className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
                     >
                         <SparklesIcon className="w-5 h-5"/>
                         นำเข้าอัจฉริยะ
+                    </button>
+                    <input type="file" ref={importFileRef} onChange={handleImportFromExcel} accept=".xlsx, .xls" className="hidden"/>
+                    <button onClick={() => importFileRef.current?.click()} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none">
+                        <UploadIcon className="w-5 h-5"/>
+                        นำเข้า (Excel)
                     </button>
                     <button onClick={handleExportTemplate} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none">
                         <DownloadIcon className="w-5 h-5"/>
