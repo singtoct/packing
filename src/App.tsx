@@ -22,7 +22,6 @@ import { BellIcon } from './components/icons/Icons';
 import { CTPackingLogo } from './assets/logo';
 import { getInventory } from './services/storageService';
 import { InventoryItem } from './types';
-import { AISuggestions } from './components/AISuggestions';
 
 export type Tab = 'dashboard' | 'orders' | 'analysis' | 'procurement' | 'molding' | 'production_status' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'stats' | 'reports';
 
@@ -135,9 +134,6 @@ const App: React.FC = () => {
           <div className="bg-white p-6 rounded-xl shadow-lg min-h-full">
             {renderTabContent()}
           </div>
-           <div className="mt-8">
-                <AISuggestions />
-            </div>
         </main>
       </div>
     </div>

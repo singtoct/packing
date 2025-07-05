@@ -1,10 +1,10 @@
 
 
 
-import { AiSuggestion, BurmeseTranslation, OrderItem, RawMaterial } from "../types";
+import { BurmeseTranslation, OrderItem, RawMaterial } from "../types";
 
 // This function communicates with our secure, serverless API proxy
-async function callApiProxy<T>(type: 'translate' | 'suggest' | 'parseOrders' | 'parseRawMaterials', payload: object): Promise<T> {
+async function callApiProxy<T>(type: 'translate' | 'parseOrders' | 'parseRawMaterials', payload: object): Promise<T> {
     try {
         const response = await fetch('/api/proxy', {
             method: 'POST',
@@ -44,18 +44,6 @@ export const translateToBurmese = async (items: string[]): Promise<BurmeseTransl
         // This ensures the app remains functional even if the AI service is down.
         console.warn("Translation failed, using fallback.", error);
         return items.reduce((acc, item) => ({ ...acc, [item]: item }), {});
-    }
-};
-
-export const getFeatureSuggestions = async (): Promise<AiSuggestion[]> => {
-    try {
-        // No payload is needed for suggestions
-        const suggestions = await callApiProxy<AiSuggestion[]>('suggest', {});
-        return suggestions || [];
-    } catch (error) {
-        console.error("Feature suggestion fetch failed.", error);
-        // Return an empty array so the UI doesn't break
-        return [];
     }
 };
 

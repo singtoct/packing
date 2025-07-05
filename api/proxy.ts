@@ -13,7 +13,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // Type definitions for request body to ensure type safety
 interface ApiRequestBody {
-  type: 'translate' | 'suggest' | 'parseOrders' | 'parseRawMaterials';
+  type: 'translate' | 'parseOrders' | 'parseRawMaterials';
   payload: unknown;
 }
 
@@ -103,40 +103,6 @@ Example response format:
         break;
       }
       
-      case 'suggest': {
-        const prompt = `Based on the features of this comprehensive factory production management system (dashboard, order management, shipment tracking, procurement, raw material analysis, molding production logs, production status kanban, packing logs, quality control, finished goods inventory, raw materials inventory & BOMs, machine maintenance, employee management, cost analysis, statistics, and reporting), suggest 3 new, impactful features to further enhance it. The suggestions should be practical for a manufacturing environment. Format the response as a JSON array of objects, each with "title" (string, in Thai) and "description" (string, in Thai).
-
-Example format:
-[
-  {
-    "title": "การแจ้งเตือนอัตโนมัติ",
-    "description": "ส่งการแจ้งเตือนผ่าน Line หรือ Email เมื่อสต็อกวัตถุดิบหรือสินค้าใกล้หมด หรือเมื่อมีงาน QC ที่ต้องตรวจสอบ"
-  },
-  {
-    "title": "แดชบอร์ดประสิทธิภาพเครื่องจักร",
-    "description": "แสดงผล OEE (Overall Equipment Effectiveness) ของเครื่องจักรแต่ละตัวแบบเรียลไทม์"
-  },
-  {
-    "title": "ระบบบาร์โค้ด/QR Code",
-    "description": "ใช้บาร์โค้ดในการรับวัตถุดิบ, ติดตามงานระหว่างผลิต (WIP), และบันทึกการแพ็คเพื่อลดความผิดพลาดและเพิ่มความรวดเร็ว"
-  }
-]
-`;
-        const response = await ai.models.generateContent({
-          model: "gemini-2.5-flash-preview-04-17",
-          contents: prompt,
-          config: { responseMimeType: "application/json", temperature: 0.7 },
-        });
-
-        const responseText = response.text;
-        if(responseText) {
-          result = parseJsonResponse(responseText);
-        } else {
-          result = null;
-        }
-        break;
-      }
-
         case 'parseOrders': {
             if (!isParsePayload(payload)) {
               return res.status(400).json({ error: 'Invalid payload for order parsing request.' });
@@ -188,16 +154,30 @@ ${payload.text}`;
         if (!isParsePayload(payload)) {
           return res.status(400).json({ error: 'Invalid payload for raw material parsing request.' });
         }
-        const prompt = `You are an intelligent data entry assistant for a factory's inventory system. Your task is to parse a block of free-form text containing multiple raw material entries and convert it into a structured JSON array.
+        const prompt = `You are an intelligent data entry assistant for a factory's inventory system. Your task is to parse a block of free-form or tabular text containing multiple raw material entries and convert it into a structured JSON array.
 
 Each object in the array represents a single raw material and must have the following keys:
 - "name": string, The name of the raw material.
-- "quantity": number, The quantity of the material.
-- "unit": string, The unit of measurement (e.g., 'kg', 'ชิ้น', 'ม้วน', 'เมตร').
-- "costPerUnit": number, The cost per unit. This is optional. If not mentioned, omit the key or set it to null.
+- "quantity": number, The initial quantity of the material. If not mentioned in the text, you MUST default this to 0.
+- "unit": string, The unit of measurement (e.g., 'kg', 'Pcs.', 'ชิ้น', 'ม้วน').
+- "costPerUnit": number, The cost or price per unit. This is optional. If not mentioned, omit the key.
 
-Here are some examples of input text and the expected output:
+The input might be multi-line text where each line is an item, potentially with columns separated by spaces.
 
+Here's an example of tabular input:
+Input:
+กล่อง GN2 2นิ้วx4นิ้ว ขนาด 280x390x440 mm. CT       Pcs.      14.00
+พลาสติกแพค BOX Gpower 4x4 (1 kg แพคได้ 450 ชิ้น)     kg      104.40
+เม็ด ABS ดำ                                        kg      47.50
+
+Expected Output:
+[
+  { "name": "กล่อง GN2 2นิ้วx4นิ้ว ขนาด 280x390x440 mm. CT", "quantity": 0, "unit": "Pcs.", "costPerUnit": 14.00 },
+  { "name": "พลาสติกแพค BOX Gpower 4x4 (1 kg แพคได้ 450 ชิ้น)", "quantity": 0, "unit": "kg", "costPerUnit": 104.40 },
+  { "name": "เม็ด ABS ดำ", "quantity": 0, "unit": "kg", "costPerUnit": 47.50 }
+]
+
+Here's an example of free-form text input:
 Input:
 เม็ดพลาสติก PP สีขาว 100 kg ราคา 55 บาทต่อโล
 สกรู M3x10 5000 ชิ้น 0.25 บาท

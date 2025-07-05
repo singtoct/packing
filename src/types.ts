@@ -1,9 +1,5 @@
 
 
-export interface AiSuggestion {
-    title: string;
-    description: string;
-}
 
 export interface OrderItem {
   id: string;
