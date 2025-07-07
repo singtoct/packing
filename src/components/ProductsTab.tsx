@@ -212,7 +212,7 @@ export const ProductsTab: React.FC = () => {
 
 
     const handleExportTemplate = () => {
-        const headers = [['Name', 'Color', 'SalePrice']];
+        const headers = [['ชื่อสินค้า', 'สี', 'ราคาขาย']];
         const ws = XLSX.utils.aoa_to_sheet(headers);
         ws['!cols'] = [{wch: 40}, {wch: 20}, {wch: 15}];
         const wb = XLSX.utils.book_new();
