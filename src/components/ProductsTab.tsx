@@ -1,7 +1,4 @@
 
-
-
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { Product, BillOfMaterial, RawMaterial } from '../types';
@@ -236,11 +233,50 @@ export const ProductsTab: React.FC = () => {
                 const worksheet = workbook.Sheets[sheetName];
                 const json = XLSX.utils.sheet_to_json<any>(worksheet);
                 
-                if (json.length > 0) {
-                    setStagedData(json);
+                const findHeader = (row: any, ...possibleNames: string[]): string | undefined => {
+                    const rowKeys = Object.keys(row);
+                    for (const name of possibleNames) {
+                        const foundKey = rowKeys.find(key => key.toLowerCase().trim() === name.toLowerCase());
+                        if (foundKey) return foundKey;
+                    }
+                    return undefined;
+                };
+
+                const firstRow = json[0] || {};
+                const nameHeader = findHeader(firstRow, 'name', 'ชื่อสินค้า');
+                const colorHeader = findHeader(firstRow, 'color', 'สี');
+                const salePriceHeader = findHeader(firstRow, 'saleprice', 'ราคาขาย');
+
+                if (!nameHeader || !colorHeader) {
+                    alert('ไม่พบหัวคอลัมน์ที่จำเป็น (Name/ชื่อสินค้า, Color/สี) ในไฟล์ Excel');
+                    if (importFileRef.current) importFileRef.current.value = '';
+                    return;
+                }
+
+                const processedData = json.map(row => {
+                    const name = row[nameHeader];
+                    const color = row[colorHeader];
+                    let salePrice: number | string | undefined = salePriceHeader ? row[salePriceHeader] : undefined;
+
+                    if (typeof salePrice === 'string') {
+                        salePrice = Number(salePrice.replace(/[^0-9.-]+/g, ""));
+                    }
+                    if (salePrice === undefined || salePrice === null || isNaN(Number(salePrice))) {
+                        salePrice = 0;
+                    }
+
+                    return {
+                        Name: name,
+                        Color: color,
+                        SalePrice: Number(salePrice),
+                    };
+                }).filter(row => row.Name && row.Color);
+
+                if (processedData.length > 0) {
+                    setStagedData(processedData);
                     setIsReviewModalOpen(true);
                 } else {
-                     alert("ไม่พบข้อมูลในไฟล์ Excel");
+                     alert("ไม่พบข้อมูลสินค้าที่ถูกต้องในไฟล์ Excel");
                 }
 
             } catch (error) {
