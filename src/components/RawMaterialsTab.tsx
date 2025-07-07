@@ -1,7 +1,4 @@
 
-
-
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { RawMaterial, BillOfMaterial, MoldingLogEntry, Product } from '../types';
@@ -11,18 +8,25 @@ import { IntelligentMaterialImportModal } from './IntelligentMaterialImportModal
 
 type View = 'inventory' | 'bom';
 
+interface RawMaterialExcelRow {
+    Name?: string;
+    Quantity?: number;
+    Unit?: string;
+    CostPerUnit?: number;
+}
+
 const commonInputStyle = "px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500";
 const buttonPrimaryStyle = "inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700";
 const buttonSecondaryStyle = "inline-flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50";
 
 const ImportReviewModal: React.FC<{
-    stagedData: any[],
+    stagedData: RawMaterialExcelRow[],
     onClose: () => void,
-    onConfirm: (finalData: any[]) => void
+    onConfirm: (finalData: RawMaterialExcelRow[]) => void
 }> = ({ stagedData, onClose, onConfirm }) => {
     const [data, setData] = useState(stagedData.map(d => ({...d, _tempId: crypto.randomUUID() })));
 
-    const handleItemChange = (tempId: string, field: string, value: any) => {
+    const handleItemChange = (tempId: string, field: keyof RawMaterialExcelRow, value: any) => {
         setData(current =>
             current.map(item =>
                 item._tempId === tempId ? { ...item, [field]: value } : item
@@ -50,10 +54,10 @@ const ImportReviewModal: React.FC<{
                         </div>
                         {data.map(d => (
                              <div key={d._tempId} className="grid grid-cols-[3fr,1.5fr,1fr,1.5fr,auto] gap-2 items-center bg-white p-2 rounded shadow-sm">
-                                <input type="text" value={d.Name} onChange={e => handleItemChange(d._tempId, 'Name', e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"/>
-                                <input type="number" value={d.Quantity} onChange={e => handleItemChange(d._tempId, 'Quantity', Number(e.target.value))} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"/>
-                                <input type="text" value={d.Unit} onChange={e => handleItemChange(d._tempId, 'Unit', e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"/>
-                                <input type="number" value={d.CostPerUnit} onChange={e => handleItemChange(d._tempId, 'CostPerUnit', Number(e.target.value))} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"/>
+                                <input type="text" value={d.Name || ''} onChange={e => handleItemChange(d._tempId, 'Name', e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"/>
+                                <input type="number" value={d.Quantity || 0} onChange={e => handleItemChange(d._tempId, 'Quantity', Number(e.target.value))} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"/>
+                                <input type="text" value={d.Unit || ''} onChange={e => handleItemChange(d._tempId, 'Unit', e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"/>
+                                <input type="number" value={d.CostPerUnit || ''} onChange={e => handleItemChange(d._tempId, 'CostPerUnit', Number(e.target.value))} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"/>
                                 <button onClick={() => handleRemoveItem(d._tempId)} className="p-1 text-red-500 hover:text-red-700"><Trash2Icon className="w-4 h-4"/></button>
                             </div>
                         ))}
@@ -123,7 +127,7 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
     const [selectedMaterials, setSelectedMaterials] = useState<Set<string>>(new Set());
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [isExcelReviewModalOpen, setIsExcelReviewModalOpen] = useState(false);
-    const [stagedData, setStagedData] = useState<any[]>([]);
+    const [stagedData, setStagedData] = useState<RawMaterialExcelRow[]>([]);
     const importFileRef = useRef<HTMLInputElement>(null);
 
 
@@ -209,7 +213,7 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
                 const workbook = XLSX.read(data, { type: 'binary' });
                 const sheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
-                const json = XLSX.utils.sheet_to_json<any>(worksheet);
+                const json = XLSX.utils.sheet_to_json<RawMaterialExcelRow>(worksheet);
 
                 if (json.length > 0) {
                     setStagedData(json);
@@ -227,7 +231,7 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
         reader.readAsBinaryString(file);
     };
 
-    const handleConfirmExcelImport = (finalData: any[]) => {
+    const handleConfirmExcelImport = (finalData: RawMaterialExcelRow[]) => {
         const materialsMap = new Map(rawMaterials.map(m => [m.name, m]));
         finalData.forEach(row => {
             const name = row.Name;

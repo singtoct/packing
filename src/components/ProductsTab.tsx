@@ -5,6 +5,12 @@ import { Product, BillOfMaterial, RawMaterial } from '../types';
 import { getProducts, saveProducts, getBOMs, getRawMaterials } from '../services/storageService';
 import { PlusCircleIcon, Trash2Icon, EditIcon, DownloadIcon, DatabaseIcon, UploadIcon, XCircleIcon } from './icons/Icons';
 
+interface ProductExcelRow {
+    Name?: string;
+    Color?: string;
+    SalePrice?: number;
+}
+
 const EditProductModal: React.FC<{
     product: Product;
     onClose: () => void;
@@ -53,13 +59,13 @@ const EditProductModal: React.FC<{
 };
 
 const ImportReviewModal: React.FC<{
-    stagedData: any[],
+    stagedData: ProductExcelRow[],
     onClose: () => void,
-    onConfirm: (finalData: any[]) => void
+    onConfirm: (finalData: ProductExcelRow[]) => void
 }> = ({ stagedData, onClose, onConfirm }) => {
     const [data, setData] = useState(stagedData.map(d => ({...d, _tempId: crypto.randomUUID() })));
 
-    const handleItemChange = (tempId: string, field: string, value: any) => {
+    const handleItemChange = (tempId: string, field: keyof ProductExcelRow, value: any) => {
         setData(current =>
             current.map(item =>
                 item._tempId === tempId ? { ...item, [field]: value } : item
@@ -89,9 +95,9 @@ const ImportReviewModal: React.FC<{
                         </div>
                         {data.map(p => (
                             <div key={p._tempId} className="grid grid-cols-[3fr,2fr,2fr,auto] gap-2 items-center bg-white p-2 rounded shadow-sm">
-                                <input type="text" value={p.Name} onChange={e => handleItemChange(p._tempId, 'Name', e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                                <input type="text" value={p.Color} onChange={e => handleItemChange(p._tempId, 'Color', e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                                <input type="number" value={p.SalePrice} onChange={e => handleItemChange(p._tempId, 'SalePrice', Number(e.target.value))} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
+                                <input type="text" value={p.Name || ''} onChange={e => handleItemChange(p._tempId, 'Name', e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
+                                <input type="text" value={p.Color || ''} onChange={e => handleItemChange(p._tempId, 'Color', e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
+                                <input type="number" value={p.SalePrice || 0} onChange={e => handleItemChange(p._tempId, 'SalePrice', Number(e.target.value))} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
                                 <button onClick={() => handleRemoveItem(p._tempId)} className="p-1 text-red-500 hover:text-red-700"><Trash2Icon className="w-4 h-4"/></button>
                             </div>
                         ))}
@@ -117,7 +123,7 @@ export const ProductsTab: React.FC = () => {
     const [salePrice, setSalePrice] = useState<number | ''>('');
 
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-    const [stagedData, setStagedData] = useState<any[]>([]);
+    const [stagedData, setStagedData] = useState<ProductExcelRow[]>([]);
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
     const importFileRef = useRef<HTMLInputElement>(null);
 
@@ -140,7 +146,7 @@ export const ProductsTab: React.FC = () => {
         products.forEach(p => {
             const fullName = `${p.name} (${p.color})`;
             const components = bomMap.get(fullName);
-            if(components) {
+            if(components && Array.isArray(components)) {
                 const totalCost = components.reduce((sum, comp) => {
                     const cost = materialMap.get(comp.rawMaterialId) || 0;
                     return sum + (cost * comp.quantity);
@@ -231,9 +237,9 @@ export const ProductsTab: React.FC = () => {
                 const workbook = XLSX.read(data, { type: 'binary' });
                 const sheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
-                const json = XLSX.utils.sheet_to_json<any>(worksheet);
+                const json = XLSX.utils.sheet_to_json<Record<string, string | number>>(worksheet);
                 
-                const findHeader = (row: any, ...possibleNames: string[]): string | undefined => {
+                const findHeader = (row: Record<string, any>, ...possibleNames: string[]): string | undefined => {
                     const rowKeys = Object.keys(row);
                     for (const name of possibleNames) {
                         const foundKey = rowKeys.find(key => key.toLowerCase().trim() === name.toLowerCase());
@@ -253,9 +259,9 @@ export const ProductsTab: React.FC = () => {
                     return;
                 }
 
-                const processedData = json.map(row => {
-                    const name = row[nameHeader];
-                    const color = row[colorHeader];
+                const processedData: ProductExcelRow[] = json.map(row => {
+                    const name = row[nameHeader!];
+                    const color = row[colorHeader!];
                     let salePrice: number | string | undefined = salePriceHeader ? row[salePriceHeader] : undefined;
 
                     if (typeof salePrice === 'string') {
@@ -266,8 +272,8 @@ export const ProductsTab: React.FC = () => {
                     }
 
                     return {
-                        Name: name,
-                        Color: color,
+                        Name: String(name),
+                        Color: String(color),
                         SalePrice: Number(salePrice),
                     };
                 }).filter(row => row.Name && row.Color);
@@ -289,7 +295,7 @@ export const ProductsTab: React.FC = () => {
         reader.readAsBinaryString(file);
     };
 
-    const handleConfirmImport = (finalData: any[]) => {
+    const handleConfirmImport = (finalData: ProductExcelRow[]) => {
         const productMap = new Map(products.map(p => [`${p.name}-${p.color}`, p]));
         
         finalData.forEach(row => {

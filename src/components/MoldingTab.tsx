@@ -1,7 +1,4 @@
 
-
-
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { MoldingLogEntry, Employee, RawMaterial, BillOfMaterial } from '../types';
@@ -11,6 +8,16 @@ import { PlusCircleIcon, Trash2Icon, AlertTriangleIcon, DownloadIcon, UploadIcon
 const NEXT_STEPS = ['แปะกันรอย', 'ประกบ', 'ห้องประกอบ', 'ห้องแพ็ค'];
 
 type StagedLog = Omit<MoldingLogEntry, 'id'> & { _tempId: string };
+
+interface MoldingLogExcelRow {
+    Date?: Date | string;
+    ProductName?: string;
+    QuantityProduced?: number;
+    QuantityRejected?: number;
+    Machine?: string;
+    OperatorName?: string;
+    Status?: string;
+}
 
 const ImportReviewModal: React.FC<{
     stagedLogs: StagedLog[],
@@ -117,7 +124,7 @@ export const MoldingTab: React.FC = () => {
         }
 
         const bom = boms.find(b => b.productName === productName);
-        if (!bom) {
+        if (!bom || !Array.isArray(bom.components)) {
             return { required: [], isSufficient: true, message: "ไม่พบสูตรการผลิต (BOM) สำหรับสินค้านี้" };
         }
 
@@ -242,19 +249,19 @@ export const MoldingTab: React.FC = () => {
                 const workbook = XLSX.read(data, { type: 'binary', cellDates: true });
                 const sheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
-                const jsonLogs = XLSX.utils.sheet_to_json<any>(worksheet);
+                const jsonLogs = XLSX.utils.sheet_to_json<MoldingLogExcelRow>(worksheet);
 
                 const newStagedLogs: StagedLog[] = [];
                 jsonLogs.forEach((row) => {
-                    if (row.ProductName && row.QuantityProduced > 0) {
+                    if (row.ProductName && row.QuantityProduced && row.QuantityProduced > 0) {
                         newStagedLogs.push({
                             _tempId: crypto.randomUUID(),
                             date: (row.Date instanceof Date ? row.Date : new Date()).toISOString().split('T')[0],
                             productName: row.ProductName,
                             quantityProduced: Number(row.QuantityProduced),
                             quantityRejected: Number(row.QuantityRejected || 0),
-                            machine: row.Machine,
-                            operatorName: row.OperatorName,
+                            machine: row.Machine || 'N/A',
+                            operatorName: row.OperatorName || 'N/A',
                             status: row.Status || 'รอแปะกันรอย'
                         });
                     }

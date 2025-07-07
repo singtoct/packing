@@ -1,6 +1,4 @@
 
-
-
 import { OrderItem, PackingLogEntry, InventoryItem, Employee, QCEntry, MoldingLogEntry, RawMaterial, BillOfMaterial, Machine, MaintenanceLog, Supplier, PurchaseOrder, Shipment, Product } from '../types';
 
 const ORDERS_KEY = 'packing_orders';
@@ -58,39 +56,16 @@ export const saveInventory = (inventory: InventoryItem[]): void => saveItems<Inv
 // Product specific functions
 export const getProducts = (): Product[] => {
     const items = getItems<Product>(PRODUCTS_KEY);
-     if (items.length === 0) {
-        const defaultProducts: Product[] = [
-            { id: crypto.randomUUID(), name: "ฝาหน้ากาก CT A-103", color: "ขาว", salePrice: 550 },
-            { id: crypto.randomUUID(), name: "สายไฟ VAF 2x1.5", color: "ขาว", salePrice: 2500 },
-            { id: crypto.randomUUID(), name: "ปลั๊กกราวด์เดี่ยว G-Series", color: "ครีม", salePrice: 620 },
-            { id: crypto.randomUUID(), name: "สวิตช์ทางเดียว M-Series", color: "เทา", salePrice: 480 },
-            { id: crypto.randomUUID(), name: "เต้ารับ USB Type-C", color: "ดำ", salePrice: 850 },
-        ];
-        saveItems<Product>(PRODUCTS_KEY, defaultProducts);
-        return defaultProducts;
-    }
     return items.sort((a, b) => a.name.localeCompare(b.name));
 };
 export const saveProducts = (products: Product[]): void => saveItems<Product>(PRODUCTS_KEY, products);
 
 
 // Employee specific functions
-const INITIAL_EMPLOYEES = ['สมชาย', 'สมศรี', 'มานะ', 'ปิติ', 'ชูใจ', 'สมศักดิ์', 'อมรรัตน์'];
-
 export const getEmployees = (): Employee[] => {
     const items = getItems<Employee>(EMPLOYEES_KEY);
-    if (items.length === 0) {
-        const defaultEmployees: Employee[] = INITIAL_EMPLOYEES.map(name => ({
-            id: crypto.randomUUID(),
-            name,
-            hireDate: new Date().toISOString().split('T')[0],
-        }));
-        saveItems<Employee>(EMPLOYEES_KEY, defaultEmployees);
-        return defaultEmployees;
-    }
     return items.sort((a,b) => a.name.localeCompare(b.name));
 };
-
 export const saveEmployees = (employees: Employee[]): void => saveItems<Employee>(EMPLOYEES_KEY, employees);
 
 // QC Entry specific functions
@@ -100,19 +75,6 @@ export const saveQCEntries = (entries: QCEntry[]): void => saveItems<QCEntry>(QC
 // Raw Material specific functions
 export const getRawMaterials = (): RawMaterial[] => {
     const items = getItems<RawMaterial>(RAW_MATERIALS_KEY);
-    if (items.length === 0) {
-        const defaultMaterials: RawMaterial[] = [
-            { id: crypto.randomUUID(), name: 'เม็ดพลาสติก PP สีขาว', quantity: 100, unit: 'kg', costPerUnit: 55 },
-            { id: crypto.randomUUID(), name: 'เม็ดพลาสติก ABS สีดำ', quantity: 50, unit: 'kg', costPerUnit: 70 },
-            { id: crypto.randomUUID(), name: 'ฟิล์มกันรอย', quantity: 10, unit: 'ม้วน', costPerUnit: 300 },
-            { id: crypto.randomUUID(), name: 'สกรู M3x10', quantity: 5000, unit: 'ชิ้น', costPerUnit: 0.25 },
-            { id: crypto.randomUUID(), name: 'เม็ดพลาสติก PP สีครีม', quantity: 80, unit: 'kg', costPerUnit: 60 },
-            { id: crypto.randomUUID(), name: 'เม็ดพลาสติก ABS สีเทา', quantity: 70, unit: 'kg', costPerUnit: 75 },
-            { id: crypto.randomUUID(), name: 'โมดูล USB-C', quantity: 200, unit: 'ชิ้น', costPerUnit: 45 },
-        ];
-        saveItems<RawMaterial>(RAW_MATERIALS_KEY, defaultMaterials);
-        return defaultMaterials;
-    }
     return items;
 };
 export const saveRawMaterials = (materials: RawMaterial[]): void => saveItems<RawMaterial>(RAW_MATERIALS_KEY, materials);
@@ -120,70 +82,6 @@ export const saveRawMaterials = (materials: RawMaterial[]): void => saveItems<Ra
 // Bill of Material (BOM) specific functions
 export const getBOMs = (): BillOfMaterial[] => {
     const items = getItems<BillOfMaterial>(BOMS_KEY);
-    if (items.length === 0) {
-        // BOMs are not initialized, let's create defaults.
-        const rawMaterials = getRawMaterials(); // Ensures they are loaded/created
-        const products = getProducts(); // Ensures they are loaded/created
-
-        const materialMap = new Map(rawMaterials.map(m => [m.name, m.id]));
-        
-        const defaultBOMs: BillOfMaterial[] = [];
-
-        const bomDefinitions: { productName: string; color: string; components: { materialName: string; quantity: number }[] }[] = [
-            {
-                productName: "ฝาหน้ากาก CT A-103",
-                color: "ขาว",
-                components: [
-                    { materialName: "เม็ดพลาสติก PP สีขาว", quantity: 0.05 }, // 50g
-                    { materialName: "สกรู M3x10", quantity: 2 },
-                ]
-            },
-            {
-                productName: "ปลั๊กกราวด์เดี่ยว G-Series",
-                color: "ครีม",
-                components: [
-                    { materialName: "เม็ดพลาสติก PP สีครีม", quantity: 0.06 },
-                    { materialName: "สกรู M3x10", quantity: 2 },
-                ]
-            },
-            {
-                productName: "สวิตช์ทางเดียว M-Series",
-                color: "เทา",
-                components: [
-                    { materialName: "เม็ดพลาสติก ABS สีเทา", quantity: 0.04 },
-                    { materialName: "สกรู M3x10", quantity: 1 },
-                ]
-            },
-            {
-                productName: "เต้ารับ USB Type-C",
-                color: "ดำ",
-                components: [
-                    { materialName: "เม็ดพลาสติก ABS สีดำ", quantity: 0.07 },
-                    { materialName: "โมดูล USB-C", quantity: 1 },
-                    { materialName: "สกรู M3x10", quantity: 2 },
-                ]
-            }
-        ];
-
-        bomDefinitions.forEach(def => {
-            const product = products.find(p => p.name === def.productName && p.color === def.color);
-            if (product) {
-                const bom: BillOfMaterial = {
-                    productName: `${def.productName} (${def.color})`,
-                    components: def.components.map(comp => ({
-                        rawMaterialId: materialMap.get(comp.materialName) || '',
-                        quantity: comp.quantity,
-                    })).filter(c => c.rawMaterialId) // Filter out if material not found
-                };
-                if (bom.components.length > 0) {
-                     defaultBOMs.push(bom);
-                }
-            }
-        });
-
-        saveItems<BillOfMaterial>(BOMS_KEY, defaultBOMs);
-        return defaultBOMs;
-    }
     return items;
 };
 export const saveBOMs = (boms: BillOfMaterial[]): void => saveItems<BillOfMaterial>(BOMS_KEY, boms);
@@ -191,15 +89,6 @@ export const saveBOMs = (boms: BillOfMaterial[]): void => saveItems<BillOfMateri
 // Machine specific functions
 export const getMachines = (): Machine[] => {
     const items = getItems<Machine>(MACHINES_KEY);
-    if(items.length === 0) {
-        const defaultMachines: Machine[] = [
-            { id: crypto.randomUUID(), name: 'เครื่องฉีด 1', location: 'โซน A', status: 'Running' },
-            { id: crypto.randomUUID(), name: 'เครื่องฉีด 2', location: 'โซน A', status: 'Running' },
-            { id: crypto.randomUUID(), name: 'เครื่องปั๊ม 1', location: 'โซน B', status: 'Down' },
-        ];
-        saveItems<Machine>(MACHINES_KEY, defaultMachines);
-        return defaultMachines;
-    }
     return items;
 };
 export const saveMachines = (machines: Machine[]): void => saveItems<Machine>(MACHINES_KEY, machines);
@@ -211,14 +100,6 @@ export const saveMaintenanceLogs = (logs: MaintenanceLog[]): void => saveItems<M
 // Supplier specific functions
 export const getSuppliers = (): Supplier[] => {
     const items = getItems<Supplier>(SUPPLIERS_KEY);
-    if(items.length === 0) {
-        const defaultSuppliers: Supplier[] = [
-            { id: crypto.randomUUID(), name: 'บจก. พลาสติกไทย', contactPerson: 'คุณสมศักดิ์', phone: '081-234-5678' },
-            { id: crypto.randomUUID(), name: 'บจก. สกรูภัณฑ์', contactPerson: 'คุณวิชัย', phone: '02-999-8888' },
-        ];
-        saveItems<Supplier>(SUPPLIERS_KEY, defaultSuppliers);
-        return defaultSuppliers;
-    }
     return items;
 };
 export const saveSuppliers = (suppliers: Supplier[]): void => saveItems<Supplier>(SUPPLIERS_KEY, suppliers);

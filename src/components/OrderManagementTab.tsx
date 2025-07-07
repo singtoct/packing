@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom/client';
 import { OrderItem, BurmeseTranslation, InventoryItem, Product } from '../types';
@@ -259,7 +257,7 @@ export const OrderManagementTab: React.FC = () => {
         if (selectedOrders.size === 0) return;
         setIsPrintingSelected(true);
         const ordersToPrint = orders.filter(o => selectedOrders.has(o.id));
-        const uniqueItemNames = [...new Set(ordersToPrint.map(o => o.name))];
+        const uniqueItemNames: string[] = [...new Set(ordersToPrint.map(o => o.name))];
         
         try {
             const translations = await translateToBurmese(uniqueItemNames);
