@@ -1,9 +1,11 @@
 
+
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { RawMaterial, BillOfMaterial, MoldingLogEntry, Product } from '../types';
 import { getRawMaterials, saveRawMaterials, getBOMs, saveBOMs, getMoldingLogs, getProducts } from '../services/storageService';
-import { PlusCircleIcon, Trash2Icon, EditIcon, SparklesIcon, DownloadIcon, UploadIcon, XCircleIcon } from './icons/Icons';
+import { PlusCircleIcon, Trash2Icon, EditIcon, SparklesIcon, DownloadIcon, UploadIcon, XCircleIcon, CopyIcon } from './icons/Icons';
 import { IntelligentMaterialImportModal } from './IntelligentMaterialImportModal';
 
 type View = 'inventory' | 'bom';
@@ -17,7 +19,7 @@ interface RawMaterialExcelRow {
 
 const commonInputStyle = "px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500";
 const buttonPrimaryStyle = "inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700";
-const buttonSecondaryStyle = "inline-flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50";
+const buttonSecondaryStyle = "inline-flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 disabled:bg-gray-200 disabled:cursor-not-allowed";
 
 const ImportReviewModal: React.FC<{
     stagedData: RawMaterialExcelRow[],
@@ -383,9 +385,70 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
     );
 };
 
+const CopyBOMModal: React.FC<{
+    boms: BillOfMaterial[];
+    currentProductName: string;
+    onClose: () => void;
+    onCopy: (sourceProductName: string) => void;
+}> = ({ boms, currentProductName, onClose, onCopy }) => {
+    const availableBoms = useMemo(() => boms.filter(b => b.productName !== currentProductName), [boms, currentProductName]);
+    const [selectedBomName, setSelectedBomName] = useState<string>(availableBoms[0]?.productName || '');
+
+    useEffect(() => {
+        if (availableBoms.length > 0 && !selectedBomName) {
+            setSelectedBomName(availableBoms[0].productName);
+        }
+    }, [availableBoms, selectedBomName]);
+
+    const handleConfirm = () => {
+        if (selectedBomName) {
+            onCopy(selectedBomName);
+        }
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+            <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-lg">
+                <h2 className="text-2xl font-bold mb-4">คัดลอกสูตรการผลิต (BOM)</h2>
+                <p className="text-gray-600 mb-6">เลือกสินค้าต้นฉบับเพื่อคัดลอกสูตรมายัง "{currentProductName}"</p>
+                {availableBoms.length > 0 ? (
+                    <div className="space-y-4">
+                        <div>
+                            <label htmlFor="bomSource" className="block text-sm font-medium text-gray-700">คัดลอกจาก</label>
+                            <select
+                                id="bomSource"
+                                value={selectedBomName}
+                                onChange={e => setSelectedBomName(e.target.value)}
+                                className={`mt-1 block w-full ${commonInputStyle}`}
+                            >
+                                {availableBoms.map(bom => (
+                                    <option key={bom.productName} value={bom.productName}>{bom.productName}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="flex justify-end gap-4 pt-4">
+                            <button type="button" onClick={onClose} className={buttonSecondaryStyle}>ยกเลิก</button>
+                            <button type="button" onClick={handleConfirm} className={buttonPrimaryStyle}>ยืนยันการคัดลอก</button>
+                        </div>
+                    </div>
+                ) : (
+                    <div>
+                        <p className="text-center text-gray-500 py-4">ไม่พบสูตรการผลิตอื่นให้คัดลอก</p>
+                        <div className="text-right mt-4">
+                            <button type="button" onClick={onClose} className={buttonSecondaryStyle}>ปิด</button>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
 const BOMView: React.FC<{ boms: BillOfMaterial[], setBoms: React.Dispatch<React.SetStateAction<BillOfMaterial[]>>, rawMaterials: RawMaterial[] }> = ({ boms, setBoms, rawMaterials }) => {
     const [selectedProduct, setSelectedProduct] = useState('');
     const [editingBom, setEditingBom] = useState<BillOfMaterial | null>(null);
+    const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
 
     const availableProducts = useMemo(() => {
         const productSet = new Set<string>();
@@ -434,8 +497,29 @@ const BOMView: React.FC<{ boms: BillOfMaterial[], setBoms: React.Dispatch<React.
         alert(`บันทึก BOM สำหรับ ${editingBom.productName} เรียบร้อยแล้ว`);
     };
 
+    const handleCopyBom = (sourceProductName: string) => {
+        const sourceBom = boms.find(b => b.productName === sourceProductName);
+        if (sourceBom && editingBom) {
+            setEditingBom({
+                ...editingBom,
+                components: JSON.parse(JSON.stringify(sourceBom.components)) // Deep copy
+            });
+            alert(`คัดลอกสูตรจาก "${sourceProductName}" สำเร็จแล้ว กรุณาตรวจสอบและบันทึก`);
+        }
+    };
+    
+    const otherBomsExist = useMemo(() => boms.some(b => b.productName !== editingBom?.productName), [boms, editingBom]);
+
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {isCopyModalOpen && editingBom &&
+                <CopyBOMModal
+                    boms={boms}
+                    currentProductName={editingBom.productName}
+                    onClose={() => setIsCopyModalOpen(false)}
+                    onCopy={handleCopyBom}
+                />
+            }
             <div className="md:col-span-1">
                 <h3 className="text-xl font-semibold mb-4">เลือกสินค้า</h3>
                 <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
@@ -464,8 +548,11 @@ const BOMView: React.FC<{ boms: BillOfMaterial[], setBoms: React.Dispatch<React.
                             ))}
                         </div>
                         <div className="mt-4 flex gap-4">
-                            <button onClick={handleAddComponent} className={buttonSecondaryStyle}>เพิ่มส่วนประกอบ</button>
-                            <button onClick={handleSaveBom} className={buttonPrimaryStyle}>บันทึก BOM</button>
+                            <button onClick={handleAddComponent} className={buttonSecondaryStyle} type="button">เพิ่มส่วนประกอบ</button>
+                            <button onClick={() => setIsCopyModalOpen(true)} className={buttonSecondaryStyle} type="button" disabled={!otherBomsExist}>
+                                <CopyIcon className="w-5 h-5"/> คัดลอก BOM
+                            </button>
+                            <button onClick={handleSaveBom} className={buttonPrimaryStyle} type="button">บันทึก BOM</button>
                         </div>
                     </div>
                 ) : (
