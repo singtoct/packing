@@ -33,7 +33,7 @@ const App: React.FC = () => {
     }
   };
 
-  const TabButton = ({ tabName, currentTab, setTab, children }: { tabName: Tab, currentTab: Tab, setTab: React.Dispatch<React.SetStateAction<Tab>>, children: React.ReactNode }) => (
+  const TabButton = ({ tabName, currentTab, setTab, children }: { tabName: Tab, currentTab: Tab, setTab: React.Dispatch<React.SetStateAction<Tab>>, children?: React.ReactNode }) => (
     <button
       onClick={() => setTab(tabName)}
       className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold rounded-lg transition-all duration-200 ${

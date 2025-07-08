@@ -139,7 +139,7 @@ export const OrderManagementTab: React.FC = () => {
 
         setIsPrintingSelected(true);
         const ordersToPrint = orders.filter(o => selectedOrders.has(o.id));
-        const uniqueItemNames = [...new Set(ordersToPrint.map(o => o.name))];
+        const uniqueItemNames: string[] = [...new Set(ordersToPrint.map(o => o.name))];
         
         const translations = await translateToBurmese(uniqueItemNames);
         setIsPrintingSelected(false);
