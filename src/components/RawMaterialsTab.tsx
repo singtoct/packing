@@ -176,6 +176,10 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
             sortableItems.sort((a, b) => {
                 const aVal = a[sortConfig.key];
                 const bVal = b[sortConfig.key];
+
+                if (aVal === undefined || aVal === null) return 1;
+                if (bVal === undefined || bVal === null) return -1;
+                
                 if (aVal < bVal) {
                     return sortConfig.direction === 'asc' ? -1 : 1;
                 }

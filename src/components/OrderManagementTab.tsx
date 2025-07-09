@@ -8,9 +8,10 @@ import { CTElectricLogo } from '../assets/logo';
 import { IntelligentOrderImportModal } from './IntelligentOrderImportModal';
 import { SearchableInput } from './SearchableInput';
 
+type OrderSortKey = 'name' | 'quantity' | 'dueDate' | 'stock';
 type SortDirection = 'asc' | 'desc';
 interface SortConfig {
-    key: string;
+    key: OrderSortKey;
     direction: SortDirection;
 }
 
@@ -18,8 +19,8 @@ interface SortConfig {
 const SortableHeader: React.FC<{
   label: string;
   sortConfig: SortConfig | null;
-  requestSort: (key: string) => void;
-  sortKey: string;
+  requestSort: (key: OrderSortKey) => void;
+  sortKey: OrderSortKey;
   className?: string;
 }> = ({ label, sortConfig, requestSort, sortKey, className }) => {
   const isSorted = sortConfig?.key === sortKey;
@@ -195,7 +196,7 @@ export const OrderManagementTab: React.FC = () => {
         new Map(inventory.map(item => [item.name, item.quantity])),
     [inventory]);
 
-    const requestSort = (key: string) => {
+    const requestSort = (key: OrderSortKey) => {
         let direction: SortDirection = 'asc';
         if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
             direction = 'desc';
@@ -215,8 +216,8 @@ export const OrderManagementTab: React.FC = () => {
 
         if (sortConfig !== null) {
             sortableItems.sort((a, b) => {
-                const aVal = a[sortConfig.key as keyof typeof a];
-                const bVal = b[sortConfig.key as keyof typeof b];
+                const aVal = a[sortConfig.key];
+                const bVal = b[sortConfig.key];
 
                 if (aVal < bVal) {
                     return sortConfig.direction === 'asc' ? -1 : 1;
