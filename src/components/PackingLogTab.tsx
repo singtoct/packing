@@ -129,7 +129,7 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
         }
 
         const orders = getOrders();
-        const uniqueItemNames = [...new Set(orders.map(o => `${o.name} (${o.color})`))].sort();
+        const uniqueItemNames = Array.from(new Set(orders.map(o => `${o.name} (${o.color})`))).sort();
         setAvailableItems(uniqueItemNames);
         
         if (uniqueItemNames.length > 0 && !logItemName) {

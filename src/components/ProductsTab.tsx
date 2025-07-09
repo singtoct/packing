@@ -205,7 +205,7 @@ export const ProductsTab: React.FC = () => {
             return {
                 ...p,
                 cost,
-                profit: p.salePrice - cost,
+                profit: Number(p.salePrice) - cost,
             };
         });
 

@@ -218,7 +218,17 @@ export const MoldingTab: React.FC = () => {
             return;
         }
         if (!materialCheck.isSufficient) {
-            alert('วัตถุดิบในสต็อกไม่เพียงพอ ไม่สามารถบันทึกได้');
+            const insufficientItemsMessage = materialCheck.required
+                .filter(item => !item.sufficient)
+                .map(item => {
+                    const needed = item.required.toLocaleString(undefined, {maximumFractionDigits: 2});
+                    const inStock = item.inStock.toLocaleString(undefined, {maximumFractionDigits: 2});
+                    const shortfall = (item.required - item.inStock).toLocaleString(undefined, {maximumFractionDigits: 2});
+                    return `\n- ${item.name}: ต้องการ ${needed} ${item.unit}, มี ${inStock} ${item.unit} (ขาด ${shortfall} ${item.unit})`;
+                })
+                .join('');
+            
+            alert(`วัตถุดิบในสต็อกไม่เพียงพอ:${insufficientItemsMessage}\n\nกรุณาตรวจสอบสต็อกหรือลดจำนวนการผลิต`);
             return;
         }
 
