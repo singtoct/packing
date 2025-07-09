@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { Product, BillOfMaterial, RawMaterial } from '../types';
@@ -199,7 +200,7 @@ export const ProductsTab: React.FC = () => {
     }, [products, boms, rawMaterials]);
     
     const sortedProducts = useMemo(() => {
-        let sortableItems: ProductWithCost[] = products.map(p => {
+        let sortableItems: ProductWithCost[] = products.map((p: Product) => {
             const cost = productCosts.get(p.id) || 0;
             return {
                 ...p,
@@ -361,7 +362,7 @@ export const ProductsTab: React.FC = () => {
     };
 
     const handleConfirmImport = (finalData: ProductExcelRow[]) => {
-        const productMap = new Map(products.map(p => [`${p.name}-${p.color}`, p]));
+        const productMap: Map<string, Product> = new Map(products.map(p => [`${p.name}-${p.color}`, p]));
         
         finalData.forEach(row => {
             const name = row.Name;
@@ -379,7 +380,7 @@ export const ProductsTab: React.FC = () => {
             }
         });
         
-        const updated = Array.from(productMap.values()).sort((a,b) => a.name.localeCompare(b.name));
+        const updated: Product[] = Array.from(productMap.values()).sort((a,b) => a.name.localeCompare(b.name));
         setProducts(updated);
         saveProducts(updated);
         alert(`นำเข้าและอัปเดตสำเร็จ ${finalData.length} รายการ`);

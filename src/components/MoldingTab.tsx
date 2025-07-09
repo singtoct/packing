@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { MoldingLogEntry, Employee, RawMaterial, BillOfMaterial } from '../types';
@@ -187,7 +188,7 @@ export const MoldingTab: React.FC = () => {
             return { required: [], isSufficient: true, message: "ไม่พบสูตรการผลิต (BOM) สำหรับสินค้านี้" };
         }
 
-        const rawMaterialMap = new Map(rawMaterials.map(rm => [rm.id, rm]));
+        const rawMaterialMap = new Map<string, RawMaterial>(rawMaterials.map(rm => [rm.id, rm]));
         
         let isSufficient = true;
         const required = bom.components.map(comp => {
@@ -345,7 +346,7 @@ export const MoldingTab: React.FC = () => {
     const handleConfirmImport = (finalLogs: StagedLog[]) => {
         // Pre-flight check
         const bomsMap = new Map(getBOMs().map(b => [b.productName, b]));
-        const materialsMap = new Map(getRawMaterials().map(m => [m.id, m.quantity]));
+        const materialsMap = new Map(getRawMaterials().map(m => [m.id, m]));
         const requiredMaterials = new Map<string, number>();
 
         for (const row of finalLogs) {
@@ -359,9 +360,10 @@ export const MoldingTab: React.FC = () => {
         }
         
         for (const [id, needed] of requiredMaterials.entries()) {
-            if ((materialsMap.get(id) || 0) < needed) {
-                const materialName = getRawMaterials().find(m => m.id === id)?.name || id;
-                alert(`วัตถุดิบไม่เพียงพอสำหรับนำเข้าทั้งหมด: ${materialName}. ต้องการ ${needed}, มี ${(materialsMap.get(id) || 0)}`);
+            const material = materialsMap.get(id);
+            if (!material || material.quantity < needed) {
+                const materialName = material?.name || id;
+                alert(`วัตถุดิบไม่เพียงพอสำหรับนำเข้าทั้งหมด: ${materialName}. ต้องการ ${needed}, มี ${material?.quantity || 0}`);
                 return;
             }
         }
@@ -467,9 +469,12 @@ export const MoldingTab: React.FC = () => {
                         <h4 className="font-bold text-green-800 mb-2">วัตถุดิบที่ต้องใช้</h4>
                         <ul className="space-y-1 text-sm">
                             {materialCheck.required.map((mat, idx) => (
-                                <li key={idx} className={`flex justify-between ${mat.sufficient ? 'text-gray-700' : 'text-red-600 font-bold'}`}>
-                                    <span>{mat.name}</span>
-                                    <span>ต้องการ: {mat.required.toLocaleString()} {mat.unit} (มี: {mat.inStock.toLocaleString()})</span>
+                                <li key={idx} className="flex justify-between items-center text-gray-800">
+                                    <span className={!mat.sufficient ? 'font-semibold' : ''}>{mat.name}</span>
+                                    <span className={!mat.sufficient ? 'text-red-600 font-bold' : 'text-gray-600'}>
+                                        ต้องการ: {mat.required.toLocaleString(undefined, {maximumFractionDigits: 2})} {mat.unit} (มี: {mat.inStock.toLocaleString(undefined, {maximumFractionDigits: 2})})
+                                        {!mat.sufficient && ` (ขาด: ${(mat.required - mat.inStock).toLocaleString(undefined, {maximumFractionDigits: 2})} ${mat.unit})`}
+                                    </span>
                                 </li>
                             ))}
                         </ul>

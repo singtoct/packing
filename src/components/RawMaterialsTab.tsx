@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { RawMaterial, BillOfMaterial, MoldingLogEntry, Product } from '../types';
@@ -293,7 +294,7 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
     };
 
     const handleConfirmExcelImport = (finalData: RawMaterialExcelRow[]) => {
-        const materialsMap = new Map(rawMaterials.map(m => [m.name, m]));
+        const materialsMap: Map<string, RawMaterial> = new Map(rawMaterials.map(m => [m.name, m]));
         finalData.forEach(row => {
             const name = row.Name;
             if (name) {
@@ -313,7 +314,7 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
                 }
             }
         });
-        const updatedList = Array.from(materialsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+        const updatedList: RawMaterial[] = Array.from(materialsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
         saveRawMaterials(updatedList);
         setRawMaterials(updatedList);
         alert(`นำเข้าและอัปเดตสำเร็จ ${finalData.length} รายการ`);
