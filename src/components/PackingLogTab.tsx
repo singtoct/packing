@@ -1,11 +1,10 @@
 
-
-
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { PackingLogEntry, Employee, QCEntry } from '../types';
 import { getPackingLogs, savePackingLogs, getOrders, getInventory, saveInventory, getEmployees, getQCEntries, saveQCEntries } from '../services/storageService';
 import { PlusCircleIcon, Trash2Icon, FileSpreadsheetIcon, DownloadIcon, UploadIcon, XCircleIcon } from './icons/Icons';
+import { SearchableInput } from './SearchableInput';
 
 type StagedLog = Omit<PackingLogEntry, 'id'> & { _tempId: string };
 
@@ -317,6 +316,13 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
         setStagedLogs([]);
     };
 
+    const packingProductOptions = useMemo(() => {
+        return availableItems.map(item => ({
+            id: item,
+            name: item,
+        }));
+    }, [availableItems]);
+
 
     return (
         <div>
@@ -349,10 +355,15 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
             <form onSubmit={handleAddLog} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end bg-gray-50 p-4 rounded-lg border mb-10">
                 <div className="md:col-span-2">
                     <label htmlFor="logItemName" className="block text-sm font-medium text-gray-700">สินค้าที่แพ็ค</label>
-                    <select id="logItemName" value={logItemName} onChange={e => setLogItemName(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" required>
-                       <option value="" disabled>-- เลือกสินค้า --</option>
-                       {availableItems.map(item => <option key={item} value={item}>{item}</option>)}
-                    </select>
+                    <SearchableInput
+                        options={packingProductOptions}
+                        value={logItemName}
+                        onChange={setLogItemName}
+                        displayKey="name"
+                        valueKey="id"
+                        placeholder="ค้นหาสินค้าที่แพ็ค..."
+                        className="mt-1"
+                    />
                 </div>
                 <div>
                     <label htmlFor="logQuantity" className="block text-sm font-medium text-gray-700">จำนวน (ลัง)</label>

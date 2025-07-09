@@ -7,6 +7,7 @@ import { translateToBurmese } from '../services/geminiService';
 import { PlusCircleIcon, Trash2Icon, PrinterIcon, LoaderIcon, TruckIcon, EditIcon, SparklesIcon } from './icons/Icons';
 import { CTElectricLogo } from '../assets/logo';
 import { IntelligentOrderImportModal } from './IntelligentOrderImportModal';
+import { SearchableInput } from './SearchableInput';
 
 // Modal for editing an order
 const EditOrderModal: React.FC<{
@@ -147,15 +148,12 @@ export const OrderManagementTab: React.FC = () => {
             setInventory(getInventory());
             const prods = getProducts();
             setProducts(prods);
-            if (!selectedProductId && prods.length > 0) {
-                setSelectedProductId(prods[0].id);
-            }
         };
 
         handleStorageChange();
         window.addEventListener('storage', handleStorageChange);
         return () => window.removeEventListener('storage', handleStorageChange);
-    }, [selectedProductId]);
+    }, []);
 
     useEffect(() => {
         saveOrders(orders);
@@ -300,6 +298,14 @@ export const OrderManagementTab: React.FC = () => {
     const handleSaveImportedOrders = (newOrders: OrderItem[]) => {
         setOrders(prev => [...newOrders, ...prev]);
     };
+    
+    const productOptions = useMemo(() => {
+        return products.map(p => ({
+            ...p,
+            displayName: `${p.name} (${p.color})`,
+            id: p.id,
+        }));
+    }, [products]);
 
     return (
         <div>
@@ -329,18 +335,15 @@ export const OrderManagementTab: React.FC = () => {
             <form onSubmit={handleAddOrder} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end bg-gray-50 p-4 rounded-lg border">
                 <div className="col-span-1 md:col-span-2">
                     <label htmlFor="productSelect" className="block text-sm font-medium text-gray-700">สินค้า</label>
-                    <select 
-                        id="productSelect"
+                    <SearchableInput
+                        options={productOptions}
                         value={selectedProductId}
-                        onChange={e => setSelectedProductId(e.target.value)}
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
-                        required
-                    >
-                        <option value="" disabled>-- เลือกสินค้า --</option>
-                        {products.map(p => (
-                            <option key={p.id} value={p.id}>{p.name} ({p.color})</option>
-                        ))}
-                    </select>
+                        onChange={setSelectedProductId}
+                        displayKey="displayName"
+                        valueKey="id"
+                        placeholder="ค้นหาสินค้า..."
+                        className="mt-1"
+                    />
                 </div>
 
                 <div>

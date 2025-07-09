@@ -4,6 +4,7 @@ import * as XLSX from 'xlsx';
 import { MoldingLogEntry, Employee, RawMaterial, BillOfMaterial } from '../types';
 import { getMoldingLogs, saveMoldingLogs, getEmployees, getRawMaterials, saveRawMaterials, getBOMs } from '../services/storageService';
 import { PlusCircleIcon, Trash2Icon, AlertTriangleIcon, DownloadIcon, UploadIcon, XCircleIcon } from './icons/Icons';
+import { SearchableInput } from './SearchableInput';
 
 const NEXT_STEPS = ['แปะกันรอย', 'ประกบ', 'ห้องประกอบ', 'ห้องแพ็ค'];
 
@@ -332,6 +333,13 @@ export const MoldingTab: React.FC = () => {
         alert(`นำเข้าสำเร็จ ${newLogs.length} รายการ`);
         setIsReviewModalOpen(false);
     };
+    
+    const moldingProductOptions = useMemo(() => {
+        return boms.map(bom => ({
+            id: bom.productName,
+            name: bom.productName
+        }));
+    }, [boms]);
 
 
     return (
@@ -356,7 +364,15 @@ export const MoldingTab: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                     <div className="sm:col-span-2">
                         <label htmlFor="productName" className="block text-sm font-medium text-gray-700">ชื่อสินค้า/ชิ้นส่วน</label>
-                        <input type="text" id="productName" value={productName} onChange={e => setProductName(e.target.value)} placeholder="เช่น ฝาหน้ากาก CT A-103" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" required />
+                        <SearchableInput
+                            options={moldingProductOptions}
+                            value={productName}
+                            onChange={setProductName}
+                            displayKey="name"
+                            valueKey="id"
+                            placeholder="ค้นหาสินค้าที่มีสูตรการผลิต (BOM)..."
+                            className="mt-1"
+                        />
                     </div>
                     <div>
                         <label htmlFor="quantityProduced" className="block text-sm font-medium text-gray-700">จำนวนที่ผลิตได้</label>
