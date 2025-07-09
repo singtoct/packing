@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
-import { MoldingLogEntry, Employee, RawMaterial, BillOfMaterial } from '../types';
-import { getMoldingLogs, saveMoldingLogs, getEmployees, getRawMaterials, saveRawMaterials, getBOMs } from '../services/storageService';
+import { MoldingLogEntry, Employee, RawMaterial, BillOfMaterial, Product } from '../types';
+import { getMoldingLogs, saveMoldingLogs, getEmployees, getRawMaterials, saveRawMaterials, getBOMs, getProducts } from '../services/storageService';
 import { PlusCircleIcon, Trash2Icon, AlertTriangleIcon, DownloadIcon, UploadIcon, XCircleIcon } from './icons/Icons';
 import { SearchableInput } from './SearchableInput';
 
@@ -121,6 +120,7 @@ export const MoldingTab: React.FC = () => {
     const [date, setDate] = useState('');
     const [nextStep, setNextStep] = useState(NEXT_STEPS[0]);
     const [employees, setEmployees] = useState<Employee[]>([]);
+    const [products, setProducts] = useState<Product[]>([]);
     
     // New state for BOM and Raw Materials
     const [boms, setBoms] = useState<BillOfMaterial[]>([]);
@@ -138,6 +138,7 @@ export const MoldingTab: React.FC = () => {
             setEmployees(loadedEmployees);
             setBoms(getBOMs());
             setRawMaterials(getRawMaterials());
+            setProducts(getProducts());
 
             if (loadedEmployees.length > 0 && !operatorName) {
                 setOperatorName(loadedEmployees[0].name);
@@ -180,12 +181,12 @@ export const MoldingTab: React.FC = () => {
 
     const materialCheck = useMemo(() => {
         if (!productName || quantityProduced <= 0) {
-            return { required: [], isSufficient: true, message: "กรุณากรอกข้อมูลสินค้าและจำนวน" };
+            return { required: [], isSufficient: true, message: "กรุณากรอกข้อมูลสินค้าและจำนวน", hasBOM: false };
         }
 
         const bom = boms.find(b => b.productName === productName);
         if (!bom || !Array.isArray(bom.components)) {
-            return { required: [], isSufficient: true, message: "ไม่พบสูตรการผลิต (BOM) สำหรับสินค้านี้" };
+            return { required: [], isSufficient: false, message: "ไม่พบสูตรการผลิต (BOM) สำหรับสินค้านี้", hasBOM: false };
         }
 
         const rawMaterialMap = new Map<string, RawMaterial>(rawMaterials.map(rm => [rm.id, rm]));
@@ -205,25 +206,23 @@ export const MoldingTab: React.FC = () => {
             };
         });
 
-        return { required, isSufficient, message: "" };
+        return { required, isSufficient, message: "", hasBOM: true };
     }, [productName, quantityProduced, boms, rawMaterials]);
 
     const handleAddLog = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!productName.trim() || !date || !operatorName || !machine || !nextStep || !materialCheck.isSufficient) return;
-        
-        const currentRawMaterials = getRawMaterials();
-        const bom = boms.find(b => b.productName === productName);
-        if (bom) {
-            for (const component of bom.components) {
-                const material = currentRawMaterials.find(rm => rm.id === component.rawMaterialId);
-                if (!material || material.quantity < component.quantity * quantityProduced) {
-                    alert(`วัตถุดิบไม่เพียงพอ: ${material?.name}. ไม่สามารถบันทึกได้`);
-                    setRawMaterials(currentRawMaterials); // Refresh state
-                    return;
-                }
-            }
+        if (!productName.trim() || !date || !operatorName || !machine || !nextStep) return;
+
+        if (!materialCheck.hasBOM) {
+            alert(materialCheck.message || 'ไม่สามารถบันทึกได้เนื่องจากไม่พบสูตรการผลิต (BOM)');
+            return;
         }
+        if (!materialCheck.isSufficient) {
+            alert('วัตถุดิบในสต็อกไม่เพียงพอ ไม่สามารถบันทึกได้');
+            return;
+        }
+
+        const bom = boms.find(b => b.productName === productName)!;
         
         const newLog: MoldingLogEntry = {
             id: crypto.randomUUID(),
@@ -236,17 +235,16 @@ export const MoldingTab: React.FC = () => {
             status: `รอ${nextStep}`,
         };
 
-        if (bom) {
-            const updatedRawMaterials = currentRawMaterials.map(rm => {
-                const component = bom.components.find(c => c.rawMaterialId === rm.id);
-                if (component) {
-                    rm.quantity -= component.quantity * quantityProduced;
-                }
-                return rm;
-            });
-            saveRawMaterials(updatedRawMaterials);
-            setRawMaterials(updatedRawMaterials);
-        }
+        const currentRawMaterials = getRawMaterials();
+        const updatedRawMaterials = currentRawMaterials.map(rm => {
+            const component = bom.components.find(c => c.rawMaterialId === rm.id);
+            if (component) {
+                rm.quantity -= component.quantity * quantityProduced;
+            }
+            return rm;
+        });
+        saveRawMaterials(updatedRawMaterials);
+        setRawMaterials(updatedRawMaterials);
 
         const updatedLogs = [newLog, ...logs];
         setLogs(updatedLogs);
@@ -395,11 +393,11 @@ export const MoldingTab: React.FC = () => {
     };
     
     const moldingProductOptions = useMemo(() => {
-        return boms.map(bom => ({
-            id: bom.productName,
-            name: bom.productName
-        }));
-    }, [boms]);
+        return products.map(p => ({
+            id: `${p.name} (${p.color})`,
+            name: `${p.name} (${p.color})`,
+        })).sort((a,b) => a.name.localeCompare(b.name));
+    }, [products]);
 
 
     return (
@@ -430,7 +428,7 @@ export const MoldingTab: React.FC = () => {
                             onChange={setProductName}
                             displayKey="name"
                             valueKey="id"
-                            placeholder="ค้นหาสินค้าที่มีสูตรการผลิต (BOM)..."
+                            placeholder="ค้นหาสินค้า..."
                             className="mt-1"
                         />
                     </div>
@@ -464,24 +462,30 @@ export const MoldingTab: React.FC = () => {
                     </div>
                 </div>
 
-                {materialCheck.required.length > 0 && (
-                    <div className="mt-4 p-4 border-l-4 border-green-400 bg-green-50 rounded-md">
-                        <h4 className="font-bold text-green-800 mb-2">วัตถุดิบที่ต้องใช้</h4>
-                        <ul className="space-y-1 text-sm">
-                            {materialCheck.required.map((mat, idx) => (
-                                <li key={idx} className="flex justify-between items-center text-gray-800">
-                                    <span className={!mat.sufficient ? 'font-semibold' : ''}>{mat.name}</span>
-                                    <span className={!mat.sufficient ? 'text-red-600 font-bold' : 'text-gray-600'}>
-                                        ต้องการ: {mat.required.toLocaleString(undefined, {maximumFractionDigits: 2})} {mat.unit} (มี: {mat.inStock.toLocaleString(undefined, {maximumFractionDigits: 2})})
-                                        {!mat.sufficient && ` (ขาด: ${(mat.required - mat.inStock).toLocaleString(undefined, {maximumFractionDigits: 2})} ${mat.unit})`}
-                                    </span>
-                                </li>
-                            ))}
-                        </ul>
+                {materialCheck.message && (
+                    <div className={`mt-4 p-4 border-l-4 ${materialCheck.hasBOM ? 'border-green-400 bg-green-50' : 'border-yellow-400 bg-yellow-50'} rounded-md`}>
+                        <h4 className={`font-bold ${materialCheck.hasBOM ? 'text-green-800' : 'text-yellow-800'} mb-2`}>
+                            {materialCheck.hasBOM ? 'วัตถุดิบที่ต้องใช้' : 'คำเตือน'}
+                        </h4>
+                        {materialCheck.hasBOM ? (
+                            <ul className="space-y-1 text-sm">
+                                {materialCheck.required.map((mat, idx) => (
+                                    <li key={idx} className="flex justify-between items-center text-gray-800">
+                                        <span className={!mat.sufficient ? 'font-semibold' : ''}>{mat.name}</span>
+                                        <span className={!mat.sufficient ? 'text-red-600 font-bold' : 'text-gray-600'}>
+                                            ต้องการ: {mat.required.toLocaleString(undefined, {maximumFractionDigits: 2})} {mat.unit} (มี: {mat.inStock.toLocaleString(undefined, {maximumFractionDigits: 2})})
+                                            {!mat.sufficient && ` (ขาด: ${(mat.required - mat.inStock).toLocaleString(undefined, {maximumFractionDigits: 2})} ${mat.unit})`}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p className="text-yellow-800">{materialCheck.message}</p>
+                        )}
                     </div>
-                )}
+                 )}
 
-                 {!materialCheck.isSufficient && (
+                 {!materialCheck.isSufficient && materialCheck.hasBOM && (
                      <div className="mt-4 p-4 border-l-4 border-red-500 bg-red-50 text-red-700 font-bold flex items-center gap-2">
                         <AlertTriangleIcon className="w-5 h-5" />
                         วัตถุดิบในสต็อกไม่เพียงพอ! ไม่สามารถบันทึกการผลิตได้
@@ -489,7 +493,7 @@ export const MoldingTab: React.FC = () => {
                  )}
 
                 <div className="col-span-full flex justify-end">
-                     <button type="submit" disabled={!materialCheck.isSufficient} className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none disabled:bg-gray-400 disabled:cursor-not-allowed">
+                     <button type="submit" disabled={!materialCheck.isSufficient || !materialCheck.hasBOM} className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none disabled:bg-gray-400 disabled:cursor-not-allowed">
                         <PlusCircleIcon className="w-5 h-5" />
                         บันทึกข้อมูล
                     </button>
