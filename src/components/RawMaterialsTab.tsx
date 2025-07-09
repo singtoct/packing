@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { RawMaterial, BillOfMaterial, MoldingLogEntry, Product } from '../types';
 import { getRawMaterials, saveRawMaterials, getBOMs, saveBOMs, getMoldingLogs, getProducts } from '../services/storageService';
-import { PlusCircleIcon, Trash2Icon, EditIcon, SparklesIcon, DownloadIcon, UploadIcon, XCircleIcon } from './icons/Icons';
+import { PlusCircleIcon, Trash2Icon, EditIcon, SparklesIcon, DownloadIcon, UploadIcon, XCircleIcon, SearchIcon } from './icons/Icons';
 import { IntelligentMaterialImportModal } from './IntelligentMaterialImportModal';
 import { SearchableInput } from './SearchableInput';
 
@@ -508,6 +508,7 @@ const BOMView: React.FC<{ boms: BillOfMaterial[], setBoms: React.Dispatch<React.
     const [editingBom, setEditingBom] = useState<BillOfMaterial | null>(null);
     const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
     const [bomSortDir, setBomSortDir] = useState<SortDirection>('asc');
+    const [searchTerm, setSearchTerm] = useState('');
 
     const availableProducts = useMemo(() => {
         const productSet = new Set<string>();
@@ -519,6 +520,15 @@ const BOMView: React.FC<{ boms: BillOfMaterial[], setBoms: React.Dispatch<React.
         }
         return sorted;
     }, [bomSortDir]);
+
+    const filteredProducts = useMemo(() => {
+        if (!searchTerm.trim()) {
+            return availableProducts;
+        }
+        return availableProducts.filter(prod => 
+            prod.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [availableProducts, searchTerm]);
     
     const rawMaterialMap = useMemo(() => new Map(rawMaterials.map(rm => [rm.id, rm])), [rawMaterials]);
     const bomProductNames = useMemo(() => new Set(boms.map(b => b.productName)), [boms]);
@@ -578,15 +588,25 @@ const BOMView: React.FC<{ boms: BillOfMaterial[], setBoms: React.Dispatch<React.
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="md:col-span-1">
-                <div className="flex justify-between items-center mb-4">
+                <div className="flex justify-between items-center mb-2">
                     <h3 className="text-xl font-semibold">เลือกสินค้า</h3>
                     <div className="flex gap-1">
                         <button onClick={() => setBomSortDir('asc')} className={`p-1 rounded ${bomSortDir === 'asc' ? 'bg-green-200' : 'hover:bg-gray-100'}`}>A-Z</button>
                         <button onClick={() => setBomSortDir('desc')} className={`p-1 rounded ${bomSortDir === 'desc' ? 'bg-green-200' : 'hover:bg-gray-100'}`}>Z-A</button>
                     </div>
                 </div>
-                <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
-                    {availableProducts.map(prod => (
+                <div className="relative mb-4">
+                    <input
+                        type="text"
+                        placeholder="ค้นหาสินค้า..."
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                    />
+                    <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                </div>
+                <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-2">
+                    {filteredProducts.map(prod => (
                         <div key={prod} onClick={() => setSelectedProduct(prod)} className={`p-3 rounded-lg cursor-pointer ${selectedProduct === prod ? 'bg-green-600 text-white' : 'bg-white hover:bg-green-50 border'}`}>
                             {prod}
                             {boms.some(b => b.productName === prod) && <span className="ml-2 text-xs bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded-full">มี BOM</span>}
