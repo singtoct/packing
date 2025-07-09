@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom/client';
 import { OrderItem, BurmeseTranslation, InventoryItem, Product } from '../types';
@@ -8,6 +7,38 @@ import { PlusCircleIcon, Trash2Icon, PrinterIcon, LoaderIcon, TruckIcon, EditIco
 import { CTElectricLogo } from '../assets/logo';
 import { IntelligentOrderImportModal } from './IntelligentOrderImportModal';
 import { SearchableInput } from './SearchableInput';
+
+type SortDirection = 'asc' | 'desc';
+interface SortConfig {
+    key: string;
+    direction: SortDirection;
+}
+
+// Helper component for sortable table headers
+const SortableHeader: React.FC<{
+  label: string;
+  sortConfig: SortConfig | null;
+  requestSort: (key: string) => void;
+  sortKey: string;
+  className?: string;
+}> = ({ label, sortConfig, requestSort, sortKey, className }) => {
+  const isSorted = sortConfig?.key === sortKey;
+  const directionIcon = isSorted ? (sortConfig?.direction === 'asc' ? '▲' : '▼') : '';
+
+  return (
+    <th
+      scope="col"
+      className={`cursor-pointer hover:bg-gray-100 transition-colors ${className}`}
+      onClick={() => requestSort(sortKey)}
+    >
+      <div className="flex items-center gap-1">
+        <span>{label}</span>
+        {isSorted && <span className="text-xs text-gray-500">{directionIcon}</span>}
+      </div>
+    </th>
+  );
+};
+
 
 // Modal for editing an order
 const EditOrderModal: React.FC<{
@@ -137,6 +168,7 @@ export const OrderManagementTab: React.FC = () => {
     const [isPrintingSelected, setIsPrintingSelected] = useState(false);
     const [editingOrder, setEditingOrder] = useState<OrderItem | null>(null);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'dueDate', direction: 'asc' });
 
 
     useEffect(() => {
@@ -162,6 +194,41 @@ export const OrderManagementTab: React.FC = () => {
     const inventoryMap = useMemo(() => 
         new Map(inventory.map(item => [item.name, item.quantity])),
     [inventory]);
+
+    const requestSort = (key: string) => {
+        let direction: SortDirection = 'asc';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const sortedOrders = useMemo(() => {
+        let sortableItems = [...orders].map(order => {
+            const inventoryItemName = `${order.name} (${order.color})`;
+            const availableStock = inventoryMap.get(inventoryItemName) || 0;
+            return {
+                ...order,
+                stock: availableStock,
+            };
+        });
+
+        if (sortConfig !== null) {
+            sortableItems.sort((a, b) => {
+                const aVal = a[sortConfig.key as keyof typeof a];
+                const bVal = b[sortConfig.key as keyof typeof b];
+
+                if (aVal < bVal) {
+                    return sortConfig.direction === 'asc' ? -1 : 1;
+                }
+                if (aVal > bVal) {
+                    return sortConfig.direction === 'asc' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
+        return sortableItems;
+    }, [orders, sortConfig, inventoryMap]);
 
     const handleAddOrder = (e: React.FormEvent) => {
         e.preventDefault();
@@ -385,68 +452,84 @@ export const OrderManagementTab: React.FC = () => {
                         </button>
                     </div>
                 </div>
-                <div className="rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-                    <div className="bg-gray-50 p-4 flex items-center gap-4">
-                        <input 
-                            type="checkbox"
-                            className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                            onChange={(e) => handleSelectAll(e.target.checked)}
-                            checked={orders.length > 0 && selectedOrders.size === orders.length}
-                            disabled={orders.length === 0}
-                            aria-label="Select all orders"
-                        />
-                        <label className="font-semibold text-gray-700">เลือกทั้งหมด</label>
-                    </div>
-                    <div className="space-y-px bg-gray-200">
-                        {orders.length > 0 ? (
-                            orders.map(order => {
-                                const inventoryItemName = `${order.name} (${order.color})`;
-                                const availableStock = inventoryMap.get(inventoryItemName) || 0;
-                                const hasEnoughStock = availableStock >= order.quantity;
-
-                                return (
-                                <div key={order.id} className="bg-white p-4 flex flex-wrap items-center justify-between gap-4">
-                                    <div className="flex items-center gap-4 flex-grow min-w-[250px]">
-                                        <input 
-                                            type="checkbox"
-                                            className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500 flex-shrink-0"
-                                            checked={selectedOrders.has(order.id)}
-                                            onChange={(e) => handleSelectOrder(order.id, e.target.checked)}
-                                            aria-labelledby={`order-name-${order.id}`}
-                                        />
-                                        <div id={`order-name-${order.id}`}>
-                                            <p className="font-semibold text-lg text-gray-800">{order.name}</p>
-                                            <p className="text-sm text-gray-500">สี: {order.color} | จำนวน: {order.quantity} ลัง</p>
-                                        </div>
-                                    </div>
-                                    <div className="text-sm text-gray-600 font-medium">
-                                        <span>ครบกำหนด: </span>
-                                        <span className="font-bold text-red-600">{new Date(order.dueDate).toLocaleDateString('th-TH')}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <button 
-                                            onClick={() => handleShipOrder(order.id)} 
-                                            disabled={!hasEnoughStock}
-                                            className="p-2 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-100 rounded-full transition-colors disabled:text-gray-400 disabled:bg-gray-100 disabled:cursor-not-allowed" 
-                                            aria-label={hasEnoughStock ? `Ship order ${order.name}`: `Not enough stock for ${order.name}`}
-                                            title={hasEnoughStock ? `จัดส่งออเดอร์ (มี ${availableStock} ในสต็อก)` : `สต็อกไม่พอ (มี ${availableStock} / ต้องการ ${order.quantity})`}
-                                        >
-                                            <TruckIcon className="w-5 h-5" />
-                                        </button>
-                                         <button onClick={() => setEditingOrder(order)} className="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-100 rounded-full transition-colors" aria-label={`Edit order ${order.name}`}>
-                                            <EditIcon className="w-5 h-5" />
-                                        </button>
-                                        <button onClick={() => handleDeleteOrder(order.id)} className="p-2 text-red-500 hover:text-red-700 hover:bg-red-100 rounded-full transition-colors" aria-label={`Delete order ${order.name}`}>
-                                            <Trash2Icon className="w-5 h-5" />
-                                        </button>
-                                    </div>
-                                </div>
-                            );
-                        })
-                        ) : (
-                            <p className="text-center text-gray-500 py-8 bg-white">ยังไม่มีออเดอร์</p>
-                        )}
-                    </div>
+                <div className="rounded-lg border border-gray-200 shadow-sm overflow-x-auto">
+                    <table className="min-w-full bg-white divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="p-4">
+                                    <input 
+                                        type="checkbox"
+                                        className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                        onChange={(e) => handleSelectAll(e.target.checked)}
+                                        checked={orders.length > 0 && selectedOrders.size === orders.length}
+                                        disabled={orders.length === 0}
+                                        aria-label="Select all orders"
+                                    />
+                                </th>
+                                <SortableHeader label="สินค้า" sortKey="name" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
+                                <SortableHeader label="จำนวน" sortKey="quantity" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
+                                <SortableHeader label="ครบกำหนด" sortKey="dueDate" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
+                                <SortableHeader label="สต็อก" sortKey="stock" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                         <tbody className="divide-y divide-gray-200">
+                            {sortedOrders.length > 0 ? (
+                                sortedOrders.map(order => {
+                                    const hasEnoughStock = order.stock >= order.quantity;
+                                    return (
+                                        <tr key={order.id} className={selectedOrders.has(order.id) ? 'bg-green-50' : 'bg-white'}>
+                                            <td className="p-4">
+                                                <input 
+                                                    type="checkbox"
+                                                    className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500 flex-shrink-0"
+                                                    checked={selectedOrders.has(order.id)}
+                                                    onChange={(e) => handleSelectOrder(order.id, e.target.checked)}
+                                                    aria-labelledby={`order-name-${order.id}`}
+                                                />
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <div id={`order-name-${order.id}`}>
+                                                    <p className="font-semibold text-base text-gray-800">{order.name}</p>
+                                                    <p className="text-sm text-gray-500">สี: {order.color}</p>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{order.quantity} ลัง</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                                <span className="font-bold text-red-600">{new Date(order.dueDate).toLocaleDateString('th-TH')}</span>
+                                            </td>
+                                            <td className={`px-6 py-4 whitespace-nowrap text-sm font-bold ${hasEnoughStock ? 'text-green-600' : 'text-red-600'}`}>
+                                                {order.stock}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <div className="flex items-center gap-1">
+                                                    <button 
+                                                        onClick={() => handleShipOrder(order.id)} 
+                                                        disabled={!hasEnoughStock}
+                                                        className="p-2 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-100 rounded-full transition-colors disabled:text-gray-400 disabled:bg-gray-100 disabled:cursor-not-allowed" 
+                                                        aria-label={hasEnoughStock ? `Ship order ${order.name}`: `Not enough stock for ${order.name}`}
+                                                        title={hasEnoughStock ? `จัดส่งออเดอร์ (มี ${order.stock} ในสต็อก)` : `สต็อกไม่พอ (มี ${order.stock} / ต้องการ ${order.quantity})`}
+                                                    >
+                                                        <TruckIcon className="w-5 h-5" />
+                                                    </button>
+                                                    <button onClick={() => setEditingOrder(order)} className="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-100 rounded-full transition-colors" aria-label={`Edit order ${order.name}`}>
+                                                        <EditIcon className="w-5 h-5" />
+                                                    </button>
+                                                    <button onClick={() => handleDeleteOrder(order.id)} className="p-2 text-red-500 hover:text-red-700 hover:bg-red-100 rounded-full transition-colors" aria-label={`Delete order ${order.name}`}>
+                                                        <Trash2Icon className="w-5 h-5" />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
+                            ) : (
+                                <tr>
+                                    <td colSpan={6} className="text-center text-gray-500 py-8 bg-white">ยังไม่มีออเดอร์</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

@@ -1,9 +1,48 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { getOrders, getBOMs, getRawMaterials } from '../services/storageService';
 import { AlertTriangleIcon, CheckCircle2Icon, SigmaIcon } from './icons/Icons';
 
+type SortDirection = 'asc' | 'desc';
+interface SortConfig {
+    key: string;
+    direction: SortDirection;
+}
+
+// Helper component for sortable table headers
+const SortableHeader: React.FC<{
+  label: string;
+  sortConfig: SortConfig | null;
+  requestSort: (key: string) => void;
+  sortKey: string;
+  className?: string;
+  justify?: 'left' | 'right' | 'center';
+}> = ({ label, sortConfig, requestSort, sortKey, className, justify = 'left' }) => {
+  const isSorted = sortConfig?.key === sortKey;
+  const directionIcon = isSorted ? (sortConfig?.direction === 'asc' ? '▲' : '▼') : '';
+  const justifyClass = {
+      left: 'justify-start',
+      right: 'justify-end',
+      center: 'justify-center',
+  }[justify];
+
+  return (
+    <th
+      scope="col"
+      className={`cursor-pointer hover:bg-gray-100 transition-colors ${className}`}
+      onClick={() => requestSort(sortKey)}
+    >
+      <div className={`flex items-center gap-1 ${justifyClass}`}>
+        <span>{label}</span>
+        {isSorted && <span className="text-xs text-gray-500">{directionIcon}</span>}
+      </div>
+    </th>
+  );
+};
+
+
 export const AnalysisTab: React.FC = () => {
-    
+    const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'shortfall', direction: 'desc' });
+
     const analysisResult = useMemo(() => {
         const orders = getOrders();
         const boms = getBOMs();
@@ -29,7 +68,7 @@ export const AnalysisTab: React.FC = () => {
             }
         });
 
-        const summary = Array.from(requiredMaterials.entries()).map(([id, data]) => {
+        return Array.from(requiredMaterials.entries()).map(([id, data]) => {
             const materialInStock = rawMaterialMap.get(id);
             const inStock = materialInStock?.quantity || 0;
             const shortfall = data.required - inStock;
@@ -42,9 +81,35 @@ export const AnalysisTab: React.FC = () => {
             };
         });
 
-        return summary.sort((a,b) => b.shortfall - a.shortfall);
-
     }, []);
+    
+    const requestSort = (key: string) => {
+        let direction: SortDirection = 'asc';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const sortedAnalysisResult = useMemo(() => {
+        let sortableItems = [...analysisResult];
+        if (sortConfig) {
+            sortableItems.sort((a, b) => {
+                const aVal = a[sortConfig.key as keyof typeof a];
+                const bVal = b[sortConfig.key as keyof typeof b];
+
+                if (typeof aVal === 'boolean' && typeof bVal === 'boolean') {
+                     if (aVal === bVal) return 0;
+                     return sortConfig.direction === 'asc' ? (aVal ? -1 : 1) : (aVal ? 1 : -1);
+                }
+
+                if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        return sortableItems;
+    }, [analysisResult, sortConfig]);
 
 
     return (
@@ -67,15 +132,15 @@ export const AnalysisTab: React.FC = () => {
                     <table className="min-w-full bg-white divide-y divide-gray-200 rounded-lg shadow-sm border">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">วัตถุดิบ</th>
-                                <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">จำนวนที่ต้องการ</th>
-                                <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">มีในสต็อก</th>
-                                <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">จำนวนที่ขาด</th>
-                                <th scope="col" className="px-6 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">สถานะ</th>
+                                <SortableHeader label="วัตถุดิบ" sortKey="name" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider" justify="left" />
+                                <SortableHeader label="จำนวนที่ต้องการ" sortKey="required" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider" justify="right" />
+                                <SortableHeader label="มีในสต็อก" sortKey="inStock" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider" justify="right" />
+                                <SortableHeader label="จำนวนที่ขาด" sortKey="shortfall" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider" justify="right" />
+                                <SortableHeader label="สถานะ" sortKey="isSufficient" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider" justify="center" />
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                            {analysisResult.map(item => (
+                            {sortedAnalysisResult.map(item => (
                                 <tr key={item.id} className={!item.isSufficient ? 'bg-red-50' : ''}>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800">{item.name}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right">

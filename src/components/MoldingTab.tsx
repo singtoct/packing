@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { MoldingLogEntry, Employee, RawMaterial, BillOfMaterial } from '../types';
@@ -19,6 +18,38 @@ interface MoldingLogExcelRow {
     OperatorName?: string;
     Status?: string;
 }
+
+type SortDirection = 'asc' | 'desc';
+interface SortConfig {
+    key: keyof MoldingLogEntry;
+    direction: SortDirection;
+}
+
+// Helper component for sortable table headers
+const SortableHeader: React.FC<{
+  label: string;
+  sortConfig: SortConfig | null;
+  requestSort: (key: keyof MoldingLogEntry) => void;
+  sortKey: keyof MoldingLogEntry;
+  className?: string;
+}> = ({ label, sortConfig, requestSort, sortKey, className }) => {
+  const isSorted = sortConfig?.key === sortKey;
+  const directionIcon = isSorted ? (sortConfig?.direction === 'asc' ? '▲' : '▼') : '';
+
+  return (
+    <th
+      scope="col"
+      className={`cursor-pointer hover:bg-gray-100 transition-colors ${className}`}
+      onClick={() => requestSort(sortKey)}
+    >
+      <div className="flex items-center gap-1">
+        <span>{label}</span>
+        {isSorted && <span className="text-xs text-gray-500">{directionIcon}</span>}
+      </div>
+    </th>
+  );
+};
+
 
 const ImportReviewModal: React.FC<{
     stagedLogs: StagedLog[],
@@ -96,11 +127,12 @@ export const MoldingTab: React.FC = () => {
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
     const [stagedLogs, setStagedLogs] = useState<StagedLog[]>([]);
     const importFileRef = useRef<HTMLInputElement>(null);
+    const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'date', direction: 'desc' });
 
     useEffect(() => {
         const handleStorageChange = () => {
             const storedLogs = getMoldingLogs();
-            setLogs(storedLogs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+            setLogs(storedLogs);
             const loadedEmployees = getEmployees();
             setEmployees(loadedEmployees);
             setBoms(getBOMs());
@@ -118,6 +150,32 @@ export const MoldingTab: React.FC = () => {
         window.addEventListener('storage', handleStorageChange);
         return () => window.removeEventListener('storage', handleStorageChange);
     }, [operatorName]);
+    
+    const requestSort = (key: keyof MoldingLogEntry) => {
+        let direction: SortDirection = 'asc';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const sortedLogs = useMemo(() => {
+        let sortableItems = [...logs];
+        if (sortConfig !== null) {
+            sortableItems.sort((a, b) => {
+                const aVal = a[sortConfig.key];
+                const bVal = b[sortConfig.key];
+                if (aVal < bVal) {
+                    return sortConfig.direction === 'asc' ? -1 : 1;
+                }
+                if (aVal > bVal) {
+                    return sortConfig.direction === 'asc' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
+        return sortableItems;
+    }, [logs, sortConfig]);
 
     const materialCheck = useMemo(() => {
         if (!productName || quantityProduced <= 0) {
@@ -189,7 +247,7 @@ export const MoldingTab: React.FC = () => {
             setRawMaterials(updatedRawMaterials);
         }
 
-        const updatedLogs = [newLog, ...logs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const updatedLogs = [newLog, ...logs];
         setLogs(updatedLogs);
         saveMoldingLogs(updatedLogs);
 
@@ -327,7 +385,7 @@ export const MoldingTab: React.FC = () => {
 
         saveRawMaterials(updatedRawMaterials);
         setRawMaterials(updatedRawMaterials);
-        const allLogs = [...newLogs, ...logs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const allLogs = [...newLogs, ...logs];
         saveMoldingLogs(allLogs);
         setLogs(allLogs);
         alert(`นำเข้าสำเร็จ ${newLogs.length} รายการ`);
@@ -456,19 +514,19 @@ export const MoldingTab: React.FC = () => {
                                     checked={logs.length > 0 && selectedLogs.size === logs.length}
                                 />
                             </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">วันที่</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">สินค้า</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">สถานะ</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ผลิตได้</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ของเสีย</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">เครื่องจักร</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ผู้ควบคุม</th>
+                            <SortableHeader sortKey="date" label="วันที่" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
+                            <SortableHeader sortKey="productName" label="สินค้า" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
+                            <SortableHeader sortKey="status" label="สถานะ" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
+                            <SortableHeader sortKey="quantityProduced" label="ผลิตได้" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
+                            <SortableHeader sortKey="quantityRejected" label="ของเสีย" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
+                            <SortableHeader sortKey="machine" label="เครื่องจักร" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
+                            <SortableHeader sortKey="operatorName" label="ผู้ควบคุม" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
                             <th scope="col" className="relative px-6 py-3"><span className="sr-only">ลบ</span></th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                        {logs.length > 0 ? (
-                            logs.map(log => (
+                        {sortedLogs.length > 0 ? (
+                            sortedLogs.map(log => (
                                 <tr key={log.id} className={selectedLogs.has(log.id) ? 'bg-green-50' : ''}>
                                     <td className="p-4">
                                         <input

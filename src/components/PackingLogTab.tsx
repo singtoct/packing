@@ -1,10 +1,40 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { PackingLogEntry, Employee, QCEntry } from '../types';
 import { getPackingLogs, savePackingLogs, getOrders, getInventory, saveInventory, getEmployees, getQCEntries, saveQCEntries } from '../services/storageService';
 import { PlusCircleIcon, Trash2Icon, FileSpreadsheetIcon, DownloadIcon, UploadIcon, XCircleIcon } from './icons/Icons';
 import { SearchableInput } from './SearchableInput';
+
+type SortDirection = 'asc' | 'desc';
+interface SortConfig {
+    key: keyof PackingLogEntry;
+    direction: SortDirection;
+}
+
+// Helper component for sortable table headers
+const SortableHeader: React.FC<{
+  label: string;
+  sortConfig: SortConfig | null;
+  requestSort: (key: keyof PackingLogEntry) => void;
+  sortKey: keyof PackingLogEntry;
+  className?: string;
+}> = ({ label, sortConfig, requestSort, sortKey, className }) => {
+  const isSorted = sortConfig?.key === sortKey;
+  const directionIcon = isSorted ? (sortConfig?.direction === 'asc' ? '▲' : '▼') : '';
+
+  return (
+    <th
+      scope="col"
+      className={`cursor-pointer hover:bg-gray-100 transition-colors ${className}`}
+      onClick={() => requestSort(sortKey)}
+    >
+      <div className="flex items-center gap-1">
+        <span>{label}</span>
+        {isSorted && <span className="text-xs text-gray-500">{directionIcon}</span>}
+      </div>
+    </th>
+  );
+};
 
 type StagedLog = Omit<PackingLogEntry, 'id'> & { _tempId: string };
 
@@ -83,10 +113,11 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
     const [stagedLogs, setStagedLogs] = useState<StagedLog[]>([]);
     const importFileRef = useRef<HTMLInputElement>(null);
+    const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'date', direction: 'desc' });
 
     useEffect(() => {
         const storedLogs = getPackingLogs();
-        setLogs(storedLogs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+        setLogs(storedLogs);
         
         const today = new Date().toISOString().split('T')[0];
         setLogDate(today);
@@ -110,6 +141,32 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
     useEffect(() => {
         savePackingLogs(logs);
     }, [logs]);
+
+    const requestSort = (key: keyof PackingLogEntry) => {
+        let direction: SortDirection = 'asc';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const sortedLogs = useMemo(() => {
+        let sortableItems = [...logs];
+        if (sortConfig !== null) {
+            sortableItems.sort((a, b) => {
+                const aVal = a[sortConfig.key];
+                const bVal = b[sortConfig.key];
+                if (aVal < bVal) {
+                    return sortConfig.direction === 'asc' ? -1 : 1;
+                }
+                if (aVal > bVal) {
+                    return sortConfig.direction === 'asc' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
+        return sortableItems;
+    }, [logs, sortConfig]);
     
     const addLogEntry = (logData: Omit<PackingLogEntry, 'id'>, currentInventory: any[], currentQCEntries: any[]) => {
         const newLog: PackingLogEntry = { ...logData, id: crypto.randomUUID() };
@@ -153,8 +210,7 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
         saveInventory(currentInventory);
         saveQCEntries(currentQCEntries);
         
-        const updatedLogs = [newLog, ...logs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        setLogs(updatedLogs);
+        setLogs(prevLogs => [...prevLogs, newLog]);
         
         setLowStockCheck();
         setLogQuantity(1);
@@ -232,7 +288,7 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
     };
 
     const handleExportHistory = () => {
-        const dataToExport = logs.map(log => ({
+        const dataToExport = sortedLogs.map(log => ({
             'วันที่': new Date(log.date).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }),
             'ชื่อสินค้า': log.name,
             'จำนวน (ลัง)': log.quantity,
@@ -307,7 +363,7 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
         if (newLogs.length > 0) {
             saveInventory(currentInventory);
             saveQCEntries(currentQCEntries);
-            const updatedLogs = [...newLogs, ...logs].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            const updatedLogs = [...newLogs, ...logs];
             setLogs(updatedLogs);
             setLowStockCheck();
             alert(`นำเข้าสำเร็จ ${newLogs.length} รายการ`);
@@ -409,16 +465,16 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
                                     checked={logs.length > 0 && selectedLogs.size === logs.length}
                                 />
                             </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">วันที่</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อสินค้า</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">จำนวน (ลัง)</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ผู้บันทึก</th>
+                            <SortableHeader sortKey="date" label="วันที่" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
+                            <SortableHeader sortKey="name" label="ชื่อสินค้า" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
+                            <SortableHeader sortKey="quantity" label="จำนวน (ลัง)" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
+                            <SortableHeader sortKey="packerName" label="ผู้บันทึก" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
                             <th scope="col" className="relative px-6 py-3"><span className="sr-only">ลบ</span></th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                        {logs.length > 0 ? (
-                            logs.map(log => (
+                        {sortedLogs.length > 0 ? (
+                            sortedLogs.map(log => (
                                 <tr key={log.id} className={selectedLogs.has(log.id) ? 'bg-green-50' : ''}>
                                     <td className="p-4">
                                         <input 

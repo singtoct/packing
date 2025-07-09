@@ -1,9 +1,39 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { Product, BillOfMaterial, RawMaterial } from '../types';
 import { getProducts, saveProducts, getBOMs, getRawMaterials } from '../services/storageService';
 import { PlusCircleIcon, Trash2Icon, EditIcon, DownloadIcon, DatabaseIcon, UploadIcon, XCircleIcon } from './icons/Icons';
+
+type SortDirection = 'asc' | 'desc';
+type ProductWithCost = Product & { cost: number, profit: number };
+type SortKey = keyof ProductWithCost;
+
+interface SortConfig {
+    key: SortKey;
+    direction: SortDirection;
+}
+
+const SortableHeader: React.FC<{
+    label: string;
+    sortKey: SortKey;
+    sortConfig: SortConfig | null;
+    requestSort: (key: SortKey) => void;
+    className?: string;
+    justify?: 'left' | 'right';
+}> = ({ label, sortKey, sortConfig, requestSort, className, justify = 'left' }) => {
+    const isSorted = sortConfig?.key === sortKey;
+    const directionIcon = isSorted ? (sortConfig?.direction === 'asc' ? '▲' : '▼') : '';
+    const justifyClass = justify === 'right' ? 'justify-end' : 'justify-start';
+
+    return (
+        <th scope="col" className={`cursor-pointer hover:bg-gray-100 transition-colors ${className || ''}`} onClick={() => requestSort(sortKey)}>
+            <div className={`flex items-center gap-1 ${justifyClass}`}>
+                <span>{label}</span>
+                {isSorted && <span className="text-xs">{directionIcon}</span>}
+            </div>
+        </th>
+    );
+};
 
 interface ProductExcelRow {
     Name?: string;
@@ -126,6 +156,7 @@ export const ProductsTab: React.FC = () => {
     const [stagedData, setStagedData] = useState<ProductExcelRow[]>([]);
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
     const importFileRef = useRef<HTMLInputElement>(null);
+    const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'name', direction: 'asc' });
 
     useEffect(() => {
         const refreshData = () => {
@@ -137,6 +168,14 @@ export const ProductsTab: React.FC = () => {
         window.addEventListener('storage', refreshData);
         return () => window.removeEventListener('storage', refreshData);
     }, []);
+
+    const requestSort = (key: SortKey) => {
+        let direction: SortDirection = 'asc';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
 
     const productCosts = useMemo(() => {
         const bomMap = new Map(boms.map(b => [b.productName, b.components]));
@@ -158,6 +197,32 @@ export const ProductsTab: React.FC = () => {
         });
         return costs;
     }, [products, boms, rawMaterials]);
+    
+    const sortedProducts = useMemo(() => {
+        let sortableItems: ProductWithCost[] = products.map(p => {
+            const cost = productCosts.get(p.id) || 0;
+            return {
+                ...p,
+                cost,
+                profit: p.salePrice - cost,
+            };
+        });
+
+        if (sortConfig) {
+            sortableItems.sort((a, b) => {
+                const aVal = a[sortConfig.key];
+                const bVal = b[sortConfig.key];
+                if (aVal < bVal) {
+                    return sortConfig.direction === 'asc' ? -1 : 1;
+                }
+                if (aVal > bVal) {
+                    return sortConfig.direction === 'asc' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
+        return sortableItems;
+    }, [products, productCosts, sortConfig]);
 
     const handleAddProduct = (e: React.FormEvent) => {
         e.preventDefault();
@@ -169,7 +234,7 @@ export const ProductsTab: React.FC = () => {
             color,
             salePrice: Number(salePrice)
         };
-        const updated = [...products, newProduct].sort((a,b) => a.name.localeCompare(b.name));
+        const updated = [...products, newProduct];
         setProducts(updated);
         saveProducts(updated);
         setName('');
@@ -384,17 +449,16 @@ export const ProductsTab: React.FC = () => {
                                     checked={products.length > 0 && selectedProducts.size === products.length}
                                 />
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">สินค้า</th>
-                            <th className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase">ราคาขาย</th>
-                            <th className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase">ต้นทุนวัตถุดิบ</th>
-                            <th className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase">กำไร</th>
+                            <SortableHeader sortKey="name" label="สินค้า" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase" />
+                            <SortableHeader sortKey="salePrice" label="ราคาขาย" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase" justify="right" />
+                            <SortableHeader sortKey="cost" label="ต้นทุนวัตถุดิบ" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase" justify="right" />
+                            <SortableHeader sortKey="profit" label="กำไร" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase" justify="right" />
                             <th className="relative px-6 py-3 w-28"><span className="sr-only">Actions</span></th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                        {products.length > 0 ? products.map(p => {
-                            const cost = productCosts.get(p.id) || 0;
-                            const profit = p.salePrice - cost;
+                        {products.length > 0 ? sortedProducts.map(p => {
+                            const profit = p.profit;
                             return (
                                 <tr key={p.id} className={selectedProducts.has(p.id) ? 'bg-green-50' : ''}>
                                     <td className="p-4">
@@ -410,9 +474,9 @@ export const ProductsTab: React.FC = () => {
                                         <p className="text-sm text-gray-500">{p.color}</p>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-green-700">{p.salePrice.toFixed(2)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-orange-700">{cost > 0 ? cost.toFixed(2) : '-'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-orange-700">{p.cost > 0 ? p.cost.toFixed(2) : '-'}</td>
                                     <td className={`px-6 py-4 whitespace-nowrap text-sm text-right font-bold ${profit >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
-                                        {cost > 0 ? profit.toFixed(2) : '-'}
+                                        {p.cost > 0 ? profit.toFixed(2) : '-'}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <button onClick={() => setEditingProduct(p)} className="text-blue-600 hover:text-blue-900 mr-3"><EditIcon className="w-5 h-5"/></button>

@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { getQCEntries, saveQCEntries, getEmployees } from '../services/storageService';
 import { QCEntry, Employee } from '../types';
@@ -147,16 +145,21 @@ const QCInspectionModal: React.FC<{
     );
 };
 
+type SortKey = 'packingDate' | 'productName' | 'packerName';
+type SortDirection = 'asc' | 'desc';
+
 export const QCTab: React.FC = () => {
     const [qcEntries, setQcEntries] = useState<QCEntry[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [filter, setFilter] = useState<'All' | 'Pending' | 'Passed' | 'Failed'>('Pending');
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedEntry, setSelectedEntry] = useState<QCEntry | null>(null);
+    const [sortKey, setSortKey] = useState<SortKey>('packingDate');
+    const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
     useEffect(() => {
         const handleStorageChange = () => {
-            setQcEntries(getQCEntries().sort((a,b) => new Date(b.packingDate).getTime() - new Date(a.packingDate).getTime()));
+            setQcEntries(getQCEntries());
         };
         handleStorageChange();
         setEmployees(getEmployees());
@@ -181,10 +184,18 @@ export const QCTab: React.FC = () => {
         closeModal();
     };
 
-    const filteredEntries = useMemo(() => {
-        if (filter === 'All') return qcEntries;
-        return qcEntries.filter(entry => entry.status === filter);
-    }, [filter, qcEntries]);
+    const sortedAndFilteredEntries = useMemo(() => {
+        const filtered = filter === 'All' ? qcEntries : qcEntries.filter(entry => entry.status === filter);
+        
+        return filtered.sort((a, b) => {
+            const aVal = a[sortKey];
+            const bVal = b[sortKey];
+
+            if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }, [filter, qcEntries, sortKey, sortDirection]);
 
     const FilterButton: React.FC<{ status: 'All' | 'Pending' | 'Passed' | 'Failed'; label: string; count: number }> = ({ status, label, count }) => (
         <button onClick={() => setFilter(status)} className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${filter === status ? 'bg-green-600 text-white shadow' : 'bg-white text-gray-700 hover:bg-gray-100'}`}>
@@ -214,9 +225,22 @@ export const QCTab: React.FC = () => {
                     <FilterButton status="All" label="ทั้งหมด" count={qcEntries.length} />
                 </div>
             </div>
+             <div className="flex items-center gap-4 mb-4">
+                <label className="text-sm font-medium">เรียงตาม:</label>
+                <select value={sortKey} onChange={e => setSortKey(e.target.value as SortKey)} className="p-2 border border-gray-300 rounded-md text-sm">
+                    <option value="packingDate">วันที่แพ็ค</option>
+                    <option value="productName">ชื่อสินค้า</option>
+                    <option value="packerName">ผู้แพ็ค</option>
+                </select>
+                <select value={sortDirection} onChange={e => setSortDirection(e.target.value as SortDirection)} className="p-2 border border-gray-300 rounded-md text-sm">
+                    <option value="desc">ล่าสุดไปเก่าสุด</option>
+                    <option value="asc">เก่าสุดไปล่าสุด</option>
+                </select>
+            </div>
+
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredEntries.length > 0 ? filteredEntries.map(entry => (
+                {sortedAndFilteredEntries.length > 0 ? sortedAndFilteredEntries.map(entry => (
                     <div key={entry.id} className="bg-white rounded-lg shadow-md border overflow-hidden">
                         <div className="p-4">
                             <div className="flex justify-between items-start mb-2">

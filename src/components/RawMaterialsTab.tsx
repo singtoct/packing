@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { RawMaterial, BillOfMaterial, MoldingLogEntry, Product } from '../types';
@@ -19,6 +18,37 @@ interface RawMaterialExcelRow {
 const commonInputStyle = "px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500";
 const buttonPrimaryStyle = "inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700";
 const buttonSecondaryStyle = "inline-flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50";
+
+type SortDirection = 'asc' | 'desc';
+interface SortConfig {
+    key: keyof RawMaterial;
+    direction: SortDirection;
+}
+
+// Helper component for sortable table headers
+const SortableHeader: React.FC<{
+  label: string;
+  sortConfig: SortConfig | null;
+  requestSort: (key: keyof RawMaterial) => void;
+  sortKey: keyof RawMaterial;
+  className?: string;
+}> = ({ label, sortConfig, requestSort, sortKey, className }) => {
+  const isSorted = sortConfig?.key === sortKey;
+  const directionIcon = isSorted ? (sortConfig?.direction === 'asc' ? '▲' : '▼') : '';
+
+  return (
+    <th
+      scope="col"
+      className={`cursor-pointer hover:bg-gray-100 transition-colors ${className}`}
+      onClick={() => requestSort(sortKey)}
+    >
+      <div className="flex items-center gap-1">
+        <span>{label}</span>
+        {isSorted && <span className="text-xs text-gray-500">{directionIcon}</span>}
+      </div>
+    </th>
+  );
+};
 
 const ImportReviewModal: React.FC<{
     stagedData: RawMaterialExcelRow[],
@@ -130,7 +160,33 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
     const [isExcelReviewModalOpen, setIsExcelReviewModalOpen] = useState(false);
     const [stagedData, setStagedData] = useState<RawMaterialExcelRow[]>([]);
     const importFileRef = useRef<HTMLInputElement>(null);
+    const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'name', direction: 'asc' });
 
+    const requestSort = (key: keyof RawMaterial) => {
+        let direction: SortDirection = 'asc';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const sortedRawMaterials = useMemo(() => {
+        let sortableItems = [...rawMaterials];
+        if (sortConfig !== null) {
+            sortableItems.sort((a, b) => {
+                const aVal = a[sortConfig.key];
+                const bVal = b[sortConfig.key];
+                if (aVal < bVal) {
+                    return sortConfig.direction === 'asc' ? -1 : 1;
+                }
+                if (aVal > bVal) {
+                    return sortConfig.direction === 'asc' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
+        return sortableItems;
+    }, [rawMaterials, sortConfig]);
 
     const handleAddMaterial = (e: React.FormEvent) => {
         e.preventDefault();
@@ -142,7 +198,7 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
             unit,
             costPerUnit: costPerUnit === '' ? undefined : Number(costPerUnit)
         };
-        const updatedMaterials = [...rawMaterials, newMaterial].sort((a, b) => a.name.localeCompare(b.name));
+        const updatedMaterials = [...rawMaterials, newMaterial];
         setRawMaterials(updatedMaterials);
         saveRawMaterials(updatedMaterials);
         setName('');
@@ -190,7 +246,7 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
     };
 
     const handleSaveImportedMaterials = (newMaterials: RawMaterial[]) => {
-        const updatedMaterials = [...rawMaterials, ...newMaterials].sort((a,b) => a.name.localeCompare(b.name));
+        const updatedMaterials = [...rawMaterials, ...newMaterials];
         setRawMaterials(updatedMaterials);
         saveRawMaterials(updatedMaterials);
     };
@@ -334,15 +390,15 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
                                     checked={rawMaterials.length > 0 && selectedMaterials.size === rawMaterials.length}
                                 />
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">ชื่อวัตถุดิบ</th>
-                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">จำนวนในสต็อก</th>
-                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">หน่วย</th>
-                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">ต้นทุน/หน่วย (บาท)</th>
+                            <SortableHeader sortKey="name" label="ชื่อวัตถุดิบ" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider" />
+                            <SortableHeader sortKey="quantity" label="จำนวนในสต็อก" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider" />
+                            <SortableHeader sortKey="unit" label="หน่วย" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider" />
+                            <SortableHeader sortKey="costPerUnit" label="ต้นทุน/หน่วย (บาท)" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider" />
                             <th className="px-6 py-3 w-20"></th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                        {rawMaterials.map(mat => (
+                        {sortedRawMaterials.map(mat => (
                             <tr key={mat.id} className={selectedMaterials.has(mat.id) ? 'bg-green-50' : ''}>
                                 <td className="p-4">
                                     <input 
@@ -446,13 +502,18 @@ const BOMView: React.FC<{ boms: BillOfMaterial[], setBoms: React.Dispatch<React.
     const [selectedProduct, setSelectedProduct] = useState('');
     const [editingBom, setEditingBom] = useState<BillOfMaterial | null>(null);
     const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
+    const [bomSortDir, setBomSortDir] = useState<SortDirection>('asc');
 
     const availableProducts = useMemo(() => {
         const productSet = new Set<string>();
         getMoldingLogs().forEach(log => productSet.add(log.productName));
         getProducts().forEach(prod => productSet.add(`${prod.name} (${prod.color})`));
-        return Array.from(productSet).sort();
-    }, []);
+        const sorted = Array.from(productSet).sort((a,b) => a.localeCompare(b));
+        if(bomSortDir === 'desc') {
+            return sorted.reverse();
+        }
+        return sorted;
+    }, [bomSortDir]);
     
     const rawMaterialMap = useMemo(() => new Map(rawMaterials.map(rm => [rm.id, rm])), [rawMaterials]);
     const bomProductNames = useMemo(() => new Set(boms.map(b => b.productName)), [boms]);
@@ -512,7 +573,13 @@ const BOMView: React.FC<{ boms: BillOfMaterial[], setBoms: React.Dispatch<React.
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="md:col-span-1">
-                <h3 className="text-xl font-semibold mb-4">เลือกสินค้า</h3>
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-semibold">เลือกสินค้า</h3>
+                    <div className="flex gap-1">
+                        <button onClick={() => setBomSortDir('asc')} className={`p-1 rounded ${bomSortDir === 'asc' ? 'bg-green-200' : 'hover:bg-gray-100'}`}>A-Z</button>
+                        <button onClick={() => setBomSortDir('desc')} className={`p-1 rounded ${bomSortDir === 'desc' ? 'bg-green-200' : 'hover:bg-gray-100'}`}>Z-A</button>
+                    </div>
+                </div>
                 <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
                     {availableProducts.map(prod => (
                         <div key={prod} onClick={() => setSelectedProduct(prod)} className={`p-3 rounded-lg cursor-pointer ${selectedProduct === prod ? 'bg-green-600 text-white' : 'bg-white hover:bg-green-50 border'}`}>

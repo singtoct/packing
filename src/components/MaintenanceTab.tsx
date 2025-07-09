@@ -1,10 +1,46 @@
-
-
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getMachines, saveMachines, getMaintenanceLogs, saveMaintenanceLogs, getEmployees } from '../services/storageService';
 import { Machine, MaintenanceLog, Employee } from '../types';
 import { PlusCircleIcon, Trash2Icon, WrenchIcon, EditIcon } from './icons/Icons';
+
+type SortDirection = 'asc' | 'desc';
+type MachineSortKey = keyof Machine;
+interface MachineSortConfig {
+    key: MachineSortKey;
+    direction: SortDirection;
+}
+
+type LogSortKey = keyof MaintenanceLog | 'machineName';
+interface LogSortConfig {
+    key: LogSortKey;
+    direction: SortDirection;
+}
+
+// Helper component for sortable table headers
+const SortableHeader: React.FC<{
+  label: string;
+  sortConfig: LogSortConfig | null;
+  requestSort: (key: LogSortKey) => void;
+  sortKey: LogSortKey;
+  className?: string;
+}> = ({ label, sortConfig, requestSort, sortKey, className }) => {
+  const isSorted = sortConfig?.key === sortKey;
+  const directionIcon = isSorted ? (sortConfig?.direction === 'asc' ? '▲' : '▼') : '';
+
+  return (
+    <th
+      scope="col"
+      className={`cursor-pointer hover:bg-gray-100 transition-colors ${className}`}
+      onClick={() => requestSort(sortKey)}
+    >
+      <div className="flex items-center gap-1">
+        <span>{label}</span>
+        {isSorted && <span className="text-xs text-gray-500">{directionIcon}</span>}
+      </div>
+    </th>
+  );
+};
+
 
 const MaintenanceModal: React.FC<{
     machine: Machine;
@@ -82,12 +118,69 @@ export const MaintenanceTab: React.FC = () => {
     
     const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [machineSortConfig, setMachineSortConfig] = useState<MachineSortConfig | null>({ key: 'name', direction: 'asc' });
+    const [logSortConfig, setLogSortConfig] = useState<LogSortConfig | null>({ key: 'date', direction: 'desc' });
 
     useEffect(() => {
         setMachines(getMachines());
         setLogs(getMaintenanceLogs());
         setEmployees(getEmployees());
     }, []);
+
+    const requestMachineSort = (key: MachineSortKey) => {
+        let direction: SortDirection = 'asc';
+        if (machineSortConfig && machineSortConfig.key === key && machineSortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setMachineSortConfig({ key, direction });
+    };
+
+    const sortedMachines = useMemo(() => {
+        let sortableItems = [...machines];
+        if (machineSortConfig) {
+            sortableItems.sort((a, b) => {
+                if (a[machineSortConfig.key] < b[machineSortConfig.key]) {
+                    return machineSortConfig.direction === 'asc' ? -1 : 1;
+                }
+                if (a[machineSortConfig.key] > b[machineSortConfig.key]) {
+                    return machineSortConfig.direction === 'asc' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
+        return sortableItems;
+    }, [machines, machineSortConfig]);
+    
+    const requestLogSort = (key: LogSortKey) => {
+        let direction: SortDirection = 'asc';
+        if (logSortConfig && logSortConfig.key === key && logSortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setLogSortConfig({ key, direction });
+    };
+
+    const sortedLogs = useMemo(() => {
+        const machineMap = new Map(machines.map(m => [m.id, m.name]));
+        let sortableItems = logs.map(log => ({
+            ...log,
+            machineName: machineMap.get(log.machineId) || 'N/A'
+        }));
+        if (logSortConfig) {
+            sortableItems.sort((a, b) => {
+                const aVal = a[logSortConfig.key];
+                const bVal = b[logSortConfig.key];
+                 if (aVal < bVal) {
+                    return logSortConfig.direction === 'asc' ? -1 : 1;
+                }
+                if (aVal > bVal) {
+                    return logSortConfig.direction === 'asc' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
+        return sortableItems;
+    }, [logs, logSortConfig, machines]);
+
 
     const handleAddMachine = (e: React.FormEvent) => {
         e.preventDefault();
@@ -144,7 +237,7 @@ export const MaintenanceTab: React.FC = () => {
     };
     
     const handleSaveLog = (log: MaintenanceLog) => {
-        const updatedLogs = [log, ...logs].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const updatedLogs = [log, ...logs];
         setLogs(updatedLogs);
         saveMaintenanceLogs(updatedLogs);
     };
@@ -187,8 +280,14 @@ export const MaintenanceTab: React.FC = () => {
                         <Trash2Icon className="w-4 h-4"/> ลบที่เลือก
                     </button>
                 </div>
+                <div className="flex gap-2 mb-2 text-xs">
+                    <span>เรียงตาม:</span>
+                    <button onClick={() => requestMachineSort('name')} className={`font-semibold ${machineSortConfig?.key === 'name' ? 'text-green-600' : ''}`}>ชื่อ</button>
+                    <button onClick={() => requestMachineSort('location')} className={`font-semibold ${machineSortConfig?.key === 'location' ? 'text-green-600' : ''}`}>ตำแหน่ง</button>
+                    <button onClick={() => requestMachineSort('status')} className={`font-semibold ${machineSortConfig?.key === 'status' ? 'text-green-600' : ''}`}>สถานะ</button>
+                </div>
                 <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
-                    {machines.map(machine => (
+                    {sortedMachines.map(machine => (
                         <div key={machine.id} className="bg-white p-4 rounded-lg shadow-sm border">
                            <div className="flex justify-between items-start">
                                <div className="flex items-start gap-3">
@@ -234,27 +333,24 @@ export const MaintenanceTab: React.FC = () => {
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">วันที่</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">เครื่องจักร</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ประเภท</th>
+                                <SortableHeader sortKey="date" label="วันที่" sortConfig={logSortConfig} requestSort={requestLogSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"/>
+                                <SortableHeader sortKey="machineName" label="เครื่องจักร" sortConfig={logSortConfig} requestSort={requestLogSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"/>
+                                <SortableHeader sortKey="type" label="ประเภท" sortConfig={logSortConfig} requestSort={requestLogSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"/>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">รายละเอียด</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ผู้ดำเนินการ</th>
+                                <SortableHeader sortKey="technician" label="ผู้ดำเนินการ" sortConfig={logSortConfig} requestSort={requestLogSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"/>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                             {logs.length > 0 ? (
-                                logs.map(log => {
-                                    const machine = machines.find(m => m.id === log.machineId);
-                                    return (
-                                        <tr key={log.id}>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm">{new Date(log.date).toLocaleDateString('th-TH')}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold">{machine?.name || 'N/A'}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm">{log.type}</td>
-                                            <td className="px-6 py-4 text-sm text-gray-600">{log.description}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm">{log.technician}</td>
-                                        </tr>
-                                    )
-                                })
+                             {sortedLogs.length > 0 ? (
+                                sortedLogs.map(log => (
+                                    <tr key={log.id}>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm">{new Date(log.date).toLocaleDateString('th-TH')}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold">{log.machineName}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm">{log.type}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-600">{log.description}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm">{log.technician}</td>
+                                    </tr>
+                                ))
                             ) : (
                                 <tr><td colSpan={5} className="text-center text-gray-500 py-8">ไม่มีประวัติการซ่อมบำรุง</td></tr>
                             )}

@@ -1,9 +1,38 @@
-
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getShipments, saveShipments } from '../services/storageService';
 import { Shipment } from '../types';
 import { PlusCircleIcon, Trash2Icon, TruckIcon } from './icons/Icons';
+
+type SortDirection = 'asc' | 'desc';
+interface SortConfig {
+    key: keyof Shipment;
+    direction: SortDirection;
+}
+
+const SortableHeader: React.FC<{
+  label: string;
+  sortConfig: SortConfig | null;
+  requestSort: (key: keyof Shipment) => void;
+  sortKey: keyof Shipment;
+  className?: string;
+}> = ({ label, sortConfig, requestSort, sortKey, className }) => {
+  const isSorted = sortConfig?.key === sortKey;
+  const directionIcon = isSorted ? (sortConfig?.direction === 'asc' ? '▲' : '▼') : '';
+
+  return (
+    <th
+      scope="col"
+      className={`cursor-pointer hover:bg-gray-100 transition-colors ${className}`}
+      onClick={() => requestSort(sortKey)}
+    >
+      <div className="flex items-center gap-1">
+        <span>{label}</span>
+        {isSorted && <span className="text-xs text-gray-500">{directionIcon}</span>}
+      </div>
+    </th>
+  );
+};
+
 
 const commonInputStyle = "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500";
 const buttonPrimaryStyle = "inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700";
@@ -15,11 +44,40 @@ export const ShipmentTrackingTab: React.FC = () => {
     const [carrier, setCarrier] = useState('');
     const [trackingNumber, setTrackingNumber] = useState('');
     const [shipmentDate, setShipmentDate] = useState('');
+    const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'shipmentDate', direction: 'desc' });
     
     useEffect(() => {
-        setShipments(getShipments().sort((a,b) => new Date(b.shipmentDate).getTime() - new Date(a.shipmentDate).getTime()));
+        setShipments(getShipments());
         setShipmentDate(new Date().toISOString().split('T')[0]);
     }, []);
+
+    const requestSort = (key: keyof Shipment) => {
+        let direction: SortDirection = 'asc';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const sortedShipments = useMemo(() => {
+        let sortableItems = [...shipments];
+        if(sortConfig) {
+            sortableItems.sort((a,b) => {
+                let aVal = a[sortConfig.key];
+                let bVal = b[sortConfig.key];
+
+                if(sortConfig.key === 'orderIds') {
+                    aVal = (aVal as string[]).join(',');
+                    bVal = (bVal as string[]).join(',');
+                }
+
+                if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        return sortableItems;
+    }, [shipments, sortConfig]);
 
     const handleAddShipment = (e: React.FormEvent) => {
         e.preventDefault();
@@ -130,16 +188,16 @@ export const ShipmentTrackingTab: React.FC = () => {
                                     checked={shipments.length > 0 && selectedShipments.size === shipments.length}
                                 />
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">วันที่ส่ง</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ออเดอร์</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">บริษัทขนส่ง</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tracking No.</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">สถานะ</th>
+                            <SortableHeader sortKey="shipmentDate" label="วันที่ส่ง" sortConfig={sortConfig} requestSort={requestSort} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase"/>
+                            <SortableHeader sortKey="orderIds" label="ออเดอร์" sortConfig={sortConfig} requestSort={requestSort} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase"/>
+                            <SortableHeader sortKey="carrier" label="บริษัทขนส่ง" sortConfig={sortConfig} requestSort={requestSort} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase"/>
+                            <SortableHeader sortKey="trackingNumber" label="Tracking No." sortConfig={sortConfig} requestSort={requestSort} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase"/>
+                            <SortableHeader sortKey="status" label="สถานะ" sortConfig={sortConfig} requestSort={requestSort} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase"/>
                             <th className="px-4 py-3"></th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                        {shipments.map(s => (
+                        {sortedShipments.map(s => (
                             <tr key={s.id} className={selectedShipments.has(s.id) ? 'bg-blue-50' : ''}>
                                 <td className="p-4">
                                     <input
