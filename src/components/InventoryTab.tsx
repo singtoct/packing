@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { getInventory, saveInventory } from '../services/storageService';
 import { InventoryItem } from '../types';
+import { Trash2Icon } from './icons/Icons';
 
 export const InventoryTab: React.FC<{ setLowStockCheck: () => void; }> = ({ setLowStockCheck }) => {
     const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -45,6 +46,15 @@ export const InventoryTab: React.FC<{ setLowStockCheck: () => void; }> = ({ setL
         alert(`บันทึกสต็อกขั้นต่ำสำหรับ ${itemName} เรียบร้อยแล้ว`);
     };
 
+    const handleDeleteItem = (itemName: string) => {
+        if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบ '${itemName}' ออกจากสต็อก? การกระทำนี้ไม่สามารถย้อนกลับได้`)) {
+            const updatedInventory = inventory.filter(item => item.name !== itemName);
+            saveInventory(updatedInventory);
+            setInventory(updatedInventory); // Update state immediately for a responsive UI
+            setLowStockCheck(); // Re-evaluate low stock alerts
+        }
+    };
+
     const filteredInventory = inventory.filter(item => 
         item.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -68,6 +78,7 @@ export const InventoryTab: React.FC<{ setLowStockCheck: () => void; }> = ({ setL
                             <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">ชื่อสินค้า</th>
                             <th scope="col" className="px-6 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider w-1/6">สต็อกปัจจุบัน</th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider w-1/4">สต็อกขั้นต่ำ (ลัง)</th>
+                            <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">การกระทำ</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
@@ -75,7 +86,7 @@ export const InventoryTab: React.FC<{ setLowStockCheck: () => void; }> = ({ setL
                             filteredInventory.map(item => {
                                 const isLowStock = item.minStock !== undefined && item.quantity < item.minStock;
                                 return (
-                                <tr key={item.name} className={isLowStock ? 'bg-red-100' : ''}>
+                                <tr key={item.name} className={isLowStock ? 'bg-red-50' : ''}>
                                     <td className={`px-6 py-4 whitespace-normal text-sm font-medium ${isLowStock ? 'text-red-900 font-bold' : 'text-gray-800'}`}>
                                         {item.name}
                                     </td>
@@ -100,11 +111,20 @@ export const InventoryTab: React.FC<{ setLowStockCheck: () => void; }> = ({ setL
                                             </button>
                                         </div>
                                     </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                                        <button
+                                            onClick={() => handleDeleteItem(item.name)}
+                                            className="p-2 text-red-500 hover:text-red-700 hover:bg-red-100 rounded-full transition-colors"
+                                            aria-label={`Delete ${item.name}`}
+                                        >
+                                            <Trash2Icon className="w-5 h-5" />
+                                        </button>
+                                    </td>
                                 </tr>
                             )})
                         ) : (
                             <tr>
-                                <td colSpan={3} className="text-center text-gray-500 py-8">
+                                <td colSpan={4} className="text-center text-gray-500 py-8">
                                     {inventory.length === 0 ? "ยังไม่มีสินค้าในสต็อก" : "ไม่พบสินค้าที่ตรงกับการค้นหา"}
                                 </td>
                             </tr>
