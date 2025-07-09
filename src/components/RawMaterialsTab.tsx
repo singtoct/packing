@@ -384,9 +384,68 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
     );
 };
 
+
+const CopyBomModal: React.FC<{
+    sourceBom: BillOfMaterial;
+    allProducts: string[];
+    existingBomProductNames: Set<string>;
+    onClose: () => void;
+    onConfirm: (destinationProduct: string) => void;
+}> = ({ sourceBom, allProducts, existingBomProductNames, onClose, onConfirm }) => {
+    const [destinationProduct, setDestinationProduct] = useState('');
+
+    const availableProductsForCopy = useMemo(() => {
+        return allProducts
+            .filter(p => !existingBomProductNames.has(p) && p !== sourceBom.productName)
+            .map(p => ({ id: p, name: p }));
+    }, [allProducts, existingBomProductNames, sourceBom.productName]);
+
+    const handleConfirm = () => {
+        if (!destinationProduct) {
+            alert('กรุณาเลือกสินค้าปลายทาง');
+            return;
+        }
+        onConfirm(destinationProduct);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+            <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-lg">
+                <h2 className="text-2xl font-bold mb-4">คัดลอกสูตรการผลิต (BOM)</h2>
+                <p className="mb-2">จาก: <span className="font-semibold text-green-700">{sourceBom.productName}</span></p>
+                
+                <div className="space-y-4">
+                    <div>
+                        <label htmlFor="destinationProduct" className="block text-sm font-medium text-gray-700">ไปที่สินค้า (ที่ยังไม่มี BOM):</label>
+                        <SearchableInput
+                            options={availableProductsForCopy}
+                            value={destinationProduct}
+                            onChange={setDestinationProduct}
+                            displayKey="name"
+                            valueKey="id"
+                            placeholder="ค้นหาสินค้าปลายทาง..."
+                            className="mt-1"
+                        />
+                    </div>
+                </div>
+
+                <div className="flex justify-end gap-4 pt-8">
+                    <button type="button" onClick={onClose} className={buttonSecondaryStyle}>
+                        ยกเลิก
+                    </button>
+                    <button type="button" onClick={handleConfirm} disabled={!destinationProduct} className={buttonPrimaryStyle}>
+                        ยืนยันการคัดลอก
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const BOMView: React.FC<{ boms: BillOfMaterial[], setBoms: React.Dispatch<React.SetStateAction<BillOfMaterial[]>>, rawMaterials: RawMaterial[] }> = ({ boms, setBoms, rawMaterials }) => {
     const [selectedProduct, setSelectedProduct] = useState('');
     const [editingBom, setEditingBom] = useState<BillOfMaterial | null>(null);
+    const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
 
     const availableProducts = useMemo(() => {
         const productSet = new Set<string>();
@@ -396,6 +455,7 @@ const BOMView: React.FC<{ boms: BillOfMaterial[], setBoms: React.Dispatch<React.
     }, []);
     
     const rawMaterialMap = useMemo(() => new Map(rawMaterials.map(rm => [rm.id, rm])), [rawMaterials]);
+    const bomProductNames = useMemo(() => new Set(boms.map(b => b.productName)), [boms]);
     
     useEffect(() => {
         if (selectedProduct) {
@@ -435,6 +495,20 @@ const BOMView: React.FC<{ boms: BillOfMaterial[], setBoms: React.Dispatch<React.
         alert(`บันทึก BOM สำหรับ ${editingBom.productName} เรียบร้อยแล้ว`);
     };
 
+    const handleCopyBom = (destinationProduct: string) => {
+        if (!editingBom) return;
+        const newBom: BillOfMaterial = {
+            productName: destinationProduct,
+            components: editingBom.components,
+        };
+        const updatedBoms = [...boms, newBom];
+        setBoms(updatedBoms);
+        saveBOMs(updatedBoms);
+        alert(`คัดลอก BOM จาก "${editingBom.productName}" ไปยัง "${destinationProduct}" เรียบร้อยแล้ว`);
+        setIsCopyModalOpen(false);
+        setSelectedProduct(destinationProduct);
+    };
+
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="md:col-span-1">
@@ -449,6 +523,15 @@ const BOMView: React.FC<{ boms: BillOfMaterial[], setBoms: React.Dispatch<React.
                 </div>
             </div>
             <div className="md:col-span-2">
+                {isCopyModalOpen && editingBom && (
+                    <CopyBomModal
+                        sourceBom={editingBom}
+                        allProducts={availableProducts}
+                        existingBomProductNames={bomProductNames}
+                        onClose={() => setIsCopyModalOpen(false)}
+                        onConfirm={handleCopyBom}
+                    />
+                )}
                 {editingBom ? (
                     <div className="bg-white p-6 rounded-lg shadow-inner border h-full">
                         <h3 className="text-2xl font-bold mb-4 text-green-700">{editingBom.productName}</h3>
@@ -471,9 +554,17 @@ const BOMView: React.FC<{ boms: BillOfMaterial[], setBoms: React.Dispatch<React.
                                 </div>
                             ))}
                         </div>
-                        <div className="mt-4 flex gap-4">
+                        <div className="mt-4 flex gap-4 flex-wrap">
                             <button onClick={handleAddComponent} className={buttonSecondaryStyle}>เพิ่มส่วนประกอบ</button>
                             <button onClick={handleSaveBom} className={buttonPrimaryStyle}>บันทึก BOM</button>
+                             <button
+                                onClick={() => setIsCopyModalOpen(true)}
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-blue-300 text-sm font-medium rounded-md shadow-sm text-blue-700 bg-blue-100 hover:bg-blue-200"
+                                title="คัดลอก BOM นี้ไปใช้กับสินค้าอื่น"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                                คัดลอก BOM
+                            </button>
                         </div>
                     </div>
                 ) : (
