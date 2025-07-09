@@ -202,10 +202,13 @@ export const ProductsTab: React.FC = () => {
     const sortedProducts = useMemo(() => {
         let sortableItems: ProductWithCost[] = products.map((p: Product) => {
             const cost = productCosts.get(p.id) || 0;
+            const salePriceNum = Number(p.salePrice);
+            const salePrice = isNaN(salePriceNum) ? 0 : salePriceNum;
             return {
                 ...p,
+                salePrice,
                 cost,
-                profit: Number(p.salePrice) - cost,
+                profit: salePrice - cost,
             };
         });
 

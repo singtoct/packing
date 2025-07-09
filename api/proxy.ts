@@ -90,7 +90,7 @@ Example response format:
 }
 `;
         const response = await ai.models.generateContent({
-          model: "gemini-2.5-flash-preview-04-17",
+          model: "gemini-2.5-flash",
           contents: prompt,
           config: { responseMimeType: "application/json", temperature: 0.2 },
         });
@@ -137,7 +137,7 @@ Now, parse the following text and provide ONLY the JSON array as a response:
 ${payload.text}`;
 
             const response = await ai.models.generateContent({
-              model: "gemini-2.5-flash-preview-04-17",
+              model: "gemini-2.5-flash",
               contents: prompt,
               config: { responseMimeType: "application/json", temperature: 0.1 },
             });
@@ -221,7 +221,7 @@ Now, parse the following text and provide ONLY the JSON array as a response:
 ${payload.text}`;
 
         const response = await ai.models.generateContent({
-          model: "gemini-2.5-flash-preview-04-17",
+          model: "gemini-2.5-flash",
           contents: prompt,
           config: { responseMimeType: "application/json", temperature: 0.1 },
         });

@@ -444,11 +444,21 @@ export const MoldingTab: React.FC = () => {
                     </div>
                     <div>
                         <label htmlFor="quantityProduced" className="block text-sm font-medium text-gray-700">จำนวนที่ผลิตได้</label>
-                        <input type="number" id="quantityProduced" min="0" value={quantityProduced} onChange={e => setQuantityProduced(Number(e.target.value))} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" required />
+                        <div className="relative mt-1">
+                            <input type="number" id="quantityProduced" min="0" value={quantityProduced} onChange={e => setQuantityProduced(Number(e.target.value))} className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm pr-12" required />
+                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                <span className="text-gray-500 sm:text-sm">Pcs.</span>
+                            </div>
+                        </div>
                     </div>
                     <div>
                         <label htmlFor="quantityRejected" className="block text-sm font-medium text-gray-700">จำนวนของเสีย</label>
-                        <input type="number" id="quantityRejected" min="0" value={quantityRejected} onChange={e => setQuantityRejected(Number(e.target.value))} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" required />
+                        <div className="relative mt-1">
+                            <input type="number" id="quantityRejected" min="0" value={quantityRejected} onChange={e => setQuantityRejected(Number(e.target.value))} className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm pr-12" required />
+                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                <span className="text-gray-500 sm:text-sm">Pcs.</span>
+                            </div>
+                        </div>
                     </div>
                     <div>
                         <label htmlFor="machine" className="block text-sm font-medium text-gray-700">เครื่องจักร</label>
