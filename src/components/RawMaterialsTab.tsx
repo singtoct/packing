@@ -162,6 +162,7 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
     const [stagedData, setStagedData] = useState<RawMaterialExcelRow[]>([]);
     const importFileRef = useRef<HTMLInputElement>(null);
     const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'name', direction: 'asc' });
+    const [searchTerm, setSearchTerm] = useState('');
 
     const requestSort = (key: keyof RawMaterial) => {
         let direction: SortDirection = 'asc';
@@ -192,6 +193,12 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
         }
         return sortableItems;
     }, [rawMaterials, sortConfig]);
+
+    const filteredAndSortedMaterials = useMemo(() => {
+        return sortedRawMaterials.filter(mat =>
+            mat.name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [sortedRawMaterials, searchTerm]);
 
     const handleAddMaterial = (e: React.FormEvent) => {
         e.preventDefault();
@@ -236,8 +243,18 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
     };
 
     const handleSelectAll = (checked: boolean) => {
-        if (checked) setSelectedMaterials(new Set(rawMaterials.map(m => m.id)));
-        else setSelectedMaterials(new Set());
+        const newSelected = new Set(selectedMaterials);
+        if (checked) {
+            filteredAndSortedMaterials.forEach(m => newSelected.add(m.id));
+        } else {
+            const filteredIds = new Set(filteredAndSortedMaterials.map(m => m.id));
+            newSelected.forEach(id => {
+                if(filteredIds.has(id)) {
+                    newSelected.delete(id);
+                }
+            });
+        }
+        setSelectedMaterials(newSelected);
     };
 
     const handleDeleteSelected = () => {
@@ -321,6 +338,11 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
         setIsExcelReviewModalOpen(false);
     };
 
+    const areAllFilteredSelected = useMemo(() => {
+        if (filteredAndSortedMaterials.length === 0) return false;
+        return filteredAndSortedMaterials.every(m => selectedMaterials.has(m.id));
+    }, [filteredAndSortedMaterials, selectedMaterials]);
+
 
     return (
         <div>
@@ -373,7 +395,20 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
                     <PlusCircleIcon className="w-5 h-5" /> เพิ่ม
                 </button>
             </form>
-            <div className="flex justify-end mb-4">
+
+            <div className="flex justify-between items-center mb-4">
+                <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <SearchIcon className="w-5 h-5 text-gray-400" />
+                    </div>
+                    <input
+                        type="text"
+                        placeholder="ค้นหาวัตถุดิบ..."
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                        className="w-full md:w-80 pl-10 pr-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                    />
+                </div>
                 <button 
                     onClick={handleDeleteSelected}
                     disabled={selectedMaterials.size === 0}
@@ -383,6 +418,7 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
                     ลบ ({selectedMaterials.size})
                 </button>
             </div>
+
             <div className="overflow-x-auto">
                 <table className="min-w-full bg-white divide-y divide-gray-200 rounded-lg shadow-sm border">
                     <thead className="bg-gray-50">
@@ -392,7 +428,8 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
                                     type="checkbox"
                                     className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
                                     onChange={e => handleSelectAll(e.target.checked)}
-                                    checked={rawMaterials.length > 0 && selectedMaterials.size === rawMaterials.length}
+                                    checked={areAllFilteredSelected}
+                                    disabled={filteredAndSortedMaterials.length === 0}
                                 />
                             </th>
                             <SortableHeader sortKey="name" label="ชื่อวัตถุดิบ" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider" />
@@ -403,41 +440,49 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                        {sortedRawMaterials.map(mat => (
-                            <tr key={mat.id} className={selectedMaterials.has(mat.id) ? 'bg-green-50' : ''}>
-                                <td className="p-4">
-                                    <input 
-                                        type="checkbox"
-                                        className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                                        checked={selectedMaterials.has(mat.id)}
-                                        onChange={e => handleSelectMaterial(mat.id, e.target.checked)}
-                                    />
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{mat.name}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    <input 
-                                        type="number" 
-                                        value={mat.quantity} 
-                                        onChange={e => handleUpdateField(mat.id, 'quantity', Number(e.target.value))}
-                                        className={`w-24 text-right ${commonInputStyle}`}
-                                    />
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{mat.unit}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                     <input 
-                                        type="number"
-                                        step="0.01" 
-                                        value={mat.costPerUnit ?? ''} 
-                                        onChange={e => handleUpdateField(mat.id, 'costPerUnit', Number(e.target.value))}
-                                        className={`w-24 text-right ${commonInputStyle}`}
-                                        placeholder="N/A"
-                                    />
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    <button onClick={() => handleDeleteMaterial(mat.id)} className="text-red-500 hover:text-red-700"><Trash2Icon className="w-5 h-5" /></button>
+                        {filteredAndSortedMaterials.length > 0 ? (
+                            filteredAndSortedMaterials.map(mat => (
+                                <tr key={mat.id} className={selectedMaterials.has(mat.id) ? 'bg-green-50' : ''}>
+                                    <td className="p-4">
+                                        <input 
+                                            type="checkbox"
+                                            className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                            checked={selectedMaterials.has(mat.id)}
+                                            onChange={e => handleSelectMaterial(mat.id, e.target.checked)}
+                                        />
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{mat.name}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <input 
+                                            type="number" 
+                                            value={mat.quantity} 
+                                            onChange={e => handleUpdateField(mat.id, 'quantity', Number(e.target.value))}
+                                            className={`w-24 text-right ${commonInputStyle}`}
+                                        />
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{mat.unit}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                         <input 
+                                            type="number"
+                                            step="0.01" 
+                                            value={mat.costPerUnit ?? ''} 
+                                            onChange={e => handleUpdateField(mat.id, 'costPerUnit', Number(e.target.value))}
+                                            className={`w-24 text-right ${commonInputStyle}`}
+                                            placeholder="N/A"
+                                        />
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <button onClick={() => handleDeleteMaterial(mat.id)} className="text-red-500 hover:text-red-700"><Trash2Icon className="w-5 h-5" /></button>
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan={6} className="text-center text-gray-500 py-8">
+                                    {rawMaterials.length === 0 ? "ยังไม่มีวัตถุดิบในระบบ" : "ไม่พบวัตถุดิบที่ตรงกับการค้นหา"}
                                 </td>
                             </tr>
-                        ))}
+                        )}
                     </tbody>
                 </table>
             </div>
