@@ -147,7 +147,7 @@ export interface AppSettings {
 
 export interface AppNotification {
   id: string;
-  type: 'stock' | 'orderDue' | 'qcPending' | 'maintenance';
+  type: 'orderDue' | 'qcPending' | 'maintenance' | 'lowFinishedStock' | 'highRejectionRate';
   message: string;
   actionTab: Tab;
   entityId: string;

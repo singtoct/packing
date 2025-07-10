@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { OrderManagementTab } from './components/OrderManagementTab';
@@ -20,9 +21,9 @@ import { ShipmentTrackingTab } from './components/ShipmentTrackingTab';
 import { ProductsTab } from './components/ProductsTab';
 import { SettingsTab } from './components/SettingsTab';
 import { QuickActionModal } from './components/QuickActionModal';
-import { BellIcon, PlusIcon, AlertTriangleIcon, ListOrderedIcon, ClipboardCheckIcon, WrenchIcon } from './components/icons/Icons';
+import { BellIcon, PlusIcon, ListOrderedIcon, ClipboardCheckIcon, WrenchIcon, FactoryIcon, ShieldAlertIcon } from './components/icons/Icons';
 import { CTElectricLogo } from './assets/logo';
-import { getInventory, getOrders, getQCEntries, getMachines, getReadNotificationIds, saveReadNotificationIds } from './services/storageService';
+import { getInventory, getOrders, getQCEntries, getMachines, getReadNotificationIds, saveReadNotificationIds, getMoldingLogs } from './services/storageService';
 import { InventoryItem, AppNotification } from './types';
 
 export type Tab = 'dashboard' | 'orders' | 'analysis' | 'procurement' | 'molding' | 'production_status' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'stats' | 'reports' | 'products' | 'settings';
@@ -40,21 +41,46 @@ const App: React.FC = () => {
     const today = new Date();
     const newNotifications: AppNotification[] = [];
 
-    // 1. Low Stock
+    // 1. Low Finished Stock -> Suggest Production
     getInventory().forEach(item => {
         if (item.minStock !== undefined && item.quantity < item.minStock) {
             newNotifications.push({
-                id: `stock-${item.name}`,
-                type: 'stock',
-                message: `สต็อกต่ำ: ${item.name} (มี ${item.quantity}, ขั้นต่ำ ${item.minStock})`,
-                actionTab: 'inventory',
+                id: `low-stock-${item.name}`,
+                type: 'lowFinishedStock',
+                message: `สต็อก ${item.name} ใกล้หมด แนะนำให้สร้างใบสั่งผลิต`,
+                actionTab: 'molding',
                 entityId: item.name,
                 date: today.toISOString()
             });
         }
     });
 
-    // 2. Order Due Dates
+    // 2. High Rejection Rate -> Suggest Maintenance
+    const moldingLogs = getMoldingLogs();
+    const logsByMachine: Record<string, { produced: number, rejected: number }> = {};
+    moldingLogs.forEach(log => {
+        if (!logsByMachine[log.machine]) {
+            logsByMachine[log.machine] = { produced: 0, rejected: 0 };
+        }
+        logsByMachine[log.machine].produced += log.quantityProduced;
+        logsByMachine[log.machine].rejected += log.quantityRejected;
+    });
+
+    Object.entries(logsByMachine).forEach(([machineName, stats]) => {
+        if (stats.produced > 50 && (stats.rejected / stats.produced) > 0.05) { // Thresholds: >50 parts produced & >5% reject rate
+            newNotifications.push({
+                id: `reject-rate-${machineName}`,
+                type: 'highRejectionRate',
+                message: `เครื่อง ${machineName} มีอัตราของเสียสูงผิดปกติ (${((stats.rejected / stats.produced) * 100).toFixed(1)}%)`,
+                actionTab: 'maintenance',
+                entityId: machineName,
+                date: today.toISOString()
+            });
+        }
+    });
+
+
+    // 3. Order Due Dates
     getOrders().forEach(order => {
         const dueDate = new Date(order.dueDate);
         const diffTime = dueDate.getTime() - today.getTime();
@@ -71,7 +97,7 @@ const App: React.FC = () => {
         }
     });
 
-    // 3. Pending QC
+    // 4. Pending QC
     getQCEntries().forEach(entry => {
         if (entry.status === 'Pending') {
             const packingDate = new Date(entry.packingDate);
@@ -90,7 +116,7 @@ const App: React.FC = () => {
         }
     });
     
-    // 4. Machine Maintenance
+    // 5. Machine Maintenance
     getMachines().forEach(machine => {
         if (machine.nextPmDate) {
             const pmDate = new Date(machine.nextPmDate);
@@ -203,10 +229,11 @@ const App: React.FC = () => {
   
   const NotificationIcon: React.FC<{type: AppNotification['type']}> = ({ type }) => {
     const iconMap = {
-      stock: <AlertTriangleIcon className="w-5 h-5 text-yellow-500" />,
       orderDue: <ListOrderedIcon className="w-5 h-5 text-red-500" />,
       qcPending: <ClipboardCheckIcon className="w-5 h-5 text-teal-500" />,
       maintenance: <WrenchIcon className="w-5 h-5 text-blue-500" />,
+      lowFinishedStock: <FactoryIcon className="w-5 h-5 text-orange-500" />,
+      highRejectionRate: <ShieldAlertIcon className="w-5 h-5 text-purple-500" />,
     };
     return iconMap[type] || <BellIcon className="w-5 h-5 text-gray-500" />;
   };

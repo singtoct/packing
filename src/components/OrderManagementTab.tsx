@@ -1,10 +1,11 @@
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom/client';
-import { OrderItem, BurmeseTranslation, InventoryItem, Product } from '../types';
-import { getOrders, saveOrders, getInventory, saveInventory, getProducts } from '../services/storageService';
+import { OrderItem, BurmeseTranslation, InventoryItem, Product, MoldingLogEntry, QCEntry } from '../types';
+import { getOrders, saveOrders, getInventory, saveInventory, getProducts, getMoldingLogs, getQCEntries } from '../services/storageService';
 import { translateToBurmese } from '../services/geminiService';
-import { PlusCircleIcon, Trash2Icon, PrinterIcon, LoaderIcon, TruckIcon, EditIcon, SparklesIcon } from './icons/Icons';
+import { PlusCircleIcon, Trash2Icon, PrinterIcon, LoaderIcon, TruckIcon, EditIcon, SparklesIcon, ChevronDownIcon } from './icons/Icons';
 import { CTElectricLogo } from '../assets/logo';
 import { IntelligentOrderImportModal } from './IntelligentOrderImportModal';
 import { SearchableInput } from './SearchableInput';
@@ -15,6 +16,66 @@ interface SortConfig {
     key: OrderSortKey;
     direction: SortDirection;
 }
+
+const OrderDetailsRow: React.FC<{ order: OrderItem }> = ({ order }) => {
+    const [relatedLots, setRelatedLots] = useState<MoldingLogEntry[]>([]);
+    const [qcSummary, setQcSummary] = useState({ passed: 0, failed: 0, pending: 0 });
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const productName = `${order.name} (${order.color})`;
+        
+        const allMoldingLogs = getMoldingLogs();
+        const lots = allMoldingLogs.filter(log => log.productName === productName).slice(0, 5); // Show latest 5
+        setRelatedLots(lots);
+
+        const allQcEntries = getQCEntries();
+        const relatedQc = allQcEntries.filter(qc => qc.productName === productName);
+        
+        const summary = relatedQc.reduce((acc, qc) => {
+            if (qc.status === 'Passed') acc.passed += qc.quantity;
+            else if (qc.status === 'Failed') acc.failed += qc.quantity;
+            else if (qc.status === 'Pending') acc.pending += qc.quantity;
+            return acc;
+        }, { passed: 0, failed: 0, pending: 0 });
+
+        setQcSummary(summary);
+        setIsLoading(false);
+    }, [order]);
+
+    return (
+        <tr className="bg-gray-50 border-b border-gray-200">
+            <td colSpan={7} className="p-4">
+                {isLoading ? <p>Loading details...</p> : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <h4 className="font-semibold text-sm text-gray-700 mb-2">ประวัติการผลิตล่าสุด</h4>
+                            {relatedLots.length > 0 ? (
+                                <ul className="text-xs space-y-1">
+                                    {relatedLots.map(lot => (
+                                        <li key={lot.id} className="flex justify-between p-1 bg-white rounded">
+                                            <span>{new Date(lot.date).toLocaleDateString('th-TH')} - ผลิตได้ {lot.quantityProduced.toLocaleString()} ชิ้น</span>
+                                            <span className="font-semibold">{lot.status}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : <p className="text-xs text-gray-500">ไม่พบประวัติการผลิต</p>}
+                        </div>
+                        <div>
+                            <h4 className="font-semibold text-sm text-gray-700 mb-2">สรุปผล QC ทั้งหมด</h4>
+                            <div className="flex justify-around bg-white p-2 rounded-lg">
+                                <div className="text-center"><p className="font-bold text-green-600">{qcSummary.passed.toLocaleString()}</p><p className="text-xs">ผ่าน</p></div>
+                                <div className="text-center"><p className="font-bold text-red-600">{qcSummary.failed.toLocaleString()}</p><p className="text-xs">ไม่ผ่าน</p></div>
+                                <div className="text-center"><p className="font-bold text-yellow-600">{qcSummary.pending.toLocaleString()}</p><p className="text-xs">รอตรวจ</p></div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </td>
+        </tr>
+    );
+};
+
 
 // Helper component for sortable table headers
 const SortableHeader: React.FC<{
@@ -171,6 +232,11 @@ export const OrderManagementTab: React.FC = () => {
     const [editingOrder, setEditingOrder] = useState<OrderItem | null>(null);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'dueDate', direction: 'asc' });
+    const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+
+    const handleToggleDetails = (orderId: string) => {
+        setExpandedOrderId(prev => (prev === orderId ? null : orderId));
+    };
 
 
     useEffect(() => {
@@ -458,7 +524,7 @@ export const OrderManagementTab: React.FC = () => {
                     <table className="min-w-full bg-white divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th className="p-4">
+                                <th className="p-4 w-12">
                                     <input 
                                         type="checkbox"
                                         className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
@@ -473,14 +539,14 @@ export const OrderManagementTab: React.FC = () => {
                                 <SortableHeader label="ครบกำหนด" sortKey="dueDate" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
                                 <SortableHeader label="สต็อก" sortKey="stock" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                <th scope="col" className="px-2 py-3"><span className="sr-only">Details</span></th>
                             </tr>
                         </thead>
                          <tbody className="divide-y divide-gray-200">
                             {sortedOrders.length > 0 ? (
-                                sortedOrders.map(order => {
-                                    const hasEnoughStock = order.stock >= order.quantity;
-                                    return (
-                                        <tr key={order.id} className={selectedOrders.has(order.id) ? 'bg-green-50' : 'bg-white'}>
+                                sortedOrders.map(order => (
+                                    <React.Fragment key={order.id}>
+                                        <tr className={selectedOrders.has(order.id) ? 'bg-green-50' : 'bg-white'}>
                                             <td className="p-4">
                                                 <input 
                                                     type="checkbox"
@@ -500,17 +566,17 @@ export const OrderManagementTab: React.FC = () => {
                                             <td className="px-6 py-4 whitespace-nowrap text-sm">
                                                 <span className="font-bold text-red-600">{new Date(order.dueDate).toLocaleDateString('th-TH')}</span>
                                             </td>
-                                            <td className={`px-6 py-4 whitespace-nowrap text-sm font-bold ${hasEnoughStock ? 'text-green-600' : 'text-red-600'}`}>
+                                            <td className={`px-6 py-4 whitespace-nowrap text-sm font-bold ${order.stock >= order.quantity ? 'text-green-600' : 'text-red-600'}`}>
                                                 {order.stock}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="flex items-center gap-1">
                                                     <button 
                                                         onClick={() => handleShipOrder(order.id)} 
-                                                        disabled={!hasEnoughStock}
+                                                        disabled={!(order.stock >= order.quantity)}
                                                         className="p-2 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-100 rounded-full transition-colors disabled:text-gray-400 disabled:bg-gray-100 disabled:cursor-not-allowed" 
-                                                        aria-label={hasEnoughStock ? `Ship order ${order.name}`: `Not enough stock for ${order.name}`}
-                                                        title={hasEnoughStock ? `จัดส่งออเดอร์ (มี ${order.stock} ในสต็อก)` : `สต็อกไม่พอ (มี ${order.stock} / ต้องการ ${order.quantity})`}
+                                                        aria-label={order.stock >= order.quantity ? `Ship order ${order.name}`: `Not enough stock for ${order.name}`}
+                                                        title={order.stock >= order.quantity ? `จัดส่งออเดอร์ (มี ${order.stock} ในสต็อก)` : `สต็อกไม่พอ (มี ${order.stock} / ต้องการ ${order.quantity})`}
                                                     >
                                                         <TruckIcon className="w-5 h-5" />
                                                     </button>
@@ -522,12 +588,18 @@ export const OrderManagementTab: React.FC = () => {
                                                     </button>
                                                 </div>
                                             </td>
+                                            <td className="px-2 py-4">
+                                                <button onClick={() => handleToggleDetails(order.id)} className="p-1 rounded-full hover:bg-gray-200">
+                                                    <ChevronDownIcon className={`w-5 h-5 text-gray-500 transition-transform ${expandedOrderId === order.id ? 'rotate-180' : ''}`} />
+                                                </button>
+                                            </td>
                                         </tr>
-                                    );
-                                })
+                                        {expandedOrderId === order.id && <OrderDetailsRow order={order} />}
+                                    </React.Fragment>
+                                ))
                             ) : (
                                 <tr>
-                                    <td colSpan={6} className="text-center text-gray-500 py-8 bg-white">ยังไม่มีออเดอร์</td>
+                                    <td colSpan={7} className="text-center text-gray-500 py-8 bg-white">ยังไม่มีออเดอร์</td>
                                 </tr>
                             )}
                         </tbody>

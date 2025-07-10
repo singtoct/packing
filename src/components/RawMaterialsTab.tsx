@@ -1,9 +1,10 @@
 
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
-import { RawMaterial, BillOfMaterial, MoldingLogEntry, Product } from '../types';
-import { getRawMaterials, saveRawMaterials, getBOMs, saveBOMs, getMoldingLogs, getProducts } from '../services/storageService';
-import { PlusCircleIcon, Trash2Icon, EditIcon, SparklesIcon, DownloadIcon, UploadIcon, XCircleIcon, SearchIcon } from './icons/Icons';
+import { RawMaterial, BillOfMaterial, MoldingLogEntry, Product, PurchaseOrder, Supplier } from '../types';
+import { getRawMaterials, saveRawMaterials, getBOMs, saveBOMs, getMoldingLogs, getProducts, getPurchaseOrders, getSuppliers } from '../services/storageService';
+import { PlusCircleIcon, Trash2Icon, EditIcon, SparklesIcon, DownloadIcon, UploadIcon, XCircleIcon, SearchIcon, FileClockIcon } from './icons/Icons';
 import { IntelligentMaterialImportModal } from './IntelligentMaterialImportModal';
 import { SearchableInput } from './SearchableInput';
 
@@ -25,6 +26,60 @@ interface SortConfig {
     key: keyof RawMaterial;
     direction: SortDirection;
 }
+
+const PurchaseHistoryRow: React.FC<{ materialId: string }> = ({ materialId }) => {
+    const [history, setHistory] = useState<(PurchaseOrder & { supplierName: string, poItem: { quantity: number; unitPrice: number; } })[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const allPOs = getPurchaseOrders();
+        const allSuppliers = getSuppliers();
+        const supplierMap = new Map(allSuppliers.map(s => [s.id, s.name]));
+
+        const relevantPOs = allPOs
+            .map(po => {
+                const poItem = po.items.find(item => item.rawMaterialId === materialId);
+                return poItem ? { ...po, supplierName: supplierMap.get(po.supplierId) || 'N/A', poItem } : null;
+            })
+            .filter((po): po is NonNullable<typeof po> => po !== null)
+            .sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
+
+        setHistory(relevantPOs);
+        setIsLoading(false);
+    }, [materialId]);
+
+    return (
+        <tr className="bg-gray-50 border-b border-gray-200">
+            <td colSpan={7} className="p-4">
+                <h4 className="font-semibold text-sm text-gray-700 mb-2">ประวัติการสั่งซื้อ</h4>
+                {isLoading ? <p>Loading history...</p> : history.length > 0 ? (
+                    <table className="min-w-full bg-white text-xs">
+                        <thead className="bg-gray-100">
+                            <tr>
+                                <th className="p-2 text-left">วันที่สั่ง</th>
+                                <th className="p-2 text-left">เลขที่ PO</th>
+                                <th className="p-2 text-left">ซัพพลายเออร์</th>
+                                <th className="p-2 text-right">จำนวน</th>
+                                <th className="p-2 text-right">ราคา/หน่วย</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {history.map(po => (
+                                <tr key={po.id} className="border-t">
+                                    <td className="p-2">{new Date(po.orderDate).toLocaleDateString('th-TH')}</td>
+                                    <td className="p-2">{po.poNumber}</td>
+                                    <td className="p-2">{po.supplierName}</td>
+                                    <td className="p-2 text-right">{po.poItem.quantity.toLocaleString()}</td>
+                                    <td className="p-2 text-right">{po.poItem.unitPrice.toLocaleString('th-TH', { style: 'currency', currency: 'THB' })}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                ) : <p className="text-xs text-gray-500">ไม่พบประวัติการสั่งซื้อ</p>}
+            </td>
+        </tr>
+    );
+};
 
 // Helper component for sortable table headers
 const SortableHeader: React.FC<{
@@ -163,6 +218,11 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
     const importFileRef = useRef<HTMLInputElement>(null);
     const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'name', direction: 'asc' });
     const [searchTerm, setSearchTerm] = useState('');
+    const [expandedMaterialId, setExpandedMaterialId] = useState<string | null>(null);
+
+    const handleToggleHistory = (materialId: string) => {
+        setExpandedMaterialId(prev => (prev === materialId ? null : materialId));
+    };
 
     const requestSort = (key: keyof RawMaterial) => {
         let direction: SortDirection = 'asc';
@@ -436,13 +496,14 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
                             <SortableHeader sortKey="quantity" label="จำนวนในสต็อก" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider" />
                             <SortableHeader sortKey="unit" label="หน่วย" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider" />
                             <SortableHeader sortKey="costPerUnit" label="ต้นทุน/หน่วย (บาท)" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider" />
-                            <th className="px-6 py-3 w-20"></th>
+                            <th className="px-6 py-3 w-28 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                         {filteredAndSortedMaterials.length > 0 ? (
                             filteredAndSortedMaterials.map(mat => (
-                                <tr key={mat.id} className={selectedMaterials.has(mat.id) ? 'bg-green-50' : ''}>
+                                <React.Fragment key={mat.id}>
+                                <tr className={selectedMaterials.has(mat.id) ? 'bg-green-50' : ''}>
                                     <td className="p-4">
                                         <input 
                                             type="checkbox"
@@ -471,14 +532,21 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
                                             placeholder="N/A"
                                         />
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        <button onClick={() => handleDeleteMaterial(mat.id)} className="text-red-500 hover:text-red-700"><Trash2Icon className="w-5 h-5" /></button>
+                                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                                        <button onClick={() => handleToggleHistory(mat.id)} className="p-2 text-gray-500 hover:text-blue-700 hover:bg-blue-100 rounded-full transition-colors" title="ดูประวัติการสั่งซื้อ">
+                                            <FileClockIcon className="w-5 h-5" />
+                                        </button>
+                                        <button onClick={() => handleDeleteMaterial(mat.id)} className="p-2 text-gray-500 hover:text-red-700 hover:bg-red-100 rounded-full transition-colors" title="ลบวัตถุดิบ">
+                                            <Trash2Icon className="w-5 h-5" />
+                                        </button>
                                     </td>
                                 </tr>
+                                {expandedMaterialId === mat.id && <PurchaseHistoryRow materialId={mat.id} />}
+                                </React.Fragment>
                             ))
                         ) : (
                             <tr>
-                                <td colSpan={6} className="text-center text-gray-500 py-8">
+                                <td colSpan={7} className="text-center text-gray-500 py-8">
                                     {rawMaterials.length === 0 ? "ยังไม่มีวัตถุดิบในระบบ" : "ไม่พบวัตถุดิบที่ตรงกับการค้นหา"}
                                 </td>
                             </tr>
