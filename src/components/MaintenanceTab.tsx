@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { getMachines, saveMachines, getMaintenanceLogs, saveMaintenanceLogs, getEmployees } from '../services/storageService';
 import { Machine, MaintenanceLog, Employee } from '../types';
@@ -198,8 +199,8 @@ export const MaintenanceTab: React.FC = () => {
         setNewMachineLocation('');
     };
     
-    const handleUpdateStatus = (id: string, status: Machine['status']) => {
-        const updated = machines.map(m => m.id === id ? {...m, status} : m);
+    const handleUpdateMachineField = (id: string, field: keyof Machine, value: any) => {
+        const updated = machines.map(m => m.id === id ? { ...m, [field]: value } : m);
         setMachines(updated);
         saveMachines(updated);
     };
@@ -304,10 +305,19 @@ export const MaintenanceTab: React.FC = () => {
                                </div>
                                 <StatusBadge status={machine.status} />
                             </div>
+                            <div className="mt-3">
+                                <label className="text-xs font-medium text-gray-600">รอบซ่อมบำรุงถัดไป (PM)</label>
+                                <input
+                                    type="date"
+                                    value={machine.nextPmDate || ''}
+                                    onChange={e => handleUpdateMachineField(machine.id, 'nextPmDate', e.target.value)}
+                                    className="mt-1 block w-full px-2 py-1 border border-gray-200 rounded-md text-sm"
+                                />
+                            </div>
                             <div className="mt-4 pt-3 border-t flex justify-between items-center">
                                 <div className="flex items-center gap-2 text-sm">
                                     <span className="font-medium">Status:</span>
-                                    <select value={machine.status} onChange={e => handleUpdateStatus(machine.id, e.target.value as any)} className="text-sm border-gray-200 rounded p-1">
+                                    <select value={machine.status} onChange={e => handleUpdateMachineField(machine.id, 'status', e.target.value as any)} className="text-sm border-gray-200 rounded p-1">
                                         <option value="Running">Running</option>
                                         <option value="Down">Down</option>
                                         <option value="Maintenance">Maintenance</option>

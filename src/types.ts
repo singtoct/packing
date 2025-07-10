@@ -86,6 +86,7 @@ export interface Machine {
   name: string;
   location: string;
   status: 'Running' | 'Down' | 'Maintenance';
+  nextPmDate?: string;
 }
 
 export interface MaintenanceLog {
@@ -142,4 +143,13 @@ export interface AppSettings {
     companyInfo: CompanyInfo;
     qcFailureReasons: string[];
     productionStatuses: string[];
+}
+
+export interface AppNotification {
+  id: string;
+  type: 'stock' | 'orderDue' | 'qcPending' | 'maintenance';
+  message: string;
+  actionTab: Tab;
+  entityId: string;
+  date: string;
 }

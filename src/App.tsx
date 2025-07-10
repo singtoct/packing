@@ -20,25 +20,94 @@ import { ShipmentTrackingTab } from './components/ShipmentTrackingTab';
 import { ProductsTab } from './components/ProductsTab';
 import { SettingsTab } from './components/SettingsTab';
 import { QuickActionModal } from './components/QuickActionModal';
-import { BellIcon, PlusIcon } from './components/icons/Icons';
+import { BellIcon, PlusIcon, AlertTriangleIcon, ListOrderedIcon, ClipboardCheckIcon, WrenchIcon } from './components/icons/Icons';
 import { CTElectricLogo } from './assets/logo';
-import { getInventory } from './services/storageService';
-import { InventoryItem } from './types';
+import { getInventory, getOrders, getQCEntries, getMachines, getReadNotificationIds, saveReadNotificationIds } from './services/storageService';
+import { InventoryItem, AppNotification } from './types';
 
 export type Tab = 'dashboard' | 'orders' | 'analysis' | 'procurement' | 'molding' | 'production_status' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'stats' | 'reports' | 'products' | 'settings';
 export type QuickActionType = 'order' | 'packing' | 'molding';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
-  const [lowStockItems, setLowStockItems] = useState<InventoryItem[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [readNotifications, setReadNotifications] = useState<Set<string>>(new Set());
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
   const [quickActionType, setQuickActionType] = useState<QuickActionType | null>(null);
 
-  const checkLowStock = () => {
-    const inventory = getInventory();
-    const lowItems = inventory.filter(item => item.minStock && item.quantity < item.minStock);
-    setLowStockItems(lowItems);
+  const generateNotifications = () => {
+    const today = new Date();
+    const newNotifications: AppNotification[] = [];
+
+    // 1. Low Stock
+    getInventory().forEach(item => {
+        if (item.minStock !== undefined && item.quantity < item.minStock) {
+            newNotifications.push({
+                id: `stock-${item.name}`,
+                type: 'stock',
+                message: `สต็อกต่ำ: ${item.name} (มี ${item.quantity}, ขั้นต่ำ ${item.minStock})`,
+                actionTab: 'inventory',
+                entityId: item.name,
+                date: today.toISOString()
+            });
+        }
+    });
+
+    // 2. Order Due Dates
+    getOrders().forEach(order => {
+        const dueDate = new Date(order.dueDate);
+        const diffTime = dueDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        if (diffDays >= 0 && diffDays <= 3) {
+            newNotifications.push({
+                id: `order-${order.id}`,
+                type: 'orderDue',
+                message: `ออเดอร์ ${order.name} (${order.color}) ใกล้ถึงกำหนดส่ง`,
+                actionTab: 'orders',
+                entityId: order.id,
+                date: today.toISOString()
+            });
+        }
+    });
+
+    // 3. Pending QC
+    getQCEntries().forEach(entry => {
+        if (entry.status === 'Pending') {
+            const packingDate = new Date(entry.packingDate);
+            const diffTime = today.getTime() - packingDate.getTime();
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            if (diffDays > 2) {
+                newNotifications.push({
+                    id: `qc-${entry.id}`,
+                    type: 'qcPending',
+                    message: `งาน QC สำหรับ ${entry.productName} ค้างมา ${diffDays} วัน`,
+                    actionTab: 'qc',
+                    entityId: entry.id,
+                    date: today.toISOString()
+                });
+            }
+        }
+    });
+    
+    // 4. Machine Maintenance
+    getMachines().forEach(machine => {
+        if (machine.nextPmDate) {
+            const pmDate = new Date(machine.nextPmDate);
+            if (pmDate <= today) {
+                newNotifications.push({
+                    id: `pm-${machine.id}`,
+                    type: 'maintenance',
+                    message: `เครื่องจักร ${machine.name} ถึงรอบซ่อมบำรุง`,
+                    actionTab: 'maintenance',
+                    entityId: machine.id,
+                    date: today.toISOString()
+                });
+            }
+        }
+    });
+
+    setNotifications(newNotifications.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
   };
   
   const handleQuickActionSelect = (type: QuickActionType) => {
@@ -52,9 +121,10 @@ const App: React.FC = () => {
     if (favicon) {
       favicon.href = CTElectricLogo;
     }
+    setReadNotifications(getReadNotificationIds());
+    generateNotifications();
     
-    checkLowStock();
-    const handleStorageChange = () => checkLowStock();
+    const handleStorageChange = () => generateNotifications();
     window.addEventListener('storage', handleStorageChange);
     
     return () => {
@@ -63,10 +133,30 @@ const App: React.FC = () => {
   }, []);
   
   const onDataUpdate = () => {
-    checkLowStock();
-    // Potentially re-render other components if needed
-    setActiveTab(activeTab); // A simple way to trigger re-render of current tab
+    generateNotifications();
+    setActiveTab(activeTab); 
   }
+
+  const handleNotificationClick = (notification: AppNotification) => {
+    markAsRead(notification.id);
+    setActiveTab(notification.actionTab);
+    setIsAlertsOpen(false);
+  };
+  
+  const markAsRead = (id: string) => {
+      const newReadNotifications = new Set(readNotifications);
+      newReadNotifications.add(id);
+      setReadNotifications(newReadNotifications);
+      saveReadNotificationIds(newReadNotifications);
+  };
+
+  const markAllAsRead = () => {
+      const newReadNotifications = new Set(notifications.map(n => n.id));
+      setReadNotifications(newReadNotifications);
+      saveReadNotificationIds(newReadNotifications);
+  };
+  
+  const unreadCount = notifications.filter(n => !readNotifications.has(n.id)).length;
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -83,13 +173,13 @@ const App: React.FC = () => {
       case 'production_status':
         return <ProductionStatusTab />;
       case 'logs':
-        return <PackingLogTab setLowStockCheck={checkLowStock} />;
+        return <PackingLogTab setLowStockCheck={generateNotifications} />;
       case 'qc':
         return <QCTab />;
       case 'shipments':
         return <ShipmentTrackingTab />;
       case 'inventory':
-        return <InventoryTab setLowStockCheck={checkLowStock}/>;
+        return <InventoryTab setLowStockCheck={generateNotifications}/>;
       case 'products':
         return <ProductsTab />;
       case 'raw_materials':
@@ -109,6 +199,16 @@ const App: React.FC = () => {
       default:
         return <DashboardTab setActiveTab={setActiveTab} />;
     }
+  };
+  
+  const NotificationIcon: React.FC<{type: AppNotification['type']}> = ({ type }) => {
+    const iconMap = {
+      stock: <AlertTriangleIcon className="w-5 h-5 text-yellow-500" />,
+      orderDue: <ListOrderedIcon className="w-5 h-5 text-red-500" />,
+      qcPending: <ClipboardCheckIcon className="w-5 h-5 text-teal-500" />,
+      maintenance: <WrenchIcon className="w-5 h-5 text-blue-500" />,
+    };
+    return iconMap[type] || <BellIcon className="w-5 h-5 text-gray-500" />;
   };
 
   return (
@@ -138,26 +238,34 @@ const App: React.FC = () => {
               <div className="relative">
                 <button onClick={() => setIsAlertsOpen(!isAlertsOpen)} className="relative p-2 text-gray-600 hover:text-green-600 hover:bg-gray-100 rounded-full">
                   <BellIcon className="w-6 h-6" />
-                  {lowStockItems.length > 0 && (
+                  {unreadCount > 0 && (
                     <span className="absolute top-0 right-0 block h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center ring-2 ring-white">
-                      {lowStockItems.length}
+                      {unreadCount}
                     </span>
                   )}
                 </button>
                 {isAlertsOpen && (
-                  <div className="absolute right-0 mt-2 w-72 bg-white border border-gray-200 rounded-lg shadow-xl z-30">
-                    <div className="p-3 border-b font-bold text-gray-700">รายการสต็อกต่ำ</div>
-                    {lowStockItems.length > 0 ? (
-                      <ul className="max-h-80 overflow-y-auto">
-                        {lowStockItems.map(item => (
-                           <li key={item.name} className="px-3 py-2 border-b text-sm hover:bg-gray-50">
-                             <p className="font-semibold">{item.name}</p>
-                             <p className="text-red-600">มี: {item.quantity} (ขั้นต่ำ: {item.minStock})</p>
+                  <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-xl z-30">
+                    <div className="p-3 border-b flex justify-between items-center">
+                        <h3 className="font-bold text-gray-700">การแจ้งเตือน</h3>
+                        {unreadCount > 0 && 
+                            <button onClick={markAllAsRead} className="text-xs text-blue-600 hover:underline">อ่านทั้งหมด</button>
+                        }
+                    </div>
+                    {notifications.length > 0 ? (
+                      <ul className="max-h-96 overflow-y-auto">
+                        {notifications.map(item => (
+                           <li key={item.id} onClick={() => handleNotificationClick(item)} className={`px-4 py-3 border-b text-sm cursor-pointer hover:bg-gray-50 flex items-start gap-3 ${!readNotifications.has(item.id) ? 'bg-blue-50' : ''}`}>
+                             <div className="mt-1"><NotificationIcon type={item.type} /></div>
+                             <div className="flex-1">
+                                <p className="text-gray-800">{item.message}</p>
+                                <p className="text-xs text-gray-400">{new Date(item.date).toLocaleDateString('th-TH')}</p>
+                             </div>
                            </li>
                         ))}
                       </ul>
                     ) : (
-                      <p className="p-4 text-sm text-gray-500">ไม่มีรายการสต็อกต่ำในขณะนี้</p>
+                      <p className="p-4 text-sm text-gray-500">ไม่มีการแจ้งเตือนในขณะนี้</p>
                     )}
                   </div>
                 )}

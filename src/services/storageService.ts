@@ -1,3 +1,4 @@
+
 import { OrderItem, PackingLogEntry, InventoryItem, Employee, QCEntry, MoldingLogEntry, RawMaterial, BillOfMaterial, Machine, MaintenanceLog, Supplier, PurchaseOrder, Shipment, Product, AppSettings } from '../types';
 
 const ORDERS_KEY = 'packing_orders';
@@ -15,6 +16,8 @@ const PURCHASE_ORDERS_KEY = 'factory_purchase_orders';
 const SHIPMENTS_KEY = 'factory_shipments';
 const PRODUCTS_KEY = 'factory_products';
 const SETTINGS_KEY = 'factory_settings';
+const DASHBOARD_LAYOUT_KEY = 'dashboard_layout';
+const READ_NOTIFICATIONS_KEY = 'read_notifications';
 
 const DEFAULT_PRODUCTS: Product[] = [
     { id: 'a0b1c2d3-e4f5-g6h7-i8j9-k0l1m2n3o4p5', name: 'บล็อคลอย G-Power 2x4', color: 'สีขาว', salePrice: 3.69 },
@@ -389,21 +392,31 @@ const DEFAULT_SETTINGS: AppSettings = {
 export const getSettings = (): AppSettings => {
     const settingsJson = localStorage.getItem(SETTINGS_KEY);
     if (settingsJson) {
-        const stored = JSON.parse(settingsJson);
-        // Merge with defaults to ensure new settings are added
-        return {
-            ...DEFAULT_SETTINGS,
-            ...stored,
-            companyInfo: {
-                ...DEFAULT_SETTINGS.companyInfo,
-                ...stored.companyInfo,
-            },
-        };
+        try {
+            const stored = JSON.parse(settingsJson);
+            return {
+                ...DEFAULT_SETTINGS,
+                ...stored,
+                companyInfo: {
+                    ...DEFAULT_SETTINGS.companyInfo,
+                    ...stored.companyInfo,
+                },
+            };
+        } catch(e) {
+             console.error("Could not parse settings from localStorage", e);
+             return DEFAULT_SETTINGS;
+        }
     }
     return DEFAULT_SETTINGS;
 };
 
-export const saveSettings = (settings: AppSettings): void => saveItems<AppSettings>(SETTINGS_KEY, [settings]);
+export const saveSettings = (settings: AppSettings): void => {
+    try {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    } catch (e) {
+        console.error("Could not save settings to localStorage", e);
+    }
+};
 
 
 // Helper function for procurement, re-using analysis logic
@@ -450,4 +463,23 @@ export const getAnalysisShortfall = (): { id: string; name: string; unit: string
         unit: item.unit,
         shortfall: item.shortfall,
     }));
+};
+
+// Functions for dashboard layout and notifications
+export const getDashboardLayout = (): string[] | null => {
+    const layoutJson = localStorage.getItem(DASHBOARD_LAYOUT_KEY);
+    return layoutJson ? JSON.parse(layoutJson) : null;
+};
+
+export const saveDashboardLayout = (layout: string[]): void => {
+    localStorage.setItem(DASHBOARD_LAYOUT_KEY, JSON.stringify(layout));
+};
+
+export const getReadNotificationIds = (): Set<string> => {
+    const idsJson = localStorage.getItem(READ_NOTIFICATIONS_KEY);
+    return idsJson ? new Set(JSON.parse(idsJson)) : new Set();
+};
+
+export const saveReadNotificationIds = (ids: Set<string>): void => {
+    localStorage.setItem(READ_NOTIFICATIONS_KEY, JSON.stringify(Array.from(ids)));
 };
