@@ -1,14 +1,12 @@
 
-
-
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { CTElectricLogo } from '../assets/logo';
 import { Tab } from '../App';
 import { 
     LayoutDashboardIcon, ListOrderedIcon, TruckIcon, SigmaIcon, ShoppingCartIcon, 
     FactoryIcon, RouteIcon, BoxIcon, ClipboardCheckIcon, ArchiveIcon, BeakerIcon, 
     UsersIcon, WrenchIcon, DollarSignIcon, BarChart3Icon, FileTextIcon, ChevronDownIcon,
-    PackageIcon, DatabaseIcon
+    DatabaseIcon, SearchIcon
 } from './icons/Icons';
 
 interface MenuItemProps {
@@ -73,24 +71,6 @@ const menuConfig = [
     },
     {
         isCategory: true,
-        title: 'การขายและจัดส่ง',
-        icon: <TruckIcon className="w-5 h-5"/>,
-        children: [
-            { tab: 'orders', title: 'จัดการออเดอร์', icon: <ListOrderedIcon className="w-5 h-5"/> },
-            { tab: 'shipments', title: 'ติดตามการจัดส่ง', icon: <TruckIcon className="w-5 h-5"/> },
-        ],
-    },
-    {
-        isCategory: true,
-        title: 'การจัดซื้อ',
-        icon: <ShoppingCartIcon className="w-5 h-5"/>,
-        children: [
-            { tab: 'analysis', title: 'วิเคราะห์วัตถุดิบ', icon: <SigmaIcon className="w-5 h-5"/> },
-            { tab: 'procurement', title: 'ใบสั่งซื้อ/ซัพพลายเออร์', icon: <ShoppingCartIcon className="w-5 h-5"/> },
-        ],
-    },
-    {
-        isCategory: true,
         title: 'การผลิต',
         icon: <FactoryIcon className="w-5 h-5"/>,
         children: [
@@ -102,12 +82,30 @@ const menuConfig = [
     },
     {
         isCategory: true,
+        title: 'การขายและจัดส่ง',
+        icon: <TruckIcon className="w-5 h-5"/>,
+        children: [
+            { tab: 'orders', title: 'จัดการออเดอร์', icon: <ListOrderedIcon className="w-5 h-5"/> },
+            { tab: 'shipments', title: 'ติดตามการจัดส่ง', icon: <TruckIcon className="w-5 h-5"/> },
+        ],
+    },
+    {
+        isCategory: true,
         title: 'คลังสินค้าและวัตถุดิบ',
         icon: <ArchiveIcon className="w-5 h-5"/>,
         children: [
             { tab: 'products', title: 'จัดการสินค้า', icon: <DatabaseIcon className="w-5 h-5"/> },
             { tab: 'inventory', title: 'สต็อกสินค้าสำเร็จรูป', icon: <ArchiveIcon className="w-5 h-5"/> },
-            { tab: 'raw_materials', title: 'คลังวัตถุดิบ/BOM', icon: <BeakerIcon className="w-5 h-5"/> },
+            { tab: 'raw_materials', title: 'วัตถุดิบ/BOM', icon: <BeakerIcon className="w-5 h-5"/> },
+        ],
+    },
+    {
+        isCategory: true,
+        title: 'การจัดซื้อ',
+        icon: <ShoppingCartIcon className="w-5 h-5"/>,
+        children: [
+            { tab: 'analysis', title: 'วิเคราะห์วัตถุดิบ', icon: <SigmaIcon className="w-5 h-5"/> },
+            { tab: 'procurement', title: 'การจัดซื้อ', icon: <ShoppingCartIcon className="w-5 h-5"/> },
         ],
     },
     {
@@ -133,6 +131,7 @@ const menuConfig = [
 
 export const Sidebar: React.FC<{ activeTab: Tab, setActiveTab: (tab: Tab) => void }> = ({ activeTab, setActiveTab }) => {
     const [openMenus, setOpenMenus] = useState<Set<string>>(new Set(['การผลิต', 'การขายและจัดส่ง', 'คลังสินค้าและวัตถุดิบ']));
+    const [searchTerm, setSearchTerm] = useState('');
 
     const toggleMenu = (title: string) => {
         setOpenMenus(prev => {
@@ -145,6 +144,37 @@ export const Sidebar: React.FC<{ activeTab: Tab, setActiveTab: (tab: Tab) => voi
             return newSet;
         });
     };
+    
+    const filteredMenu = useMemo(() => {
+        if (!searchTerm.trim()) {
+          return menuConfig;
+        }
+    
+        const lowerCaseSearchTerm = searchTerm.toLowerCase();
+    
+        const result = menuConfig.map(item => {
+          if (!item.isCategory) {
+            return item.title.toLowerCase().includes(lowerCaseSearchTerm) ? item : null;
+          }
+    
+          const categoryTitleMatches = item.title.toLowerCase().includes(lowerCaseSearchTerm);
+          const matchingChildren = item.children?.filter(child =>
+            child.title.toLowerCase().includes(lowerCaseSearchTerm)
+          );
+    
+          if (categoryTitleMatches) {
+            return item;
+          }
+    
+          if (matchingChildren && matchingChildren.length > 0) {
+            return { ...item, children: matchingChildren };
+          }
+    
+          return null;
+        });
+    
+        return result.filter((item): item is typeof item & {} => !!item);
+      }, [searchTerm]);
 
     return (
         <aside className="w-64 bg-gray-800 text-white flex-shrink-0 flex flex-col">
@@ -154,15 +184,25 @@ export const Sidebar: React.FC<{ activeTab: Tab, setActiveTab: (tab: Tab) => voi
                 </div>
             </div>
 
-            <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto">
-                {menuConfig.map((item, index) => {
+            <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+                 <div className="relative mb-3 px-1">
+                    <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input 
+                        type="text"
+                        placeholder="ค้นหาเมนู..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full bg-gray-700 text-white rounded-md py-2 pl-10 pr-3 text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+                    />
+                </div>
+                {filteredMenu.map((item, index) => {
                     if (item.isCategory) {
                         return (
                             <MenuCategory 
                                 key={index}
                                 title={item.title} 
                                 icon={item.icon}
-                                isOpen={openMenus.has(item.title)}
+                                isOpen={!!searchTerm.trim() || openMenus.has(item.title)}
                                 toggle={() => toggleMenu(item.title)}
                             >
                                 {item.children?.map(child => (
