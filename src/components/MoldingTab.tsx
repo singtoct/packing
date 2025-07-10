@@ -224,11 +224,11 @@ export const MoldingTab: React.FC = () => {
                     const needed = item.required.toLocaleString(undefined, {maximumFractionDigits: 2});
                     const inStock = item.inStock.toLocaleString(undefined, {maximumFractionDigits: 2});
                     const shortfall = (item.required - item.inStock).toLocaleString(undefined, {maximumFractionDigits: 2});
-                    return `\n- ${item.name}: ต้องการ ${needed} ${item.unit}, มี ${inStock} ${item.unit} (ขาด ${shortfall} ${item.unit})`;
+                    return `\n- ${item.name}: ต้องการ ${needed} ${item.unit}, มีในสต็อก ${inStock} ${item.unit} (ขาด ${shortfall} ${item.unit})`;
                 })
                 .join('');
             
-            alert(`วัตถุดิบในสต็อกไม่เพียงพอ:${insufficientItemsMessage}\n\nกรุณาตรวจสอบสต็อกหรือลดจำนวนการผลิต`);
+            alert(`วัตถุดิบไม่พอสำหรับผลิต "${productName}" จำนวน ${quantityProduced.toLocaleString()} ชิ้น:${insufficientItemsMessage}\n\nกรุณาตรวจสอบสต็อกหรือลดจำนวนการผลิต`);
             return;
         }
 
