@@ -181,32 +181,40 @@ export const MoldingTab: React.FC = () => {
 
     const materialCheck = useMemo(() => {
         if (!productName || quantityProduced <= 0) {
-            return { required: [], isSufficient: true, message: "กรุณากรอกข้อมูลสินค้าและจำนวน", hasBOM: false };
+            return { required: [], isSufficient: true, message: "กรุณากรอกข้อมูลสินค้าและจำนวน", hasBOM: false, totalCost: 0 };
         }
 
         const bom = boms.find(b => b.productName === productName);
         if (!bom || !Array.isArray(bom.components)) {
-            return { required: [], isSufficient: false, message: "ไม่พบสูตรการผลิต (BOM) สำหรับสินค้านี้", hasBOM: false };
+            return { required: [], isSufficient: false, message: "ไม่พบสูตรการผลิต (BOM) สำหรับสินค้านี้", hasBOM: false, totalCost: 0 };
         }
 
         const rawMaterialMap = new Map<string, RawMaterial>(rawMaterials.map(rm => [rm.id, rm]));
         
         let isSufficient = true;
+        let totalCost = 0;
         const required = bom.components.map(comp => {
             const material = rawMaterialMap.get(comp.rawMaterialId);
             const requiredQty = comp.quantity * quantityProduced;
             const hasEnough = material ? material.quantity >= requiredQty : false;
+            const costPerUnit = material?.costPerUnit || 0;
+            const itemTotalCost = requiredQty * costPerUnit;
+            totalCost += itemTotalCost;
+
             if (!hasEnough) isSufficient = false;
+            
             return {
                 name: material?.name || 'วัตถุดิบไม่พบ',
                 unit: material?.unit || '',
                 required: requiredQty,
                 inStock: material?.quantity || 0,
                 sufficient: hasEnough,
+                costPerUnit: costPerUnit,
+                totalCost: itemTotalCost,
             };
         });
 
-        return { required, isSufficient, message: "", hasBOM: true };
+        return { required, isSufficient, message: "", hasBOM: true, totalCost };
     }, [productName, quantityProduced, boms, rawMaterials]);
 
     const handleAddLog = (e: React.FormEvent) => {
@@ -482,36 +490,6 @@ export const MoldingTab: React.FC = () => {
                     </div>
                 </div>
 
-                {materialCheck.message && (
-                    <div className={`mt-4 p-4 border-l-4 ${materialCheck.hasBOM ? 'border-green-400 bg-green-50' : 'border-yellow-400 bg-yellow-50'} rounded-md`}>
-                        <h4 className={`font-bold ${materialCheck.hasBOM ? 'text-green-800' : 'text-yellow-800'} mb-2`}>
-                            {materialCheck.hasBOM ? 'วัตถุดิบที่ต้องใช้' : 'คำเตือน'}
-                        </h4>
-                        {materialCheck.hasBOM ? (
-                            <ul className="space-y-1 text-sm">
-                                {materialCheck.required.map((mat, idx) => (
-                                    <li key={idx} className="flex justify-between items-center text-gray-800">
-                                        <span className={!mat.sufficient ? 'font-semibold' : ''}>{mat.name}</span>
-                                        <span className={!mat.sufficient ? 'text-red-600 font-bold' : 'text-gray-600'}>
-                                            ต้องการ: {mat.required.toLocaleString(undefined, {maximumFractionDigits: 2})} {mat.unit} (ยอดคงเหลือ: {mat.inStock.toLocaleString(undefined, {maximumFractionDigits: 2})})
-                                            {!mat.sufficient && ` (ขาด: ${(mat.required - mat.inStock).toLocaleString(undefined, {maximumFractionDigits: 2})} ${mat.unit})`}
-                                        </span>
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <p className="text-yellow-800">{materialCheck.message}</p>
-                        )}
-                    </div>
-                 )}
-
-                 {!materialCheck.isSufficient && materialCheck.hasBOM && (
-                     <div className="mt-4 p-4 border-l-4 border-red-500 bg-red-50 text-red-700 font-bold flex items-center gap-2">
-                        <AlertTriangleIcon className="w-5 h-5" />
-                        วัตถุดิบในสต็อกไม่เพียงพอ! ไม่สามารถบันทึกการผลิตได้
-                    </div>
-                 )}
-
                 <div className="col-span-full flex justify-end">
                      <button type="submit" disabled={!materialCheck.isSufficient || !materialCheck.hasBOM} className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none disabled:bg-gray-400 disabled:cursor-not-allowed">
                         <PlusCircleIcon className="w-5 h-5" />
@@ -519,6 +497,59 @@ export const MoldingTab: React.FC = () => {
                     </button>
                 </div>
             </form>
+
+            {materialCheck.hasBOM && materialCheck.required.length > 0 && (
+                <div className="mt-8 mb-10">
+                    <h3 className="text-xl font-semibold mb-4 text-gray-800">วัตถุดิบและต้นทุนสำหรับล็อตนี้</h3>
+                    <div className="overflow-hidden border border-gray-200 rounded-lg shadow-sm">
+                        <table className="min-w-full bg-white">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ลำดับ</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">สินค้า</th>
+                                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">จำนวนที่ใช้</th>
+                                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">ต้นทุน/หน่วย</th>
+                                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">ต้นทุนรวม</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                                {materialCheck.required.map((mat, index) => (
+                                    <tr key={index} className={!mat.sufficient ? 'bg-red-50' : ''}>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{index + 1}</td>
+                                        <td className="px-6 py-4 text-sm font-medium text-gray-900">{mat.name}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-right">
+                                            {mat.required.toLocaleString(undefined, {maximumFractionDigits: 3})} {mat.unit}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-right">
+                                            {mat.costPerUnit > 0 ? mat.costPerUnit.toLocaleString('th-TH', { style: 'currency', currency: 'THB' }) : '-'}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 text-right font-semibold">
+                                            {mat.totalCost > 0 ? mat.totalCost.toLocaleString('th-TH', { style: 'currency', currency: 'THB' }) : '-'}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                            <tfoot className="bg-gray-100 border-t-2 border-gray-200">
+                                <tr>
+                                    <td colSpan={4} className="px-6 py-3 text-right font-bold text-gray-700 text-base">
+                                        ต้นทุนวัตถุดิบรวม
+                                    </td>
+                                    <td className="px-6 py-3 text-right font-bold text-gray-800 text-lg">
+                                        {materialCheck.totalCost.toLocaleString('th-TH', { style: 'currency', currency: 'THB' })}
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+             {!materialCheck.isSufficient && materialCheck.hasBOM && (
+                 <div className="mb-10 p-4 border-l-4 border-red-500 bg-red-50 text-red-700 font-bold flex items-center gap-2 rounded-r-md">
+                    <AlertTriangleIcon className="w-5 h-5" />
+                    วัตถุดิบในสต็อกไม่เพียงพอ! ไม่สามารถบันทึกการผลิตได้
+                </div>
+             )}
 
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold">ประวัติการผลิต</h2>
