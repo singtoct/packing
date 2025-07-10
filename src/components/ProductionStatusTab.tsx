@@ -1,23 +1,17 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
-import { getMoldingLogs, saveMoldingLogs } from '../services/storageService';
+import { getMoldingLogs, saveMoldingLogs, getSettings } from '../services/storageService';
 import { MoldingLogEntry } from '../types';
 import { RouteIcon } from './icons/Icons';
-
-const PRODUCTION_STAGES = [
-    'รอแปะกันรอย',
-    'รอประกบ',
-    'รอที่ห้องประกอบ',
-    'รอที่ห้องแพ็ค',
-];
 
 const UpdateStatusModal: React.FC<{
     log: MoldingLogEntry;
     onClose: () => void;
     onSave: (updatedLog: MoldingLogEntry) => void;
-}> = ({ log, onClose, onSave }) => {
+    productionStatuses: string[];
+}> = ({ log, onClose, onSave, productionStatuses }) => {
     const [newStatus, setNewStatus] = useState(log.status);
-    const availableNextSteps = [...PRODUCTION_STAGES.filter(s => s !== log.status), 'เสร็จสิ้น'];
+    const availableNextSteps = [...productionStatuses.map(s => `รอ${s}`), 'เสร็จสิ้น'].filter(s => s !== log.status);
+
 
     const handleSave = () => {
         onSave({ ...log, status: newStatus });
@@ -67,11 +61,14 @@ export const ProductionStatusTab: React.FC = () => {
     const [allLogs, setAllLogs] = useState<MoldingLogEntry[]>([]);
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedLog, setSelectedLog] = useState<MoldingLogEntry | null>(null);
+    const [productionStages, setProductionStages] = useState<string[]>([]);
+
 
     useEffect(() => {
         const handleStorageChange = () => {
             const logs = getMoldingLogs().sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
             setAllLogs(logs);
+            setProductionStages(getSettings().productionStatuses.map(s => `รอ${s}`));
         };
         handleStorageChange();
         window.addEventListener('storage', handleStorageChange);
@@ -80,7 +77,7 @@ export const ProductionStatusTab: React.FC = () => {
 
     const logsByStage = useMemo(() => {
         const stagesMap: { [key: string]: MoldingLogEntry[] } = {};
-        PRODUCTION_STAGES.forEach(stage => {
+        productionStages.forEach(stage => {
             stagesMap[stage] = [];
         });
 
@@ -90,7 +87,7 @@ export const ProductionStatusTab: React.FC = () => {
             }
         });
         return stagesMap;
-    }, [allLogs]);
+    }, [allLogs, productionStages]);
 
     const openModal = (log: MoldingLogEntry) => {
         setSelectedLog(log);
@@ -105,12 +102,12 @@ export const ProductionStatusTab: React.FC = () => {
 
     return (
         <div>
-             {modalOpen && selectedLog && <UpdateStatusModal log={selectedLog} onClose={() => setModalOpen(false)} onSave={handleSaveStatus} />}
+             {modalOpen && selectedLog && <UpdateStatusModal log={selectedLog} onClose={() => setModalOpen(false)} onSave={handleSaveStatus} productionStatuses={getSettings().productionStatuses} />}
             <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">สถานะการผลิต (Kanban Board)</h2>
             </div>
             <div className="flex gap-6 overflow-x-auto pb-4">
-                {PRODUCTION_STAGES.map(stage => (
+                {productionStages.map(stage => (
                     <div key={stage} className="flex-shrink-0 w-80 bg-gray-100 rounded-lg shadow-inner">
                         <div className="p-4 border-b-2 border-gray-200 sticky top-0 bg-gray-100 z-10">
                             <h3 className="font-bold text-gray-700 flex items-center gap-2">

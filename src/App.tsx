@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { OrderManagementTab } from './components/OrderManagementTab';
@@ -19,24 +17,34 @@ import { MaintenanceTab } from './components/MaintenanceTab';
 import { ProcurementTab } from './components/ProcurementTab';
 import { CostAnalysisTab } from './components/CostAnalysisTab';
 import { ShipmentTrackingTab } from './components/ShipmentTrackingTab';
-import { ProductsTab } from './components/ProductsTab'; // New Product Tab
-import { BellIcon } from './components/icons/Icons';
+import { ProductsTab } from './components/ProductsTab';
+import { SettingsTab } from './components/SettingsTab';
+import { QuickActionModal } from './components/QuickActionModal';
+import { BellIcon, PlusIcon } from './components/icons/Icons';
 import { CTElectricLogo } from './assets/logo';
 import { getInventory } from './services/storageService';
 import { InventoryItem } from './types';
 
-export type Tab = 'dashboard' | 'orders' | 'analysis' | 'procurement' | 'molding' | 'production_status' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'stats' | 'reports' | 'products';
+export type Tab = 'dashboard' | 'orders' | 'analysis' | 'procurement' | 'molding' | 'production_status' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'stats' | 'reports' | 'products' | 'settings';
+export type QuickActionType = 'order' | 'packing' | 'molding';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [lowStockItems, setLowStockItems] = useState<InventoryItem[]>([]);
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
+  const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
+  const [quickActionType, setQuickActionType] = useState<QuickActionType | null>(null);
 
   const checkLowStock = () => {
     const inventory = getInventory();
     const lowItems = inventory.filter(item => item.minStock && item.quantity < item.minStock);
     setLowStockItems(lowItems);
   };
+  
+  const handleQuickActionSelect = (type: QuickActionType) => {
+    setQuickActionType(type);
+    setIsQuickActionsOpen(false);
+  }
 
   useEffect(() => {
     document.title = 'CT.ELECTRIC - Production System';
@@ -45,14 +53,20 @@ const App: React.FC = () => {
       favicon.href = CTElectricLogo;
     }
     
-    checkLowStock(); // Initial check
+    checkLowStock();
     const handleStorageChange = () => checkLowStock();
-    window.addEventListener('storage', handleStorageChange); // Listen for changes from other tabs
+    window.addEventListener('storage', handleStorageChange);
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
+  
+  const onDataUpdate = () => {
+    checkLowStock();
+    // Potentially re-render other components if needed
+    setActiveTab(activeTab); // A simple way to trigger re-render of current tab
+  }
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -76,7 +90,7 @@ const App: React.FC = () => {
         return <ShipmentTrackingTab />;
       case 'inventory':
         return <InventoryTab setLowStockCheck={checkLowStock}/>;
-      case 'products': // New Case for Products
+      case 'products':
         return <ProductsTab />;
       case 'raw_materials':
         return <RawMaterialsTab />;
@@ -90,6 +104,8 @@ const App: React.FC = () => {
         return <StatisticsTab />;
       case 'reports':
         return <ReportingTab />;
+      case 'settings':
+        return <SettingsTab />;
       default:
         return <DashboardTab setActiveTab={setActiveTab} />;
     }
@@ -99,10 +115,26 @@ const App: React.FC = () => {
     <div className="flex h-screen bg-gray-100 font-sans">
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
       
+      {quickActionType && <QuickActionModal actionType={quickActionType} onClose={() => setQuickActionType(null)} onDataUpdate={onDataUpdate} />}
+
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white shadow-sm z-10">
+        <header className="bg-white shadow-sm z-20">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-end items-center py-2 h-16">
+            <div className="flex justify-end items-center py-2 h-16 gap-2">
+               <div className="relative">
+                 <button onClick={() => setIsQuickActionsOpen(!isQuickActionsOpen)} className="p-2 text-gray-600 hover:text-green-600 hover:bg-gray-100 rounded-full">
+                   <PlusIcon className="w-6 h-6" />
+                 </button>
+                 {isQuickActionsOpen && (
+                   <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-xl z-30">
+                     <ul className="py-1">
+                        <li onClick={() => handleQuickActionSelect('order')} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">เพิ่มออเดอร์ใหม่</li>
+                        <li onClick={() => handleQuickActionSelect('molding')} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">บันทึกการผลิต (ฉีด)</li>
+                        <li onClick={() => handleQuickActionSelect('packing')} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">บันทึกการแพ็ค</li>
+                     </ul>
+                   </div>
+                 )}
+               </div>
               <div className="relative">
                 <button onClick={() => setIsAlertsOpen(!isAlertsOpen)} className="relative p-2 text-gray-600 hover:text-green-600 hover:bg-gray-100 rounded-full">
                   <BellIcon className="w-6 h-6" />

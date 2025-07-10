@@ -1,5 +1,6 @@
 
 
+export type Tab = 'dashboard' | 'orders' | 'analysis' | 'procurement' | 'molding' | 'production_status' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'stats' | 'reports' | 'products' | 'settings';
 
 
 export interface OrderItem {
@@ -129,4 +130,16 @@ export interface Shipment {
 
 export interface BurmeseTranslation {
     [key: string]: string;
+}
+
+export interface CompanyInfo {
+    name: string;
+    address: string;
+    taxId: string;
+}
+
+export interface AppSettings {
+    companyInfo: CompanyInfo;
+    qcFailureReasons: string[];
+    productionStatuses: string[];
 }

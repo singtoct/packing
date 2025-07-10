@@ -1,16 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getQCEntries, saveQCEntries, getEmployees } from '../services/storageService';
+import { getQCEntries, saveQCEntries, getEmployees, getSettings } from '../services/storageService';
 import { QCEntry, Employee } from '../types';
 import { CheckCircle2Icon, XCircleIcon, AlertTriangleIcon, CameraIcon } from './icons/Icons';
-
-const QC_FAILURE_REASONS = [
-    'สินค้าชำรุด',
-    'แพ็คเกจไม่สวยงาม',
-    'จำนวนผิดพลาด',
-    'ปิดผนึกไม่ดี',
-    'ติดฉลากผิด',
-    'อื่นๆ',
-];
 
 const QCInspectionModal: React.FC<{
     entry: QCEntry;
@@ -23,6 +14,11 @@ const QCInspectionModal: React.FC<{
     const [reasons, setReasons] = useState<string[]>([]);
     const [notes, setNotes] = useState('');
     const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
+    const [failureReasons, setFailureReasons] = useState<string[]>([]);
+
+    useEffect(() => {
+        setFailureReasons(getSettings().qcFailureReasons);
+    }, []);
 
     const handleReasonChange = (reason: string, checked: boolean) => {
         setReasons(prev =>
@@ -96,7 +92,7 @@ const QCInspectionModal: React.FC<{
                         <div className="p-4 border-l-4 border-red-400 bg-red-50 rounded-md">
                             <h3 className="font-bold text-red-800 mb-3">ระบุเหตุผลที่ไม่ผ่าน (เลือกได้มากกว่า 1)</h3>
                             <div className="grid grid-cols-2 gap-2">
-                                {QC_FAILURE_REASONS.map(reason => (
+                                {failureReasons.map(reason => (
                                     <label key={reason} className="flex items-center gap-2 text-sm">
                                         <input type="checkbox" onChange={e => handleReasonChange(reason, e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500" />
                                         {reason}

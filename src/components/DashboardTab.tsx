@@ -1,12 +1,19 @@
 
 
-import React, { useState, useEffect } from 'react';
-import { getOrders, getPackingLogs, getInventory, getQCEntries, getMoldingLogs } from '../services/storageService';
+import React, { useState, useEffect, useMemo } from 'react';
+import { getOrders, getPackingLogs, getInventory, getQCEntries, getMoldingLogs, getBOMs, getRawMaterials } from '../services/storageService';
 import { OrderItem, PackingLogEntry, InventoryItem, QCEntry, MoldingLogEntry } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { ListOrderedIcon, AlertTriangleIcon, TrophyIcon, TrendingUpIcon, CheckCircle2Icon, ClipboardCheckIcon, FactoryIcon, RouteIcon } from './icons/Icons';
+import { ListOrderedIcon, AlertTriangleIcon, TrophyIcon, TrendingUpIcon, CheckCircle2Icon, ClipboardCheckIcon, FactoryIcon, RouteIcon, ExternalLinkIcon } from './icons/Icons';
 
-type Tab = 'dashboard' | 'orders' | 'logs' | 'inventory' | 'stats' | 'qc' | 'molding' | 'production_status' | 'employees' | 'reports';
+type Tab = 'dashboard' | 'orders' | 'logs' | 'inventory' | 'stats' | 'qc' | 'molding' | 'production_status' | 'employees' | 'reports' | 'procurement' | 'analysis' | 'raw_materials';
+
+interface Insight {
+    key: string;
+    text: string;
+    actionTab: Tab;
+    priority: 'high' | 'medium' | 'low';
+}
 
 const StatCard: React.FC<{ title: string; icon: React.ReactNode; children: React.ReactNode; onClick?: () => void; className?: string }> = ({ title, icon, children, onClick, className = '' }) => (
     <div 
@@ -29,6 +36,8 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
     const [pendingQCCount, setPendingQCCount] = useState(0);
     const [moldingTodayCount, setMoldingTodayCount] = useState(0);
     const [wipCount, setWipCount] = useState(0);
+    const [actionableInsights, setActionableInsights] = useState<Insight[]>([]);
+
 
     useEffect(() => {
         const fetchData = () => {
@@ -37,6 +46,8 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
             const inventory = getInventory();
             const qcEntries = getQCEntries();
             const moldingLogs = getMoldingLogs();
+            const boms = getBOMs();
+            const rawMaterials = getRawMaterials();
             
             setUpcomingOrders([...orders].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()).slice(0, 5));
             setLowStockItems(inventory.filter(item => item.minStock !== undefined && item.quantity < item.minStock));
@@ -77,6 +88,55 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
 
             const top = Object.entries(packerStats).sort(([, a], [, b]) => b - a)[0];
             setTopPacker(top ? { name: top[0], quantity: top[1] } : null);
+
+            // Generate Actionable Insights
+            const insights: Insight[] = [];
+            const finishedGoodsMap = new Map(inventory.map(i => [i.name, i.quantity]));
+            
+            orders.forEach(order => {
+                const productName = `${order.name} (${order.color})`;
+                const stock = finishedGoodsMap.get(productName) || 0;
+                if (stock < order.quantity) {
+                    insights.push({
+                        key: `stock-${order.id}`,
+                        text: `สต็อก ${order.name} ไม่พอสำหรับออเดอร์ (ต้องการ ${order.quantity}, มี ${stock})`,
+                        actionTab: 'molding',
+                        priority: 'high'
+                    });
+                }
+            });
+
+            const bomMap = new Map(boms.map(b => [b.productName, b]));
+            const rawMaterialMap = new Map(rawMaterials.map(rm => [rm.id, rm]));
+            const requiredMaterials = new Map<string, { required: number, name: string }>();
+            orders.forEach(order => {
+                const productName = `${order.name} (${order.color})`;
+                const bom = bomMap.get(productName);
+                if (bom) {
+                    bom.components.forEach(comp => {
+                        const material = rawMaterialMap.get(comp.rawMaterialId);
+                        if (material) {
+                            const totalRequired = comp.quantity * order.quantity;
+                            const existing = requiredMaterials.get(material.id) || { required: 0, name: material.name };
+                            existing.required += totalRequired;
+                            requiredMaterials.set(material.id, existing);
+                        }
+                    });
+                }
+            });
+            requiredMaterials.forEach((data, id) => {
+                const stock = rawMaterialMap.get(id)?.quantity || 0;
+                if (stock < data.required) {
+                     insights.push({
+                        key: `raw-${id}`,
+                        text: `วัตถุดิบ ${data.name} อาจไม่พอ (ต้องการ ${data.required.toFixed(2)}, มี ${stock.toFixed(2)})`,
+                        actionTab: 'procurement',
+                        priority: 'medium'
+                    });
+                }
+            });
+            setActionableInsights(insights.slice(0, 5)); // Limit to 5 insights
+
         };
 
         fetchData();
@@ -143,6 +203,20 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
                         <p className="text-lg text-slate-800">ชิ้น (วันนี้)</p>
                     </div>
                 </StatCard>
+                
+                 {actionableInsights.length > 0 && (
+                     <StatCard title="ข้อมูลเชิงปฏิบัติการ" icon={<AlertTriangleIcon className="w-6 h-6 text-orange-500" />} className="col-span-1 sm:col-span-2 lg:col-span-2 bg-orange-50 border-orange-200">
+                         <ul className="space-y-2">
+                             {actionableInsights.map(insight => (
+                                 <li key={insight.key} onClick={() => setActiveTab(insight.actionTab)} className="text-sm p-2 rounded-md hover:bg-orange-100 cursor-pointer flex justify-between items-center">
+                                     <span className="text-orange-800">{insight.text}</span>
+                                     <span className="text-orange-500"><ExternalLinkIcon className="w-4 h-4"/></span>
+                                 </li>
+                             ))}
+                         </ul>
+                     </StatCard>
+                 )}
+
 
                  <StatCard title="งานระหว่างผลิต (WIP)" icon={<RouteIcon className="w-6 h-6 text-cyan-500" />} onClick={() => setActiveTab('production_status')}>
                     <div className="text-center">

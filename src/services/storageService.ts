@@ -1,4 +1,4 @@
-import { OrderItem, PackingLogEntry, InventoryItem, Employee, QCEntry, MoldingLogEntry, RawMaterial, BillOfMaterial, Machine, MaintenanceLog, Supplier, PurchaseOrder, Shipment, Product } from '../types';
+import { OrderItem, PackingLogEntry, InventoryItem, Employee, QCEntry, MoldingLogEntry, RawMaterial, BillOfMaterial, Machine, MaintenanceLog, Supplier, PurchaseOrder, Shipment, Product, AppSettings } from '../types';
 
 const ORDERS_KEY = 'packing_orders';
 const LOGS_KEY = 'packing_logs';
@@ -14,6 +14,7 @@ const SUPPLIERS_KEY = 'factory_suppliers';
 const PURCHASE_ORDERS_KEY = 'factory_purchase_orders';
 const SHIPMENTS_KEY = 'factory_shipments';
 const PRODUCTS_KEY = 'factory_products';
+const SETTINGS_KEY = 'factory_settings';
 
 const DEFAULT_PRODUCTS: Product[] = [
     { id: 'a0b1c2d3-e4f5-g6h7-i8j9-k0l1m2n3o4p5', name: 'บล็อคลอย G-Power 2x4', color: 'สีขาว', salePrice: 3.69 },
@@ -361,6 +362,48 @@ export const savePurchaseOrders = (pos: PurchaseOrder[]): void => saveItems<Purc
 // Shipment specific functions
 export const getShipments = (): Shipment[] => getItems<Shipment>(SHIPMENTS_KEY);
 export const saveShipments = (shipments: Shipment[]): void => saveItems<Shipment>(SHIPMENTS_KEY, shipments);
+
+// App Settings specific functions
+const DEFAULT_SETTINGS: AppSettings = {
+    companyInfo: {
+        name: 'CT.ELECTRIC',
+        address: '123 ถนนสุขุมวิท แขวงบางนา เขตบางนา กรุงเทพมหานคร 10260',
+        taxId: '0105558000111'
+    },
+    qcFailureReasons: [
+        'สินค้าชำรุด',
+        'แพ็คเกจไม่สวยงาม',
+        'จำนวนผิดพลาด',
+        'ปิดผนึกไม่ดี',
+        'ติดฉลากผิด',
+        'อื่นๆ',
+    ],
+    productionStatuses: [
+        'รอแปะกันรอย',
+        'รอประกบ',
+        'ห้องประกอบ',
+        'ห้องแพ็ค',
+    ]
+};
+
+export const getSettings = (): AppSettings => {
+    const settingsJson = localStorage.getItem(SETTINGS_KEY);
+    if (settingsJson) {
+        const stored = JSON.parse(settingsJson);
+        // Merge with defaults to ensure new settings are added
+        return {
+            ...DEFAULT_SETTINGS,
+            ...stored,
+            companyInfo: {
+                ...DEFAULT_SETTINGS.companyInfo,
+                ...stored.companyInfo,
+            },
+        };
+    }
+    return DEFAULT_SETTINGS;
+};
+
+export const saveSettings = (settings: AppSettings): void => saveItems<AppSettings>(SETTINGS_KEY, [settings]);
 
 
 // Helper function for procurement, re-using analysis logic

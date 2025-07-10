@@ -1,13 +1,21 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { MoldingLogEntry, Employee, RawMaterial, BillOfMaterial, Product } from '../types';
-import { getMoldingLogs, saveMoldingLogs, getEmployees, getRawMaterials, saveRawMaterials, getBOMs, getProducts } from '../services/storageService';
+import { getMoldingLogs, saveMoldingLogs, getEmployees, getRawMaterials, saveRawMaterials, getBOMs, getProducts, getSettings } from '../services/storageService';
 import { PlusCircleIcon, Trash2Icon, AlertTriangleIcon, DownloadIcon, UploadIcon, XCircleIcon } from './icons/Icons';
 import { SearchableInput } from './SearchableInput';
 
-const NEXT_STEPS = ['แปะกันรอย', 'ประกบ', 'ห้องประกอบ', 'ห้องแพ็ค'];
-
-type StagedLog = Omit<MoldingLogEntry, 'id'> & { _tempId: string };
+interface StagedLog {
+    _tempId: string;
+    date: string;
+    productName: string;
+    quantityProduced: number;
+    quantityRejected: number;
+    machine: string;
+    operatorName: string;
+    status: string;
+}
 
 interface MoldingLogExcelRow {
     Date?: Date | string;
@@ -67,7 +75,7 @@ const SortableHeader: React.FC<{
 const ImportReviewModal: React.FC<{
     stagedLogs: StagedLog[],
     onClose: () => void,
-    onConfirm: (finalLogs: StagedLog[]) => void
+    onConfirm: (finalLogs: Omit<StagedLog, '_tempId'>[]) => void
 }> = ({ stagedLogs, onClose, onConfirm }) => {
     const [logs, setLogs] = useState(stagedLogs);
 
@@ -84,7 +92,7 @@ const ImportReviewModal: React.FC<{
     };
 
     const handleSubmit = () => {
-        onConfirm(logs);
+        onConfirm(logs.map(({_tempId, ...rest}) => rest));
     };
 
     return (
@@ -131,9 +139,10 @@ export const MoldingTab: React.FC = () => {
     const [machine, setMachine] = useState('เครื่อง 1');
     const [operatorName, setOperatorName] = useState('');
     const [date, setDate] = useState('');
-    const [nextStep, setNextStep] = useState(NEXT_STEPS[0]);
+    const [nextStep, setNextStep] = useState('');
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
+    const [productionStatuses, setProductionStatuses] = useState<string[]>([]);
     
     const [boms, setBoms] = useState<BillOfMaterial[]>([]);
     const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
@@ -153,9 +162,14 @@ export const MoldingTab: React.FC = () => {
             setBoms(getBOMs());
             setRawMaterials(getRawMaterials());
             setProducts(getProducts());
+            const settings = getSettings();
+            setProductionStatuses(settings.productionStatuses);
 
             if (loadedEmployees.length > 0 && !operatorName) {
                 setOperatorName(loadedEmployees[0].name);
+            }
+            if(settings.productionStatuses.length > 0 && !nextStep) {
+                setNextStep(settings.productionStatuses[0]);
             }
         };
 
@@ -165,7 +179,7 @@ export const MoldingTab: React.FC = () => {
 
         window.addEventListener('storage', handleStorageChange);
         return () => window.removeEventListener('storage', handleStorageChange);
-    }, [operatorName]);
+    }, [operatorName, nextStep]);
 
      useEffect(() => {
         // This effect will update the editableMaterials list whenever the product or quantity changes.
@@ -434,7 +448,7 @@ export const MoldingTab: React.FC = () => {
         reader.readAsBinaryString(file);
     };
 
-    const handleConfirmImport = (finalLogs: StagedLog[]) => {
+    const handleConfirmImport = (finalLogs: Omit<StagedLog, '_tempId'>[]) => {
         // Pre-flight check
         const bomsMap = new Map(getBOMs().map(b => [b.productName, b]));
         const materialsMap = new Map(getRawMaterials().map(m => [m.id, m]));
@@ -556,7 +570,7 @@ export const MoldingTab: React.FC = () => {
                     <div>
                         <label htmlFor="nextStep" className="block text-sm font-medium text-gray-700">ขั้นตอนต่อไป</label>
                         <select id="nextStep" value={nextStep} onChange={e => setNextStep(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm" required>
-                            {NEXT_STEPS.map(step => <option key={step} value={step}>{step}</option>)}
+                            {productionStatuses.map(step => <option key={step} value={step}>{step}</option>)}
                         </select>
                     </div>
                     <div>

@@ -6,7 +6,7 @@ import {
     LayoutDashboardIcon, ListOrderedIcon, TruckIcon, SigmaIcon, ShoppingCartIcon, 
     FactoryIcon, RouteIcon, BoxIcon, ClipboardCheckIcon, ArchiveIcon, BeakerIcon, 
     UsersIcon, WrenchIcon, DollarSignIcon, BarChart3Icon, FileTextIcon, ChevronDownIcon,
-    DatabaseIcon, SearchIcon
+    DatabaseIcon, SearchIcon, SettingsIcon
 } from './icons/Icons';
 
 interface MenuItemProps {
@@ -115,6 +115,7 @@ const menuConfig = [
         children: [
             { tab: 'employees', title: 'จัดการพนักงาน', icon: <UsersIcon className="w-5 h-5"/> },
             { tab: 'maintenance', title: 'ซ่อมบำรุงเครื่องจักร', icon: <WrenchIcon className="w-5 h-5"/> },
+            { tab: 'settings', title: 'ตั้งค่า', icon: <SettingsIcon className="w-5 h-5"/> },
         ],
     },
     {
