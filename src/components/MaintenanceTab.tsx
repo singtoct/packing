@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { getMachines, saveMachines, getMaintenanceLogs, saveMaintenanceLogs, getEmployees } from '../services/storageService';
 import { Machine, MaintenanceLog, Employee } from '../types';
@@ -140,10 +139,18 @@ export const MaintenanceTab: React.FC = () => {
         let sortableItems = [...machines];
         if (machineSortConfig) {
             sortableItems.sort((a, b) => {
-                if (a[machineSortConfig.key] < b[machineSortConfig.key]) {
+                const aVal = a[machineSortConfig.key];
+                const bVal = b[machineSortConfig.key];
+
+                // Handle undefined values (for nextPmDate) to prevent crashes
+                if (aVal === undefined && bVal === undefined) return 0;
+                if (aVal === undefined) return 1; // undefined values go to the end
+                if (bVal === undefined) return -1; // undefined values go to the end
+
+                if (aVal < bVal) {
                     return machineSortConfig.direction === 'asc' ? -1 : 1;
                 }
-                if (a[machineSortConfig.key] > b[machineSortConfig.key]) {
+                if (aVal > bVal) {
                     return machineSortConfig.direction === 'asc' ? 1 : -1;
                 }
                 return 0;
