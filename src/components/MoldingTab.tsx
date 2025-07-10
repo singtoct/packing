@@ -25,6 +25,19 @@ interface SortConfig {
     direction: SortDirection;
 }
 
+// Interface for the new editable material component in the form
+interface EditableMaterialComponent {
+    rawMaterialId: string;
+    quantity: number; // total quantity for the log
+    name: string;
+    unit: string;
+    inStock: number;
+    costPerUnit: number;
+    sufficient: boolean;
+    totalCost: number;
+}
+
+
 // Helper component for sortable table headers
 const SortableHeader: React.FC<{
   label: string;
@@ -122,9 +135,10 @@ export const MoldingTab: React.FC = () => {
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     
-    // New state for BOM and Raw Materials
     const [boms, setBoms] = useState<BillOfMaterial[]>([]);
     const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
+    const [editableMaterials, setEditableMaterials] = useState<EditableMaterialComponent[]>([]);
+
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
     const [stagedLogs, setStagedLogs] = useState<StagedLog[]>([]);
     const importFileRef = useRef<HTMLInputElement>(null);
@@ -152,6 +166,80 @@ export const MoldingTab: React.FC = () => {
         window.addEventListener('storage', handleStorageChange);
         return () => window.removeEventListener('storage', handleStorageChange);
     }, [operatorName]);
+
+     useEffect(() => {
+        // This effect will update the editableMaterials list whenever the product or quantity changes.
+        if (!productName || quantityProduced <= 0) {
+            setEditableMaterials([]);
+            return;
+        }
+
+        const bom = boms.find(b => b.productName === productName);
+        if (!bom || !Array.isArray(bom.components)) {
+            setEditableMaterials([]);
+            return;
+        }
+
+        const rawMaterialMap = new Map(rawMaterials.map(rm => [rm.id, rm]));
+        
+        const newEditableMaterials = bom.components.map(comp => {
+            const material = rawMaterialMap.get(comp.rawMaterialId);
+            const requiredQty = comp.quantity * quantityProduced;
+            const inStock = material?.quantity || 0;
+            const costPerUnit = material?.costPerUnit || 0;
+            const hasEnough = inStock >= requiredQty;
+            const itemTotalCost = requiredQty * costPerUnit;
+
+            return {
+                rawMaterialId: comp.rawMaterialId,
+                quantity: requiredQty,
+                name: material?.name || 'วัตถุดิบไม่พบ',
+                unit: material?.unit || '',
+                inStock: inStock,
+                costPerUnit: costPerUnit,
+                sufficient: hasEnough,
+                totalCost: itemTotalCost,
+            };
+        });
+        setEditableMaterials(newEditableMaterials);
+
+    }, [productName, quantityProduced, boms, rawMaterials]);
+
+    const materialCheck = useMemo(() => {
+        if (editableMaterials.length === 0) {
+             const bom = boms.find(b => b.productName === productName);
+            if(productName && !bom) {
+                 return { hasBOM: false, isSufficient: false, required: [], totalCost: 0 };
+            }
+            return { hasBOM: true, isSufficient: true, required: [], totalCost: 0 };
+        }
+
+        const rawMaterialMap = new Map(rawMaterials.map(rm => [rm.id, rm]));
+        let isSufficient = true;
+        let totalCost = 0;
+
+        const checkResults = editableMaterials.map(mat => {
+             const material = rawMaterialMap.get(mat.rawMaterialId);
+             const inStock = material?.quantity || 0;
+             const sufficient = inStock >= mat.quantity;
+             if (!sufficient) isSufficient = false;
+
+             const costPerUnit = material?.costPerUnit || 0;
+             const itemTotalCost = mat.quantity * costPerUnit;
+             totalCost += itemTotalCost;
+
+             return { ...mat, inStock, sufficient, costPerUnit, totalCost };
+        });
+
+        const hasBOM = !!boms.find(b => b.productName === productName);
+
+        return {
+            hasBOM,
+            isSufficient,
+            required: checkResults,
+            totalCost
+        };
+    }, [editableMaterials, rawMaterials, productName, boms]);
     
     const requestSort = (key: keyof MoldingLogEntry) => {
         let direction: SortDirection = 'asc';
@@ -179,59 +267,47 @@ export const MoldingTab: React.FC = () => {
         return sortableItems;
     }, [logs, sortConfig]);
 
-    const materialCheck = useMemo(() => {
-        if (!productName || quantityProduced <= 0) {
-            return { required: [], isSufficient: true, message: "กรุณากรอกข้อมูลสินค้าและจำนวน", hasBOM: false, totalCost: 0 };
+    const handleMaterialChange = (index: number, newMaterialId: string) => {
+        const rawMaterialMap = new Map(rawMaterials.map(rm => [rm.id, rm]));
+        const newMaterial = rawMaterialMap.get(newMaterialId);
+
+        if(newMaterial) {
+            setEditableMaterials(current => {
+                const newMaterials = [...current];
+                newMaterials[index] = {
+                    ...newMaterials[index],
+                    rawMaterialId: newMaterial.id,
+                    name: newMaterial.name,
+                    unit: newMaterial.unit
+                };
+                return newMaterials;
+            });
         }
-
-        const bom = boms.find(b => b.productName === productName);
-        if (!bom || !Array.isArray(bom.components)) {
-            return { required: [], isSufficient: false, message: "ไม่พบสูตรการผลิต (BOM) สำหรับสินค้านี้", hasBOM: false, totalCost: 0 };
-        }
-
-        const rawMaterialMap = new Map<string, RawMaterial>(rawMaterials.map(rm => [rm.id, rm]));
-        
-        let isSufficient = true;
-        let totalCost = 0;
-        const required = bom.components.map(comp => {
-            const material = rawMaterialMap.get(comp.rawMaterialId);
-            const requiredQty = comp.quantity * quantityProduced;
-            const hasEnough = material ? material.quantity >= requiredQty : false;
-            const costPerUnit = material?.costPerUnit || 0;
-            const itemTotalCost = requiredQty * costPerUnit;
-            totalCost += itemTotalCost;
-
-            if (!hasEnough) isSufficient = false;
-            
-            return {
-                name: material?.name || 'วัตถุดิบไม่พบ',
-                unit: material?.unit || '',
-                required: requiredQty,
-                inStock: material?.quantity || 0,
-                sufficient: hasEnough,
-                costPerUnit: costPerUnit,
-                totalCost: itemTotalCost,
-            };
+    };
+    
+    const handleQuantityChange = (index: number, newQuantity: number) => {
+        setEditableMaterials(current => {
+            const newMaterials = [...current];
+            newMaterials[index].quantity = newQuantity < 0 ? 0 : newQuantity;
+            return newMaterials;
         });
-
-        return { required, isSufficient, message: "", hasBOM: true, totalCost };
-    }, [productName, quantityProduced, boms, rawMaterials]);
+    };
 
     const handleAddLog = (e: React.FormEvent) => {
         e.preventDefault();
         if (!productName.trim() || !date || !operatorName || !machine || !nextStep) return;
 
         if (!materialCheck.hasBOM) {
-            alert(materialCheck.message || 'ไม่สามารถบันทึกได้เนื่องจากไม่พบสูตรการผลิต (BOM)');
+            alert("ไม่สามารถบันทึกได้เนื่องจากไม่พบสูตรการผลิต (BOM)");
             return;
         }
         if (!materialCheck.isSufficient) {
             const insufficientItemsMessage = materialCheck.required
                 .filter(item => !item.sufficient)
                 .map(item => {
-                    const needed = item.required.toLocaleString(undefined, {maximumFractionDigits: 2});
+                    const needed = item.quantity.toLocaleString(undefined, {maximumFractionDigits: 2});
                     const inStock = item.inStock.toLocaleString(undefined, {maximumFractionDigits: 2});
-                    const shortfall = (item.required - item.inStock).toLocaleString(undefined, {maximumFractionDigits: 2});
+                    const shortfall = (item.quantity - item.inStock).toLocaleString(undefined, {maximumFractionDigits: 2});
                     return `\n- ${item.name}: ต้องการ ${needed} ${item.unit}, มีในสต็อก ${inStock} ${item.unit} (ขาด ${shortfall} ${item.unit})`;
                 })
                 .join('');
@@ -240,8 +316,6 @@ export const MoldingTab: React.FC = () => {
             return;
         }
 
-        const bom = boms.find(b => b.productName === productName)!;
-        
         const newLog: MoldingLogEntry = {
             id: crypto.randomUUID(),
             date,
@@ -254,15 +328,15 @@ export const MoldingTab: React.FC = () => {
         };
 
         const currentRawMaterials = getRawMaterials();
-        const updatedRawMaterials = currentRawMaterials.map(rm => {
-            const component = bom.components.find(c => c.rawMaterialId === rm.id);
-            if (component) {
-                rm.quantity -= component.quantity * quantityProduced;
+        materialCheck.required.forEach(req => {
+            const matIndex = currentRawMaterials.findIndex(rm => rm.id === req.rawMaterialId);
+            if (matIndex > -1) {
+                currentRawMaterials[matIndex].quantity -= req.quantity;
             }
-            return rm;
         });
-        saveRawMaterials(updatedRawMaterials);
-        setRawMaterials(updatedRawMaterials);
+
+        saveRawMaterials(currentRawMaterials);
+        setRawMaterials(currentRawMaterials);
 
         const updatedLogs = [newLog, ...logs];
         setLogs(updatedLogs);
@@ -271,6 +345,7 @@ export const MoldingTab: React.FC = () => {
         setProductName('');
         setQuantityProduced(1);
         setQuantityRejected(0);
+        setEditableMaterials([]);
     };
 
     const handleDeleteLog = (id: string) => {
@@ -505,7 +580,6 @@ export const MoldingTab: React.FC = () => {
                         <table className="min-w-full bg-white">
                             <thead className="bg-gray-50">
                                 <tr>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ลำดับ</th>
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">สินค้า</th>
                                     <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">จำนวนที่ใช้</th>
                                     <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">ต้นทุน/หน่วย</th>
@@ -514,11 +588,26 @@ export const MoldingTab: React.FC = () => {
                             </thead>
                             <tbody className="divide-y divide-gray-200">
                                 {materialCheck.required.map((mat, index) => (
-                                    <tr key={index} className={!mat.sufficient ? 'bg-red-50' : ''}>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{index + 1}</td>
-                                        <td className="px-6 py-4 text-sm font-medium text-gray-900">{mat.name}</td>
+                                    <tr key={`${mat.rawMaterialId}-${index}`} className={!mat.sufficient ? 'bg-red-50' : ''}>
+                                        <td className="px-6 py-4 text-sm font-medium text-gray-900 w-2/5">
+                                            <SearchableInput
+                                                options={rawMaterials}
+                                                value={mat.rawMaterialId}
+                                                onChange={(newId) => handleMaterialChange(index, newId)}
+                                                displayKey="name"
+                                                valueKey="id"
+                                                placeholder="เลือกวัตถุดิบ"
+                                            />
+                                        </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-right">
-                                            {mat.required.toLocaleString(undefined, {maximumFractionDigits: 3})} {mat.unit}
+                                            <input
+                                                type="number"
+                                                step="0.001"
+                                                value={mat.quantity}
+                                                onChange={(e) => handleQuantityChange(index, Number(e.target.value))}
+                                                className="w-28 text-right px-2 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                                            />
+                                            <span className="ml-2 w-12 inline-block text-left">{mat.unit}</span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-right">
                                             {mat.costPerUnit > 0 ? mat.costPerUnit.toLocaleString('th-TH', { style: 'currency', currency: 'THB' }) : '-'}
@@ -531,7 +620,7 @@ export const MoldingTab: React.FC = () => {
                             </tbody>
                             <tfoot className="bg-gray-100 border-t-2 border-gray-200">
                                 <tr>
-                                    <td colSpan={4} className="px-6 py-3 text-right font-bold text-gray-700 text-base">
+                                    <td colSpan={3} className="px-6 py-3 text-right font-bold text-gray-700 text-base">
                                         ต้นทุนวัตถุดิบรวม
                                     </td>
                                     <td className="px-6 py-3 text-right font-bold text-gray-800 text-lg">
