@@ -493,7 +493,7 @@ export const MoldingTab: React.FC = () => {
                                     <li key={idx} className="flex justify-between items-center text-gray-800">
                                         <span className={!mat.sufficient ? 'font-semibold' : ''}>{mat.name}</span>
                                         <span className={!mat.sufficient ? 'text-red-600 font-bold' : 'text-gray-600'}>
-                                            ต้องการ: {mat.required.toLocaleString(undefined, {maximumFractionDigits: 2})} {mat.unit} (มี: {mat.inStock.toLocaleString(undefined, {maximumFractionDigits: 2})})
+                                            ต้องการ: {mat.required.toLocaleString(undefined, {maximumFractionDigits: 2})} {mat.unit} (ยอดคงเหลือ: {mat.inStock.toLocaleString(undefined, {maximumFractionDigits: 2})})
                                             {!mat.sufficient && ` (ขาด: ${(mat.required - mat.inStock).toLocaleString(undefined, {maximumFractionDigits: 2})} ${mat.unit})`}
                                         </span>
                                     </li>
