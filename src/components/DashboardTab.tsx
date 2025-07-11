@@ -292,10 +292,6 @@ const DashboardSettingsModal: React.FC<{
         setVisibleWidgets(newLayout);
     };
     
-    const displayedWidgets = useMemo(() => {
-        return ALL_WIDGETS.filter(widget => visibleWidgets.includes(widget.id));
-    }, [visibleWidgets]);
-
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
             <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col">
@@ -304,54 +300,55 @@ const DashboardSettingsModal: React.FC<{
                     <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-200"><XCircleIcon className="w-6 h-6 text-gray-500" /></button>
                 </div>
                 
-                <div className="mb-4">
-                    <h3 className="text-sm font-semibold mb-2">การ์ดที่แสดงผล</h3>
-                    <div className="space-y-2">
-                        {visibleWidgets.map((widgetId, index) => {
-                            const widget = ALL_WIDGETS.find(w => w.id === widgetId);
-                            if (!widget) return null;
-                            return (
-                                <div
-                                    key={widget.id}
-                                    className="flex items-center gap-3 p-3 rounded-lg border bg-white cursor-grab"
-                                    draggable
-                                    onDragStart={() => dragItem.current = index}
-                                    onDragEnter={() => dragOverItem.current = index}
-                                    onDragEnd={handleDragSort}
-                                    onDragOver={(e) => e.preventDefault()}
-                                >
-                                    <GripVerticalIcon className="w-5 h-5 text-gray-400" />
-                                    <span className="flex-1 text-sm font-medium">{widget.title}</span>
+                <div className="flex-grow overflow-y-auto pr-2">
+                    <div className="mb-4">
+                        <h3 className="text-sm font-semibold mb-2 text-gray-600">การ์ดที่แสดงผล (ลากเพื่อจัดเรียง)</h3>
+                        <div className="space-y-2">
+                            {visibleWidgets.map((widgetId, index) => {
+                                const widget = ALL_WIDGETS.find(w => w.id === widgetId);
+                                if (!widget) return null;
+                                return (
+                                    <div
+                                        key={widget.id}
+                                        className="flex items-center gap-3 p-3 rounded-lg border bg-white cursor-grab"
+                                        draggable
+                                        onDragStart={() => dragItem.current = index}
+                                        onDragEnter={() => dragOverItem.current = index}
+                                        onDragEnd={handleDragSort}
+                                        onDragOver={(e) => e.preventDefault()}
+                                    >
+                                        <GripVerticalIcon className="w-5 h-5 text-gray-400" />
+                                        <span className="flex-1 text-sm font-medium">{widget.title}</span>
+                                        <input
+                                            type="checkbox"
+                                            checked={true}
+                                            onChange={(e) => handleToggleVisibility(widget.id, e.target.checked)}
+                                            className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                        />
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="mb-4">
+                        <h3 className="text-sm font-semibold mb-2 text-gray-600">การ์ดที่ซ่อนอยู่</h3>
+                        <div className="space-y-2">
+                            {ALL_WIDGETS.filter(w => !visibleWidgets.includes(w.id)).map(widget => (
+                                <div key={widget.id} className="flex items-center gap-3 p-3 rounded-lg border bg-gray-100">
+                                    <GripVerticalIcon className="w-5 h-5 text-gray-300" />
+                                    <span className="flex-1 text-sm font-medium text-gray-500">{widget.title}</span>
                                     <input
                                         type="checkbox"
-                                        checked={true}
+                                        checked={false}
                                         onChange={(e) => handleToggleVisibility(widget.id, e.target.checked)}
                                         className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
                                     />
                                 </div>
-                            );
-                        })}
+                            ))}
+                        </div>
                     </div>
                 </div>
-
-                <div className="mb-4">
-                    <h3 className="text-sm font-semibold mb-2">การ์ดที่ซ่อนอยู่</h3>
-                     <div className="space-y-2">
-                        {ALL_WIDGETS.filter(w => !visibleWidgets.includes(w.id)).map(widget => (
-                            <div key={widget.id} className="flex items-center gap-3 p-3 rounded-lg border bg-gray-100">
-                                <GripVerticalIcon className="w-5 h-5 text-gray-300" />
-                                <span className="flex-1 text-sm font-medium text-gray-500">{widget.title}</span>
-                                <input
-                                    type="checkbox"
-                                    checked={false}
-                                    onChange={(e) => handleToggleVisibility(widget.id, e.target.checked)}
-                                    className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                                />
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
 
                 <div className="flex justify-end gap-4 pt-6 border-t mt-auto">
                     <button onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-md text-sm">ยกเลิก</button>
@@ -395,6 +392,7 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
                     onClick={() => setIsSettingsOpen(true)}
                     className="p-2 text-gray-500 hover:text-green-600 hover:bg-gray-100 rounded-full transition-colors"
                     title="ตั้งค่าแดชบอร์ด"
+                    aria-label="Customize dashboard layout"
                 >
                     <SettingsIcon className="w-6 h-6" />
                 </button>
@@ -402,7 +400,7 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {widgetsToRender.map(({ id, Component, gridSpan }) => {
                     const props = { key: id, setActiveTab };
-                    const className = `col-span-1 ${gridSpan ? `sm:col-span-2 lg:col-span-${gridSpan}` : ''}`;
+                    const className = `col-span-1 ${gridSpan === 2 ? `sm:col-span-2 lg:col-span-2` : ''}`;
                     // The component needs to be wrapped for the className to apply to the grid item
                     return <div key={id} className={className}><Component {...props} /></div>;
                 })}
