@@ -330,6 +330,7 @@ export const MoldingTab: React.FC = () => {
             return;
         }
 
+        const status = nextStep.startsWith('รอ') ? nextStep : `รอ${nextStep}`;
         const newLog: MoldingLogEntry = {
             id: crypto.randomUUID(),
             date,
@@ -338,7 +339,7 @@ export const MoldingTab: React.FC = () => {
             quantityRejected,
             machine,
             operatorName,
-            status: `รอ${nextStep}`,
+            status: status,
         };
 
         const currentRawMaterials = getRawMaterials();

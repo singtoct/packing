@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { getMoldingLogs, saveMoldingLogs, getSettings } from '../services/storageService';
 import { MoldingLogEntry } from '../types';
@@ -10,7 +11,7 @@ const UpdateStatusModal: React.FC<{
     productionStatuses: string[];
 }> = ({ log, onClose, onSave, productionStatuses }) => {
     const [newStatus, setNewStatus] = useState(log.status);
-    const availableNextSteps = [...productionStatuses.map(s => `รอ${s}`), 'เสร็จสิ้น'].filter(s => s !== log.status);
+    const availableNextSteps = [...productionStatuses.map(s => s.startsWith('รอ') ? s : `รอ${s}`), 'เสร็จสิ้น'].filter(s => s !== log.status);
 
 
     const handleSave = () => {
@@ -68,7 +69,9 @@ export const ProductionStatusTab: React.FC = () => {
         const handleStorageChange = () => {
             const logs = getMoldingLogs().sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
             setAllLogs(logs);
-            setProductionStages(getSettings().productionStatuses.map(s => `รอ${s}`));
+            const stagesFromSettings = getSettings().productionStatuses;
+            const finalStages = stagesFromSettings.map(s => s.startsWith('รอ') ? s : `รอ${s}`);
+            setProductionStages(finalStages);
         };
         handleStorageChange();
         window.addEventListener('storage', handleStorageChange);
