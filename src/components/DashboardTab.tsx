@@ -24,7 +24,7 @@ interface DashboardWidget {
 
 const StatCard: React.FC<{ title: string; icon: React.ReactNode; children: React.ReactNode; onClick?: () => void; className?: string }> = ({ title, icon, children, onClick, className = '' }) => (
     <div 
-      className={`bg-white p-6 rounded-xl shadow-lg border border-gray-200 flex flex-col ${onClick ? 'cursor-pointer hover:shadow-xl hover:border-green-300 transition-all duration-300' : ''} ${className}`}
+      className={`bg-white p-6 rounded-xl shadow-lg border border-gray-200 flex flex-col h-full ${onClick ? 'cursor-pointer hover:shadow-xl hover:border-green-300 transition-all duration-300' : ''} ${className}`}
       onClick={onClick}
     >
         <div className="flex items-center gap-3 mb-4">
@@ -363,6 +363,11 @@ const DashboardSettingsModal: React.FC<{
 export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ setActiveTab }) => {
     const [layout, setLayout] = useState<string[]>(getDashboardLayout() || DEFAULT_LAYOUT);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+
+    // Refs for drag and drop
+    const dragItem = useRef<number | null>(null);
+    const dragOverItem = useRef<number | null>(null);
 
     useEffect(() => {
         const handleStorageChange = () => {
@@ -379,6 +384,25 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
         setIsSettingsOpen(false);
     };
 
+    // Function to handle sorting
+    const handleDragSort = () => {
+        if (dragItem.current === null || dragOverItem.current === null) {
+            setIsDragging(false);
+            return;
+        };
+        
+        const newLayout = [...layout];
+        const draggedItemContent = newLayout.splice(dragItem.current, 1)[0];
+        newLayout.splice(dragOverItem.current, 0, draggedItemContent);
+        
+        dragItem.current = null;
+        dragOverItem.current = null;
+        
+        setLayout(newLayout);
+        saveDashboardLayout(newLayout);
+        setIsDragging(false);
+    };
+
     const widgetsToRender = useMemo(() => {
         return layout.map(id => ALL_WIDGETS.find(w => w.id === id)).filter((w): w is DashboardWidget => !!w);
     }, [layout]);
@@ -388,21 +412,47 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
             {isSettingsOpen && <DashboardSettingsModal currentLayout={layout} onClose={() => setIsSettingsOpen(false)} onSave={handleSaveLayout} />}
             <div className="flex justify-between items-center mb-8">
                 <h2 className="text-3xl font-bold text-gray-800">แดชบอร์ดภาพรวม</h2>
-                <button
-                    onClick={() => setIsSettingsOpen(true)}
-                    className="p-2 text-gray-500 hover:text-green-600 hover:bg-gray-100 rounded-full transition-colors"
-                    title="ตั้งค่าแดชบอร์ด"
-                    aria-label="Customize dashboard layout"
-                >
-                    <SettingsIcon className="w-6 h-6" />
-                </button>
+                <div className="flex items-center gap-2">
+                    <p className="text-sm text-gray-500 hidden md:block">
+                        ลากการ์ดเพื่อจัดเรียง หรือ
+                    </p>
+                    <button
+                        onClick={() => setIsSettingsOpen(true)}
+                        className="p-2 text-gray-500 hover:text-green-600 hover:bg-gray-100 rounded-full transition-colors"
+                        title="ตั้งค่าแดชบอร์ด"
+                        aria-label="Customize dashboard layout"
+                    >
+                        <SettingsIcon className="w-6 h-6" />
+                    </button>
+                </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {widgetsToRender.map(({ id, Component, gridSpan }) => {
-                    const props = { key: id, setActiveTab };
-                    const className = `col-span-1 ${gridSpan === 2 ? `sm:col-span-2 lg:col-span-2` : ''}`;
-                    // The component needs to be wrapped for the className to apply to the grid item
-                    return <div key={id} className={className}><Component {...props} /></div>;
+                {widgetsToRender.map(({ id, Component, gridSpan }, index) => {
+                    const props = { setActiveTab };
+                    const className = `col-span-1 ${gridSpan === 2 ? `sm:col-span-2 lg:col-span-2` : ''} relative group transition-all duration-300`;
+                    const draggingStyles = isDragging && dragItem.current === index ? 'opacity-50 scale-95 shadow-2xl' : '';
+                    
+                    return (
+                        <div 
+                            key={id}
+                            className={`${className} ${draggingStyles}`}
+                            draggable
+                            onDragStart={() => {
+                                dragItem.current = index;
+                                setIsDragging(true);
+                            }}
+                            onDragEnter={() => dragOverItem.current = index}
+                            onDragEnd={handleDragSort}
+                            onDragOver={(e) => e.preventDefault()}
+                        >
+                            <div className="absolute top-2 right-2 p-1.5 bg-gray-900 bg-opacity-20 rounded-full cursor-grab opacity-0 group-hover:opacity-100 transition-opacity z-10" title="ลากเพื่อจัดเรียง">
+                                <GripVerticalIcon className="w-5 h-5 text-white" />
+                            </div>
+                            <div className={isDragging ? 'pointer-events-none' : ''}>
+                               <Component {...props} />
+                            </div>
+                        </div>
+                    );
                 })}
             </div>
         </div>
