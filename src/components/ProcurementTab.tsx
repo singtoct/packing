@@ -1,94 +1,14 @@
 
-
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { getSuppliers, saveSuppliers, getPurchaseOrders, savePurchaseOrders, getRawMaterials, saveRawMaterials, getAnalysisShortfall } from '../services/storageService';
 import { Supplier, PurchaseOrder, RawMaterial } from '../types';
 import { PlusCircleIcon, Trash2Icon, ShoppingCartIcon, EditIcon } from './icons/Icons';
+import { POFormModal } from './POFormModal';
 
 type View = 'shortfall' | 'pos' | 'suppliers';
 
-const commonInputStyle = "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500";
 const buttonPrimaryStyle = "inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400";
 const buttonSecondaryStyle = "inline-flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50";
-
-
-const POModal: React.FC<{
-    suppliers: Supplier[];
-    rawMaterials: RawMaterial[];
-    shortfall: { id: string; name: string; unit: string; shortfall: number }[];
-    onClose: () => void;
-    onSave: (po: PurchaseOrder) => void;
-}> = ({ suppliers, rawMaterials, shortfall, onClose, onSave }) => {
-    const [po, setPo] = useState<PurchaseOrder>({
-        id: crypto.randomUUID(),
-        poNumber: `PO-${Date.now()}`,
-        supplierId: suppliers[0]?.id || '',
-        orderDate: new Date().toISOString().split('T')[0],
-        expectedDate: '',
-        status: 'Draft',
-        items: shortfall.map(s => ({ rawMaterialId: s.id, quantity: s.shortfall, unitPrice: 0 }))
-    });
-
-    const handleItemChange = (index: number, field: 'quantity' | 'unitPrice', value: number) => {
-        const newItems = [...po.items];
-        newItems[index] = { ...newItems[index], [field]: value };
-        setPo({ ...po, items: newItems });
-    };
-    
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        onSave(po);
-    };
-
-    const rawMaterialMap = useMemo(() => new Map(rawMaterials.map(rm => [rm.id, rm])), [rawMaterials]);
-    const totalCost = po.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-            <form onSubmit={handleSubmit} className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-                <h2 className="text-2xl font-bold mb-6">สร้างใบสั่งซื้อ (PO) ใหม่</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">เลขที่ PO</label>
-                        <input type="text" value={po.poNumber} onChange={e => setPo({...po, poNumber: e.target.value})} className={commonInputStyle} />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">ซัพพลายเออร์</label>
-                        <select value={po.supplierId} onChange={e => setPo({...po, supplierId: e.target.value})} className={commonInputStyle}>
-                            {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">วันที่คาดว่าจะได้รับ</label>
-                        <input type="date" value={po.expectedDate} onChange={e => setPo({...po, expectedDate: e.target.value})} className={commonInputStyle} />
-                    </div>
-                </div>
-
-                <div className="space-y-2 mb-4">
-                    <h3 className="font-semibold">รายการสินค้า</h3>
-                    {po.items.map((item, index) => (
-                        <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
-                            <span className="flex-1">{rawMaterialMap.get(item.rawMaterialId)?.name}</span>
-                            <input type="number" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', Number(e.target.value))} className={`${commonInputStyle} w-24`} />
-                            <span className="w-12">{rawMaterialMap.get(item.rawMaterialId)?.unit}</span>
-                            <input type="number" placeholder="ราคา/หน่วย" value={item.unitPrice} onChange={e => handleItemChange(index, 'unitPrice', Number(e.target.value))} className={`${commonInputStyle} w-28`} />
-                        </div>
-                    ))}
-                </div>
-
-                <div className="text-right font-bold text-xl">
-                    ยอดรวม: {totalCost.toLocaleString('th-TH', { style: 'currency', currency: 'THB' })}
-                </div>
-
-                <div className="flex justify-end gap-4 pt-6">
-                    <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-md">ยกเลิก</button>
-                    <button type="submit" className={buttonPrimaryStyle}>สร้าง PO</button>
-                </div>
-            </form>
-        </div>
-    );
-};
 
 const SupplierView: React.FC<{
     suppliers: Supplier[];
@@ -174,15 +94,15 @@ const SupplierView: React.FC<{
                     <h3 className="text-lg font-bold">{isEditing ? 'แก้ไขข้อมูลซัพพลายเออร์' : 'เพิ่มซัพพลายเออร์ใหม่'}</h3>
                     <div>
                         <label className="block text-sm font-medium text-gray-700">ชื่อซัพพลายเออร์</label>
-                        <input type="text" value={name} onChange={e => setName(e.target.value)} className={commonInputStyle} required />
+                        <input type="text" value={name} onChange={e => setName(e.target.value)} className={`${buttonSecondaryStyle} w-full justify-start`} required />
                     </div>
                      <div>
                         <label className="block text-sm font-medium text-gray-700">ผู้ติดต่อ</label>
-                        <input type="text" value={contact} onChange={e => setContact(e.target.value)} className={commonInputStyle} />
+                        <input type="text" value={contact} onChange={e => setContact(e.target.value)} className={`${buttonSecondaryStyle} w-full justify-start`} />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700">เบอร์โทรศัพท์</label>
-                        <input type="text" value={phone} onChange={e => setPhone(e.target.value)} className={commonInputStyle} />
+                        <input type="text" value={phone} onChange={e => setPhone(e.target.value)} className={`${buttonSecondaryStyle} w-full justify-start`} />
                     </div>
                     <div className="flex gap-2">
                         <button type="submit" className={`${buttonPrimaryStyle} w-full`}>
@@ -257,7 +177,9 @@ export const ProcurementTab: React.FC = () => {
     const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
     const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
     const [shortfall, setShortfall] = useState<{ id: string; name: string; unit: string; shortfall: number }[]>([]);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    
+    const [isPOModalOpen, setIsPOModalOpen] = useState(false);
+    const [poInitialItems, setPoInitialItems] = useState<{ rawMaterialId: string; quantity: number }[] | undefined>(undefined);
 
     useEffect(() => {
         const refreshData = () => {
@@ -271,38 +193,49 @@ export const ProcurementTab: React.FC = () => {
         return () => window.removeEventListener('storage', refreshData);
     }, []);
 
+    const openPOModalWithShortfall = () => {
+        const initialItems = shortfall.map(s => ({ rawMaterialId: s.id, quantity: s.shortfall }));
+        setPoInitialItems(initialItems);
+        setIsPOModalOpen(true);
+    };
+
+    const openNewPOModal = () => {
+        setPoInitialItems([]);
+        setIsPOModalOpen(true);
+    };
+
     const handleSavePO = (po: PurchaseOrder) => {
         const updatedPOs = [po, ...purchaseOrders];
         setPurchaseOrders(updatedPOs);
         savePurchaseOrders(updatedPOs);
-        setIsModalOpen(false);
+        setIsPOModalOpen(false);
+        setPoInitialItems(undefined);
     };
 
     const handleReceivePO = (poId: string) => {
         const poToReceive = purchaseOrders.find(po => po.id === poId);
         if (!poToReceive) return;
         
-        const updatedPOs = purchaseOrders.map(po => {
+        const updatedPOs: PurchaseOrder[] = purchaseOrders.map(po => {
             if (po.id === poId) {
-                const updatedPo: PurchaseOrder = { ...po, status: 'Completed' };
-                return updatedPo;
+                return { ...po, status: 'Completed' };
             }
             return po;
         });
 
         const currentRawMaterials = getRawMaterials();
-        const updatedRawMaterials = currentRawMaterials.map(rm => {
-            const poItem = poToReceive.items.find(i => i.rawMaterialId === rm.id);
-            if (poItem) {
-                return { ...rm, quantity: rm.quantity + poItem.quantity };
+        poToReceive.items.forEach(item => {
+            const materialIndex = currentRawMaterials.findIndex(rm => rm.id === item.rawMaterialId);
+            if(materialIndex > -1) {
+                currentRawMaterials[materialIndex].quantity += item.quantity;
             }
-            return rm;
         });
-        saveRawMaterials(updatedRawMaterials);
-        setRawMaterials(updatedRawMaterials);
+        
+        saveRawMaterials(currentRawMaterials);
+        setRawMaterials(currentRawMaterials);
         setPurchaseOrders(updatedPOs);
         savePurchaseOrders(updatedPOs);
-        setShortfall(getAnalysisShortfall());
+        setShortfall(getAnalysisShortfall()); // Recalculate shortfall
     };
     
     const ViewButton: React.FC<{ targetView: View, label: string; count?: number }> = ({ targetView, label, count }) => (
@@ -314,7 +247,15 @@ export const ProcurementTab: React.FC = () => {
 
     return (
         <div>
-            {isModalOpen && <POModal suppliers={suppliers} rawMaterials={rawMaterials} shortfall={shortfall} onClose={() => setIsModalOpen(false)} onSave={handleSavePO} />}
+            {isPOModalOpen && poInitialItems !== undefined && (
+                <POFormModal
+                    suppliers={suppliers}
+                    rawMaterials={rawMaterials}
+                    initialItems={poInitialItems}
+                    onClose={() => setIsPOModalOpen(false)}
+                    onSave={handleSavePO}
+                />
+            )}
             <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">ระบบจัดซื้อ</h2>
                 <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-lg">
@@ -326,9 +267,14 @@ export const ProcurementTab: React.FC = () => {
 
             {view === 'shortfall' && (
                 <div>
-                     <button onClick={() => setIsModalOpen(true)} className={`${buttonPrimaryStyle} mb-4`} disabled={shortfall.length === 0}>
-                        <PlusCircleIcon className="w-5 h-5"/> สร้าง PO จากรายการที่ขาดทั้งหมด
-                    </button>
+                     <div className="flex gap-4 mb-4">
+                        <button onClick={openNewPOModal} className={buttonPrimaryStyle}>
+                            <PlusCircleIcon className="w-5 h-5"/> สร้างใบสั่งซื้อใหม่
+                        </button>
+                        <button onClick={openPOModalWithShortfall} className={buttonPrimaryStyle} disabled={shortfall.length === 0}>
+                            <PlusCircleIcon className="w-5 h-5"/> สร้าง PO จากรายการที่ขาด
+                        </button>
+                    </div>
                     <p className="text-sm text-gray-600 mb-4">รายการนี้คำนวณจากออเดอร์ที่เปิดอยู่ทั้งหมดเทียบกับสต็อกวัตถุดิบคงเหลือ</p>
                     {shortfall.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
