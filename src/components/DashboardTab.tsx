@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { getOrders, getPackingLogs, getInventory, getQCEntries, getMoldingLogs, getBOMs, getRawMaterials, getDashboardLayout, saveDashboardLayout } from '../services/storageService';
 import { OrderItem, PackingLogEntry, InventoryItem, QCEntry, MoldingLogEntry } from '../types';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { ListOrderedIcon, AlertTriangleIcon, TrophyIcon, TrendingUpIcon, CheckCircle2Icon, ClipboardCheckIcon, FactoryIcon, RouteIcon, ExternalLinkIcon, SettingsIcon, XCircleIcon, GripVerticalIcon } from './icons/Icons';
 
 type Tab = 'dashboard' | 'orders' | 'logs' | 'inventory' | 'stats' | 'qc' | 'molding' | 'production_status' | 'employees' | 'reports' | 'procurement' | 'analysis' | 'raw_materials';
@@ -147,7 +147,7 @@ const TopPackersCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ setAct
 };
 
 const RawMaterialNeedsCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ setActiveTab }) => {
-    const [needs, setNeeds] = useState<{ name: string; shortfall: number; unit: string }[]>([]);
+    const [needs, setNeeds] = useState<{ id: string; name: string; shortfall: number; unit: string }[]>([]);
     useEffect(() => {
         const orders = getOrders();
         const boms = getBOMs();
