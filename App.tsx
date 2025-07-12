@@ -1,9 +1,9 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { OrderManagementTab } from './components/OrderManagementTab';
 import { PackingLogTab } from './components/PackingLogTab';
 import { StatisticsTab } from './components/StatisticsTab';
-import { AISuggestions } from './components/AISuggestions';
 import { BoxIcon, ListOrderedIcon, BarChart3Icon } from './components/icons/Icons';
 import { CTElectricLogo } from './assets/logo';
 
@@ -77,9 +77,6 @@ const App: React.FC = () => {
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white p-6 rounded-xl shadow-lg">
           {renderTabContent()}
-        </div>
-        <div className="mt-8">
-            <AISuggestions />
         </div>
       </main>
       <footer className="text-center py-4 text-gray-500 text-sm">

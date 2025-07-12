@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { getOrders, getPackingLogs, getInventory, getQCEntries, getMoldingLogs, getBOMs, getRawMaterials, getDashboardLayout, saveDashboardLayout } from '../services/storageService';
 import { OrderItem, PackingLogEntry, InventoryItem, QCEntry, MoldingLogEntry } from '../types';
@@ -5,15 +6,6 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recha
 import { ListOrderedIcon, AlertTriangleIcon, TrophyIcon, TrendingUpIcon, CheckCircle2Icon, ClipboardCheckIcon, FactoryIcon, RouteIcon, ExternalLinkIcon, SettingsIcon, XCircleIcon, GripVerticalIcon } from './icons/Icons';
 
 type Tab = 'dashboard' | 'orders' | 'logs' | 'inventory' | 'stats' | 'qc' | 'molding' | 'production_status' | 'employees' | 'reports' | 'procurement' | 'analysis' | 'raw_materials';
-
-interface Insight {
-    key: string;
-    text: string;
-    actionTab: Tab;
-    priority: 'high' | 'medium' | 'low';
-    entityId: string;
-    date: string;
-}
 
 interface DashboardWidget {
     id: string;
@@ -88,368 +80,220 @@ const PendingQcCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ setActi
     useEffect(() => setCount(getQCEntries().filter(e => e.status === 'Pending').length), []);
     return (
         <StatCard title="รอตรวจสอบคุณภาพ (QC)" icon={<ClipboardCheckIcon className="w-6 h-6 text-teal-500" />} onClick={() => setActiveTab('qc')}>
-            {count > 0 ? (
-                <div className="text-center">
-                    <p className="text-4xl font-bold text-teal-600">{count}</p>
-                    <p className="text-lg text-teal-800">รายการ</p>
-                </div>
-            ) : (
-                <div className="flex flex-col items-center justify-center h-full text-green-600">
-                   <CheckCircle2Icon className="w-12 h-12 mb-2"/>
-                   <p className="font-semibold">ไม่มีรายการรอตรวจสอบ</p>
-                </div>
-            )}
-        </StatCard>
-    );
-};
-
-const MoldingTodayCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ setActiveTab }) => {
-    const [count, setCount] = useState(0);
-    useEffect(() => {
-        const todayStr = new Date().toISOString().split('T')[0];
-        setCount(getMoldingLogs().filter(log => log.date === todayStr).reduce((sum, log) => sum + log.quantityProduced, 0));
-    }, []);
-    return (
-        <StatCard title="ยอดผลิต (แผนกฉีด)" icon={<FactoryIcon className="w-6 h-6 text-slate-500" />} onClick={() => setActiveTab('molding')}>
              <div className="text-center">
-                <p className="text-4xl font-bold text-slate-600">{count.toLocaleString()}</p>
-                <p className="text-lg text-slate-800">ชิ้น (วันนี้)</p>
+                <p className="text-4xl font-bold text-teal-600">{count}</p>
+                <p className="text-gray-500">รายการ</p>
             </div>
         </StatCard>
     );
 };
 
-const ActionableInsightsCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ setActiveTab }) => {
-    const [insights, setInsights] = useState<Insight[]>([]);
+const ProductionSummaryCard: React.FC = () => {
+    const [data, setData] = useState<{ name: string; Produced: number; Rejected: number }[]>([]);
     useEffect(() => {
-        const newInsights: Insight[] = [];
-        const orders = getOrders();
-        const boms = getBOMs();
-        const rawMaterials = getRawMaterials();
-        const inventory = getInventory();
-        const finishedGoodsMap = new Map(inventory.map(i => [i.name, i.quantity]));
-        
-        orders.forEach(order => {
-            const productName = `${order.name} (${order.color})`;
-            const stock = finishedGoodsMap.get(productName) || 0;
-            if (stock < order.quantity) {
-                newInsights.push({ key: `stock-${order.id}`, text: `สต็อก ${order.name} ไม่พอสำหรับออเดอร์ (ต้องการ ${order.quantity}, มี ${stock})`, actionTab: 'molding', priority: 'high', entityId: order.id, date:'' });
-            }
-        });
-
-        const bomMap = new Map(boms.map(b => [b.productName, b]));
-        const rawMaterialMap = new Map(rawMaterials.map(rm => [rm.id, rm]));
-        const requiredMaterials = new Map<string, { required: number, name: string }>();
-        orders.forEach(order => {
-            const bom = bomMap.get(`${order.name} (${order.color})`);
-            if (bom) {
-                bom.components.forEach(comp => {
-                    const material = rawMaterialMap.get(comp.rawMaterialId);
-                    if (material) {
-                        const totalRequired = comp.quantity * order.quantity;
-                        const existing = requiredMaterials.get(material.id) || { required: 0, name: material.name };
-                        existing.required += totalRequired;
-                        requiredMaterials.set(material.id, existing);
-                    }
-                });
-            }
-        });
-        requiredMaterials.forEach((data, id) => {
-            const stock = rawMaterialMap.get(id)?.quantity || 0;
-            if (stock < data.required) {
-                 newInsights.push({ key: `raw-${id}`, text: `วัตถุดิบ ${data.name} อาจไม่พอ (ต้องการ ${data.required.toFixed(2)}, มี ${stock.toFixed(2)})`, actionTab: 'procurement', priority: 'medium', entityId: id, date:'' });
-            }
-        });
-        setInsights(newInsights.slice(0, 5));
+        const logs = getMoldingLogs();
+        const summary = logs.reduce((acc, log) => {
+            const day = new Date(log.date).toLocaleDateString('th-TH', { weekday: 'short' });
+            if (!acc[day]) acc[day] = { name: day, Produced: 0, Rejected: 0 };
+            acc[day].Produced += log.quantityProduced;
+            acc[day].Rejected += log.quantityRejected;
+            return acc;
+        }, {} as Record<string, { name: string; Produced: number; Rejected: number }>);
+        setData(Object.values(summary).slice(-7));
     }, []);
-    if (insights.length === 0) return null;
     return (
-        <StatCard title="ข้อมูลเชิงปฏิบัติการ" icon={<AlertTriangleIcon className="w-6 h-6 text-orange-500" />} className="col-span-1 sm:col-span-2 lg:col-span-2 bg-orange-50 border-orange-200">
-            <ul className="space-y-2">
-                {insights.map(insight => (
-                    <li key={insight.key} onClick={() => setActiveTab(insight.actionTab)} className="text-sm p-2 rounded-md hover:bg-orange-100 cursor-pointer flex justify-between items-center">
-                        <span className="text-orange-800">{insight.text}</span>
-                        <span className="text-orange-500"><ExternalLinkIcon className="w-4 h-4"/></span>
-                    </li>
-                ))}
-            </ul>
+        <StatCard title="สรุปการผลิต 7 วันล่าสุด" icon={<TrendingUpIcon className="w-6 h-6 text-indigo-500" />}>
+            <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={data}>
+                    <XAxis dataKey="name" stroke="#888" fontSize={12} />
+                    <YAxis />
+                    <Tooltip wrapperStyle={{ fontSize: '12px' }} />
+                    <Legend wrapperStyle={{ fontSize: '12px' }}/>
+                    <Bar dataKey="Produced" fill="#4ade80" name="ผลิตได้" />
+                    <Bar dataKey="Rejected" fill="#f87171" name="ของเสีย" />
+                </BarChart>
+            </ResponsiveContainer>
         </StatCard>
     );
 };
 
-const WipCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ setActiveTab }) => {
-    const [count, setCount] = useState(0);
-    useEffect(() => setCount(getMoldingLogs().filter(log => log.status && log.status !== 'เสร็จสิ้น').length), []);
-    return (
-        <StatCard title="งานระหว่างผลิต (WIP)" icon={<RouteIcon className="w-6 h-6 text-cyan-500" />} onClick={() => setActiveTab('production_status')}>
-            <div className="text-center">
-                <p className="text-4xl font-bold text-cyan-600">{count}</p>
-                <p className="text-lg text-cyan-800">ล็อต</p>
-            </div>
-        </StatCard>
-    );
-};
-
-const TopPackerCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ setActiveTab }) => {
-    const [topPacker, setTopPacker] = useState<{ name: string; quantity: number } | null>(null);
+const TopPackersCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ setActiveTab }) => {
+    const [packers, setPackers] = useState<{ name: string; quantity: number }[]>([]);
     useEffect(() => {
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        const recentLogs = getPackingLogs().filter(log => new Date(log.date) >= sevenDaysAgo);
-        const packerStats = recentLogs.reduce((acc, log) => {
-            acc[log.packerName] = (acc[log.packerName] || 0) + log.quantity;
+        const logs = getPackingLogs().filter(log => new Date(log.date) > sevenDaysAgo);
+        const summary = logs.reduce((acc, log) => {
+            if (!acc[log.packerName]) acc[log.packerName] = 0;
+            acc[log.packerName] += log.quantity;
             return acc;
         }, {} as Record<string, number>);
-        const top = Object.entries(packerStats).sort(([, a], [, b]) => b - a)[0];
-        setTopPacker(top ? { name: top[0], quantity: top[1] } : null);
+        setPackers(Object.entries(summary).map(([name, quantity]) => ({ name, quantity })).sort((a, b) => b.quantity - a.quantity).slice(0, 5));
     }, []);
     return (
-        <StatCard title="พนักงานดีเด่น (7 วัน)" icon={<TrophyIcon className="w-6 h-6 text-amber-500" />} onClick={() => setActiveTab('stats')}>
-            {topPacker ? (
-                <div className="text-center">
-                    <p className="text-xl font-bold text-amber-900">{topPacker.name}</p>
-                    <p className="text-lg text-amber-700">แพ็คได้ {topPacker.quantity} ลัง</p>
-                </div>
-            ) : <p className="text-gray-500 text-center">ไม่มีข้อมูล</p>}
+        <StatCard title="พนักงานแพ็คดีเด่น (7 วัน)" icon={<TrophyIcon className="w-6 h-6 text-amber-500" />} onClick={() => setActiveTab('employees')}>
+             {packers.length > 0 ? (
+                <ul className="space-y-2">
+                    {packers.map((packer, index) => (
+                        <li key={packer.name} className="flex justify-between items-center text-sm">
+                            <span className="font-semibold">{index + 1}. {packer.name}</span>
+                            <span className="font-bold text-green-600">{packer.quantity.toLocaleString()} ลัง</span>
+                        </li>
+                    ))}
+                </ul>
+            ) : <p className="text-gray-500 text-center pt-8">ไม่มีข้อมูลการแพ็คใน 7 วันที่ผ่านมา</p>}
         </StatCard>
     );
 };
 
-const PackingSummaryCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ setActiveTab }) => {
-    const [summary, setSummary] = useState<{ date: string; quantity: number }[]>([]);
+const RawMaterialNeedsCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ setActiveTab }) => {
+    const [needs, setNeeds] = useState<{ name: string; shortfall: number; unit: string }[]>([]);
     useEffect(() => {
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setHours(0, 0, 0, 0);
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-        const recentLogs = getPackingLogs().filter(log => new Date(log.date) >= sevenDaysAgo);
-        const summaryMap = new Map<string, number>();
-        for (let i = 0; i < 7; i++) {
-            const d = new Date(sevenDaysAgo);
-            d.setDate(d.getDate() + i);
-            summaryMap.set(d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short' }), 0);
-        }
-        recentLogs.forEach(log => {
-            const key = new Date(log.date).toLocaleDateString('th-TH', { day: '2-digit', month: 'short' });
-            if (summaryMap.has(key)) {
-                summaryMap.set(key, summaryMap.get(key)! + log.quantity);
+        const orders = getOrders();
+        const boms = getBOMs();
+        const materials = getRawMaterials();
+        const bomMap = new Map(boms.map(b => [b.productName, b.components]));
+        const materialMap = new Map(materials.map(m => [m.id, m]));
+        const required = new Map<string, number>();
+
+        orders.forEach(order => {
+            const bom = bomMap.get(`${order.name} (${order.color})`);
+            if (bom) {
+                bom.forEach(comp => {
+                    required.set(comp.rawMaterialId, (required.get(comp.rawMaterialId) || 0) + (comp.quantity * order.quantity));
+                });
             }
         });
-        setSummary(Array.from(summaryMap.entries()).map(([date, quantity]) => ({ date, quantity })));
+
+        const shortfalls = Array.from(required.entries()).map(([id, quantity]) => {
+            const material = materialMap.get(id);
+            return { id, name: material?.name || 'N/A', shortfall: quantity - (material?.quantity || 0), unit: material?.unit || '' };
+        }).filter(item => item.shortfall > 0).sort((a,b) => b.shortfall - a.shortfall).slice(0,5);
+        setNeeds(shortfalls);
     }, []);
+
     return (
-        <StatCard title="ยอดแพ็ค 7 วันล่าสุด" icon={<TrendingUpIcon className="w-6 h-6 text-emerald-500" />} onClick={() => setActiveTab('stats')} className="col-span-1 sm:col-span-2 lg:col-span-2">
-            {summary.reduce((sum, item) => sum + item.quantity, 0) > 0 ? (
-                <ResponsiveContainer width="100%" height="100%" minHeight={150}>
-                    <BarChart data={summary} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-                        <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                        <YAxis allowDecimals={false} />
-                        <Tooltip contentStyle={{ borderRadius: '0.5rem', fontSize: '12px' }} />
-                        <Bar dataKey="quantity" name="จำนวน" fill="#10b981" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                </ResponsiveContainer>
-            ) : <p className="text-gray-500 text-center">ไม่มีข้อมูลการแพ็คใน 7 วันล่าสุด</p>}
+        <StatCard title="วัตถุดิบที่ต้องการด่วน" icon={<RouteIcon className="w-6 h-6 text-rose-500" />} onClick={() => setActiveTab('procurement')}>
+            {needs.length > 0 ? (
+                 <ul className="space-y-2">
+                    {needs.map((item) => (
+                        <li key={item.id} className="flex justify-between items-center text-sm border-b pb-1">
+                            <span className="font-semibold text-gray-800">{item.name}</span>
+                            <span className="font-bold text-red-500">ขาด {item.shortfall.toLocaleString(undefined, {maximumFractionDigits: 1})} {item.unit}</span>
+                        </li>
+                    ))}
+                </ul>
+            ) : <p className="text-gray-500 text-center pt-8">วัตถุดิบเพียงพอสำหรับออเดอร์ปัจจุบัน</p>}
         </StatCard>
     );
 };
 
-const ALL_WIDGETS: DashboardWidget[] = [
-    { id: 'upcomingOrders', title: 'ออเดอร์ใกล้ถึงกำหนดส่ง', Component: UpcomingOrdersCard },
-    { id: 'actionableInsights', title: 'ข้อมูลเชิงปฏิบัติการ', Component: ActionableInsightsCard, gridSpan: 2 },
-    { id: 'lowStock', title: 'รายการสต็อกต่ำ', Component: LowStockCard },
-    { id: 'pendingQc', title: 'รอตรวจสอบคุณภาพ (QC)', Component: PendingQcCard },
-    { id: 'moldingToday', title: 'ยอดผลิต (แผนกฉีด)', Component: MoldingTodayCard },
-    { id: 'wip', title: 'งานระหว่างผลิต (WIP)', Component: WipCard },
-    { id: 'topPacker', title: 'พนักงานดีเด่น (7 วัน)', Component: TopPackerCard },
-    { id: 'packingSummary', title: 'ยอดแพ็ค 7 วันล่าสุด', Component: PackingSummaryCard, gridSpan: 2 },
-];
-
-const DEFAULT_LAYOUT = ['upcomingOrders', 'actionableInsights', 'lowStock', 'pendingQc', 'topPacker', 'packingSummary'];
-
-// --- Settings Modal ---
-
-const DashboardSettingsModal: React.FC<{
-    currentLayout: string[];
-    onClose: () => void;
-    onSave: (newLayout: string[]) => void;
-}> = ({ currentLayout, onClose, onSave }) => {
-    const [visibleWidgets, setVisibleWidgets] = useState<string[]>(currentLayout);
-    const dragItem = useRef<number | null>(null);
-    const dragOverItem = useRef<number | null>(null);
-
-    const handleToggleVisibility = (id: string, checked: boolean) => {
-        setVisibleWidgets(prev =>
-            checked ? [...prev, id] : prev.filter(widgetId => widgetId !== id)
-        );
-    };
-
-    const handleDragSort = () => {
-        if (dragItem.current === null || dragOverItem.current === null) return;
-        const newLayout = [...visibleWidgets];
-        const [draggedItemContent] = newLayout.splice(dragItem.current, 1);
-        newLayout.splice(dragOverItem.current, 0, draggedItemContent);
-        dragItem.current = null;
-        dragOverItem.current = null;
-        setVisibleWidgets(newLayout);
+export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ setActiveTab }) => {
+    const WIDGETS: Record<string, DashboardWidget> = {
+        productionSummary: { id: 'productionSummary', title: 'Production Summary', Component: ProductionSummaryCard, gridSpan: 2 },
+        upcomingOrders: { id: 'upcomingOrders', title: 'Upcoming Orders', Component: UpcomingOrdersCard, gridSpan: 1 },
+        pendingQc: { id: 'pendingQc', title: 'Pending QC', Component: PendingQcCard, gridSpan: 1 },
+        lowStock: { id: 'lowStock', title: 'Low Stock', Component: LowStockCard, gridSpan: 1 },
+        topPackers: { id: 'topPackers', title: 'Top Packers (Last 7 Days)', Component: TopPackersCard, gridSpan: 1 },
+        rawMaterialNeeds: { id: 'rawMaterialNeeds', title: 'Raw Material Needs', Component: RawMaterialNeedsCard, gridSpan: 3 },
     };
     
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
-            <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold text-gray-800">ตั้งค่าแดชบอร์ด</h2>
-                    <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-200"><XCircleIcon className="w-6 h-6 text-gray-500" /></button>
-                </div>
-                
-                <div className="flex-grow overflow-y-auto pr-2">
-                    <div className="mb-4">
-                        <h3 className="text-sm font-semibold mb-2 text-gray-600">การ์ดที่แสดงผล (ลากเพื่อจัดเรียง)</h3>
-                        <div className="space-y-2">
-                            {visibleWidgets.map((widgetId, index) => {
-                                const widget = ALL_WIDGETS.find(w => w.id === widgetId);
-                                if (!widget) return null;
-                                return (
-                                    <div
-                                        key={widget.id}
-                                        className="flex items-center gap-3 p-3 rounded-lg border bg-white cursor-grab"
-                                        draggable
-                                        onDragStart={() => dragItem.current = index}
-                                        onDragEnter={() => dragOverItem.current = index}
-                                        onDragEnd={handleDragSort}
-                                        onDragOver={(e) => e.preventDefault()}
-                                    >
-                                        <GripVerticalIcon className="w-5 h-5 text-gray-400" />
-                                        <span className="flex-1 text-sm font-medium">{widget.title}</span>
-                                        <input
-                                            type="checkbox"
-                                            checked={true}
-                                            onChange={(e) => handleToggleVisibility(widget.id, e.target.checked)}
-                                            className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                                        />
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    <div className="mb-4">
-                        <h3 className="text-sm font-semibold mb-2 text-gray-600">การ์ดที่ซ่อนอยู่</h3>
-                        <div className="space-y-2">
-                            {ALL_WIDGETS.filter(w => !visibleWidgets.includes(w.id)).map(widget => (
-                                <div key={widget.id} className="flex items-center gap-3 p-3 rounded-lg border bg-gray-100">
-                                    <GripVerticalIcon className="w-5 h-5 text-gray-300" />
-                                    <span className="flex-1 text-sm font-medium text-gray-500">{widget.title}</span>
-                                    <input
-                                        type="checkbox"
-                                        checked={false}
-                                        onChange={(e) => handleToggleVisibility(widget.id, e.target.checked)}
-                                        className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                                    />
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex justify-end gap-4 pt-6 border-t mt-auto">
-                    <button onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-md text-sm">ยกเลิก</button>
-                    <button onClick={() => onSave(visibleWidgets)} className="px-4 py-2 border border-transparent rounded-md text-white bg-green-600 hover:bg-green-700 text-sm">บันทึก</button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-
-export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ setActiveTab }) => {
+    const DEFAULT_LAYOUT = ['productionSummary', 'upcomingOrders', 'pendingQc', 'lowStock', 'topPackers', 'rawMaterialNeeds'];
+    
     const [layout, setLayout] = useState<string[]>(getDashboardLayout() || DEFAULT_LAYOUT);
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    const [isDragging, setIsDragging] = useState(false);
-
-    // Refs for drag and drop
+    const [isCustomizeMode, setIsCustomizeMode] = useState(false);
+    
     const dragItem = useRef<number | null>(null);
     const dragOverItem = useRef<number | null>(null);
-
-    useEffect(() => {
-        const handleStorageChange = () => {
-            const newLayout = getDashboardLayout();
-            if (newLayout) setLayout(newLayout);
-        };
-        window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
-    }, []);
-
-    const handleSaveLayout = (newLayout: string[]) => {
-        setLayout(newLayout);
-        saveDashboardLayout(newLayout);
-        setIsSettingsOpen(false);
+    
+    const handleDragStart = (e: React.DragEvent<HTMLDivElement>, position: number) => {
+        dragItem.current = position;
     };
-
-    // Function to handle sorting
-    const handleDragSort = () => {
-        if (dragItem.current === null || dragOverItem.current === null) {
-            setIsDragging(false);
-            return;
-        };
+    
+    const handleDragEnter = (e: React.DragEvent<HTMLDivElement>, position: number) => {
+        dragOverItem.current = position;
+    };
+    
+    const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+        if (dragItem.current === null || dragOverItem.current === null) return;
         
         const newLayout = [...layout];
-        const draggedItemContent = newLayout.splice(dragItem.current, 1)[0];
-        newLayout.splice(dragOverItem.current, 0, draggedItemContent);
+        const dragItemContent = newLayout[dragItem.current];
+        newLayout.splice(dragItem.current, 1);
+        newLayout.splice(dragOverItem.current, 0, dragItemContent);
         
         dragItem.current = null;
         dragOverItem.current = null;
         
         setLayout(newLayout);
-        saveDashboardLayout(newLayout);
-        setIsDragging(false);
     };
 
-    const widgetsToRender = useMemo(() => {
-        return layout.map(id => ALL_WIDGETS.find(w => w.id === id)).filter((w): w is DashboardWidget => !!w);
-    }, [layout]);
+    const handleSaveLayout = () => {
+        saveDashboardLayout(layout);
+        setIsCustomizeMode(false);
+    };
+
+    const handleResetLayout = () => {
+        setLayout(DEFAULT_LAYOUT);
+        saveDashboardLayout(DEFAULT_LAYOUT);
+    };
 
     return (
         <div>
-            {isSettingsOpen && <DashboardSettingsModal currentLayout={layout} onClose={() => setIsSettingsOpen(false)} onSave={handleSaveLayout} />}
-            <div className="flex justify-between items-center mb-8">
-                <h2 className="text-3xl font-bold text-gray-800">แดชบอร์ดภาพรวม</h2>
-                <div className="flex items-center gap-2">
-                    <p className="text-sm text-gray-500 hidden md:block">
-                        ลากการ์ดเพื่อจัดเรียง หรือ
-                    </p>
-                    <button
-                        onClick={() => setIsSettingsOpen(true)}
-                        className="p-2 text-gray-500 hover:text-green-600 hover:bg-gray-100 rounded-full transition-colors"
-                        title="ตั้งค่าแดชบอร์ด"
-                        aria-label="Customize dashboard layout"
-                    >
-                        <SettingsIcon className="w-6 h-6" />
-                    </button>
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">ภาพรวมระบบ</h2>
+                <div>
+                    {isCustomizeMode ? (
+                        <div className="flex gap-2">
+                             <button onClick={handleResetLayout} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                                รีเซ็ต
+                            </button>
+                            <button onClick={handleSaveLayout} className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700">
+                                บันทึก Layout
+                            </button>
+                        </div>
+                    ) : (
+                         <button onClick={() => setIsCustomizeMode(true)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2">
+                            <SettingsIcon className="w-5 h-5"/>
+                            ปรับแต่ง
+                        </button>
+                    )}
                 </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {widgetsToRender.map(({ id, Component, gridSpan }, index) => {
-                    const props = { setActiveTab };
-                    const className = `col-span-1 ${gridSpan === 2 ? `sm:col-span-2 lg:col-span-2` : ''} relative group transition-all duration-300`;
-                    const draggingStyles = isDragging && dragItem.current === index ? 'opacity-50 scale-95 shadow-2xl' : '';
+            {isCustomizeMode && (
+                <div className="p-4 mb-6 bg-blue-50 border-l-4 border-blue-500 text-blue-700 rounded-md">
+                    <h3 className="font-bold">โหมดปรับแต่ง</h3>
+                    <p className="text-sm">ลากและวางการ์ดเพื่อจัดเรียงตามที่คุณต้องการ จากนั้นกดบันทึก</p>
+                </div>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" onDrop={handleDrop} onDragOver={e => e.preventDefault()}>
+                {layout.map((widgetId, index) => {
+                    const widget = WIDGETS[widgetId];
+                    if (!widget) return null;
+                    const gridSpanClass = {
+                        1: 'lg:col-span-1',
+                        2: 'lg:col-span-2',
+                        3: 'lg:col-span-3',
+                    }[widget.gridSpan || 1] || 'lg:col-span-1';
                     
+                    const mdGridSpanClass = widget.gridSpan === 3 ? 'md:col-span-2' : 'md:col-span-1';
+
                     return (
-                        <div 
-                            key={id}
-                            className={`${className} ${draggingStyles}`}
-                            draggable
-                            onDragStart={() => {
-                                dragItem.current = index;
-                                setIsDragging(true);
-                            }}
-                            onDragEnter={() => dragOverItem.current = index}
-                            onDragEnd={handleDragSort}
-                            onDragOver={(e) => e.preventDefault()}
+                        <div
+                            key={widget.id}
+                            className={`${gridSpanClass} ${mdGridSpanClass} ${isCustomizeMode ? 'cursor-move' : ''}`}
+                            draggable={isCustomizeMode}
+                            onDragStart={(e) => handleDragStart(e, index)}
+                            onDragEnter={(e) => handleDragEnter(e, index)}
+                            onDragEnd={handleDrop}
                         >
-                            <div className="absolute top-2 right-2 p-1.5 bg-gray-900 bg-opacity-20 rounded-full cursor-grab opacity-0 group-hover:opacity-100 transition-opacity z-10" title="ลากเพื่อจัดเรียง">
-                                <GripVerticalIcon className="w-5 h-5 text-white" />
-                            </div>
-                            <div className={isDragging ? 'pointer-events-none' : ''}>
-                               <Component {...props} />
+                            <div className="h-full relative">
+                                {isCustomizeMode && (
+                                     <div className="absolute top-2 left-2 z-10 p-2 bg-gray-800 text-white rounded-full cursor-grab">
+                                        <GripVerticalIcon className="w-5 h-5" />
+                                     </div>
+                                )}
+                                <widget.Component setActiveTab={setActiveTab} />
                             </div>
                         </div>
                     );

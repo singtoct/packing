@@ -1,5 +1,6 @@
 
 
+
 import React from 'react';
 
 export const BoxIcon = (props: React.SVGProps<SVGSVGElement>) => (
