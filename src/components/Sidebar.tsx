@@ -1,11 +1,12 @@
 
+
 import React, { useState, useMemo } from 'react';
 import { Tab } from '../App';
 import { 
     LayoutDashboardIcon, ListOrderedIcon, TruckIcon, SigmaIcon, ShoppingCartIcon, 
     FactoryIcon, RouteIcon, BoxIcon, ClipboardCheckIcon, ArchiveIcon, BeakerIcon, 
     UsersIcon, WrenchIcon, DollarSignIcon, BarChart3Icon, FileTextIcon, ChevronDownIcon,
-    DatabaseIcon, SearchIcon, SettingsIcon, LayoutGridIcon
+    DatabaseIcon, SearchIcon, SettingsIcon, LayoutGridIcon, PieChartIcon
 } from './icons/Icons';
 
 interface MenuItemProps {
@@ -128,6 +129,7 @@ const menuConfig = [
         title: 'วิเคราะห์และรายงาน',
         icon: <BarChart3Icon className="w-5 h-5"/>,
         children: [
+            { tab: 'profit_analysis', title: 'วิเคราะห์กำไร', icon: <PieChartIcon className="w-5 h-5"/> },
             { tab: 'cost_analysis', title: 'วิเคราะห์ต้นทุน', icon: <DollarSignIcon className="w-5 h-5"/> },
             { tab: 'stats', title: 'สถิติ', icon: <BarChart3Icon className="w-5 h-5"/> },
             { tab: 'reports', title: 'รายงาน', icon: <FileTextIcon className="w-5 h-5"/> },
@@ -136,7 +138,7 @@ const menuConfig = [
 ];
 
 export const Sidebar: React.FC<{ activeTab: Tab, setActiveTab: (tab: Tab) => void, logoUrl?: string }> = ({ activeTab, setActiveTab, logoUrl }) => {
-    const [openMenus, setOpenMenus] = useState<Set<string>>(new Set(['การผลิต', 'การขายและจัดส่ง', 'คลังสินค้าและวัตถุดิบ']));
+    const [openMenus, setOpenMenus] = useState<Set<string>>(new Set(['การผลิต', 'การขายและจัดส่ง', 'คลังสินค้าและวัตถุดิบ', 'วิเคราะห์และรายงาน']));
     const [searchTerm, setSearchTerm] = useState('');
 
     const toggleMenu = (title: string) => {

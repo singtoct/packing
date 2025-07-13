@@ -1,9 +1,12 @@
 
+
 import React, { useState, useEffect, useMemo } from 'react';
-import { getSuppliers, saveSuppliers, getPurchaseOrders, savePurchaseOrders, getRawMaterials, saveRawMaterials, getAnalysisShortfall } from '../services/storageService';
+import ReactDOM from 'react-dom/client';
+import { getSuppliers, saveSuppliers, getPurchaseOrders, savePurchaseOrders, getRawMaterials, saveRawMaterials, getAnalysisShortfall, getSettings } from '../services/storageService';
 import { Supplier, PurchaseOrder, RawMaterial } from '../types';
-import { PlusCircleIcon, Trash2Icon, ShoppingCartIcon, EditIcon } from './icons/Icons';
+import { PlusCircleIcon, Trash2Icon, ShoppingCartIcon, EditIcon, PrinterIcon } from './icons/Icons';
 import { POFormModal } from './POFormModal';
+import { POPrintView } from './POPrintView';
 
 type View = 'shortfall' | 'pos' | 'suppliers';
 
@@ -238,6 +241,43 @@ export const ProcurementTab: React.FC = () => {
         setShortfall(getAnalysisShortfall()); // Recalculate shortfall
     };
     
+    const handlePrintPO = (poId: string) => {
+        const po = purchaseOrders.find(p => p.id === poId);
+        const supplier = suppliers.find(s => s.id === po?.supplierId);
+        const companyInfo = getSettings().companyInfo;
+        const rawMaterialMap = new Map(rawMaterials.map(rm => [rm.id, { name: rm.name, unit: rm.unit }]));
+
+        if (!po || !supplier) {
+            alert("ไม่พบข้อมูลสำหรับพิมพ์");
+            return;
+        }
+
+        const printWindow = window.open('', '_blank', 'width=1000,height=800');
+        if (!printWindow) {
+            alert("กรุณาอนุญาตป๊อปอัปเพื่อพิมพ์ใบสั่งซื้อ");
+            return;
+        }
+
+        printWindow.document.write('<html><head><title>Purchase Order</title>');
+        printWindow.document.write('<script src="https://cdn.tailwindcss.com"></script>');
+        printWindow.document.write('<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">');
+        printWindow.document.write('<style>body { font-family: "Kanit", sans-serif; } @media print { @page { size: A4; margin: 0; } body { margin: 1.6cm; } }</style>');
+        printWindow.document.write('</head><body><div id="print-root"></div></body></html>');
+        printWindow.document.close();
+
+        const printRoot = printWindow.document.getElementById('print-root');
+        if (printRoot) {
+            const root = ReactDOM.createRoot(printRoot);
+            root.render(<POPrintView po={po} supplier={supplier} companyInfo={companyInfo} rawMaterialMap={rawMaterialMap} />);
+
+            setTimeout(() => {
+                printWindow.focus();
+                printWindow.print();
+                printWindow.close();
+            }, 500); // Wait for styles to load
+        }
+    };
+
     const ViewButton: React.FC<{ targetView: View, label: string; count?: number }> = ({ targetView, label, count }) => (
         <button onClick={() => setView(targetView)} className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${view === targetView ? 'bg-blue-600 text-white shadow' : 'bg-white text-gray-700 hover:bg-gray-100'}`}>
             {label} 
@@ -297,7 +337,7 @@ export const ProcurementTab: React.FC = () => {
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">PO Number</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ซัพพลายเออร์</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">สถานะ</th>
-                                <th className="px-4 py-3"></th>
+                                <th className="px-4 py-3 text-right">Actions</th>
                             </tr>
                         </thead>
                          <tbody className="divide-y divide-gray-200">
@@ -309,9 +349,10 @@ export const ProcurementTab: React.FC = () => {
                                     <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold">{po.poNumber}</td>
                                     <td className="px-4 py-4 whitespace-nowrap text-sm">{supplier?.name || 'N/A'}</td>
                                     <td className="px-4 py-4 whitespace-nowrap text-sm">{po.status}</td>
-                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-right">
+                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-right space-x-2">
+                                        <button onClick={() => handlePrintPO(po.id)} className="p-2 text-gray-500 hover:bg-gray-100 rounded-full" title="พิมพ์ PO"><PrinterIcon className="w-5 h-5"/></button>
                                         {po.status !== 'Completed' && (
-                                            <button onClick={() => handleReceivePO(po.id)} className="text-green-600 hover:underline">รับของ</button>
+                                            <button onClick={() => handleReceivePO(po.id)} className="text-green-600 hover:underline font-semibold">รับของ</button>
                                         )}
                                     </td>
                                 </tr>);

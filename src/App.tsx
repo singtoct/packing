@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { OrderManagementTab } from './components/OrderManagementTab';
@@ -16,6 +17,7 @@ import { AnalysisTab } from './components/AnalysisTab';
 import { MaintenanceTab } from './components/MaintenanceTab';
 import { ProcurementTab } from './components/ProcurementTab';
 import { CostAnalysisTab } from './components/CostAnalysisTab';
+import { ProfitabilityAnalysisTab } from './components/ProfitabilityAnalysisTab';
 import { ShipmentTrackingTab } from './components/ShipmentTrackingTab';
 import { ProductsTab } from './components/ProductsTab';
 import { SettingsTab } from './components/SettingsTab';
@@ -25,7 +27,7 @@ import { BellIcon, PlusIcon, ListOrderedIcon, ClipboardCheckIcon, WrenchIcon, Fa
 import { getSettings, getInventory, getOrders, getQCEntries, getMachines, getReadNotificationIds, saveReadNotificationIds, getMoldingLogs } from './services/storageService';
 import { InventoryItem, AppNotification, AppSettings } from './types';
 
-export type Tab = 'dashboard' | 'factory_floor' | 'orders' | 'analysis' | 'procurement' | 'molding' | 'production_status' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'stats' | 'reports' | 'products' | 'settings';
+export type Tab = 'dashboard' | 'factory_floor' | 'orders' | 'analysis' | 'procurement' | 'molding' | 'production_status' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'profit_analysis' | 'stats' | 'reports' | 'products' | 'settings';
 export type QuickActionType = 'order' | 'packing' | 'molding';
 
 const App: React.FC = () => {
@@ -226,6 +228,8 @@ const App: React.FC = () => {
         return <EmployeeManagementTab />;
       case 'cost_analysis':
         return <CostAnalysisTab />;
+      case 'profit_analysis':
+        return <ProfitabilityAnalysisTab />;
       case 'stats':
         return <StatisticsTab />;
       case 'reports':
