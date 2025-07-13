@@ -340,6 +340,7 @@ export const MoldingTab: React.FC = () => {
             machine,
             operatorName,
             status: status,
+            materialCost: materialCheck.totalCost > 0 ? materialCheck.totalCost : undefined,
         };
 
         const currentRawMaterials = getRawMaterials();
@@ -478,17 +479,26 @@ export const MoldingTab: React.FC = () => {
         const newLogs: MoldingLogEntry[] = [];
         const updatedRawMaterials = getRawMaterials();
         finalLogs.forEach(row => {
-            const newLog: MoldingLogEntry = { ...row, id: crypto.randomUUID() };
-            newLogs.push(newLog);
             const bom = bomsMap.get(row.productName);
-            if(bom) {
+            let materialCost = 0;
+            if (bom) {
+                bom.components.forEach(comp => {
+                    const material = materialsMap.get(comp.rawMaterialId);
+                    if (material && material.costPerUnit) {
+                        const cost = comp.quantity * row.quantityProduced * material.costPerUnit;
+                        materialCost += cost;
+                    }
+                });
+
                 bom.components.forEach(comp => {
                     const matIndex = updatedRawMaterials.findIndex(m => m.id === comp.rawMaterialId);
                     if(matIndex > -1) {
-                        updatedRawMaterials[matIndex].quantity -= comp.quantity * newLog.quantityProduced;
+                        updatedRawMaterials[matIndex].quantity -= comp.quantity * row.quantityProduced;
                     }
                 });
             }
+            const newLog: MoldingLogEntry = { ...row, id: crypto.randomUUID(), materialCost: materialCost > 0 ? materialCost : undefined };
+            newLogs.push(newLog);
         });
 
         saveRawMaterials(updatedRawMaterials);

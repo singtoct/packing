@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo } from 'react';
 import { CTElectricLogo } from '../assets/logo';
 import { Tab } from '../App';
@@ -7,7 +6,7 @@ import {
     LayoutDashboardIcon, ListOrderedIcon, TruckIcon, SigmaIcon, ShoppingCartIcon, 
     FactoryIcon, RouteIcon, BoxIcon, ClipboardCheckIcon, ArchiveIcon, BeakerIcon, 
     UsersIcon, WrenchIcon, DollarSignIcon, BarChart3Icon, FileTextIcon, ChevronDownIcon,
-    DatabaseIcon, SearchIcon, SettingsIcon
+    DatabaseIcon, SearchIcon, SettingsIcon, LayoutGridIcon
 } from './icons/Icons';
 
 interface MenuItemProps {
@@ -67,8 +66,14 @@ const menuConfig = [
     { 
         isCategory: false, 
         tab: 'dashboard' as Tab, 
-        title: 'แดชบอร์ด', 
+        title: 'ภาพรวมระบบ', 
         icon: <LayoutDashboardIcon className="w-5 h-5"/> 
+    },
+    { 
+        isCategory: false, 
+        tab: 'factory_floor' as Tab, 
+        title: 'ภาพรวมโรงงาน', 
+        icon: <LayoutGridIcon className="w-5 h-5"/> 
     },
     {
         isCategory: true,

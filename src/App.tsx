@@ -1,7 +1,4 @@
 
-
-
-
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { OrderManagementTab } from './components/OrderManagementTab';
@@ -22,13 +19,14 @@ import { CostAnalysisTab } from './components/CostAnalysisTab';
 import { ShipmentTrackingTab } from './components/ShipmentTrackingTab';
 import { ProductsTab } from './components/ProductsTab';
 import { SettingsTab } from './components/SettingsTab';
+import { FactoryFloorTab } from './components/FactoryFloorTab';
 import { QuickActionModal } from './components/QuickActionModal';
 import { BellIcon, PlusIcon, ListOrderedIcon, ClipboardCheckIcon, WrenchIcon, FactoryIcon, ShieldAlertIcon } from './components/icons/Icons';
 import { CTElectricLogo } from './assets/logo';
 import { getInventory, getOrders, getQCEntries, getMachines, getReadNotificationIds, saveReadNotificationIds, getMoldingLogs } from './services/storageService';
 import { InventoryItem, AppNotification } from './types';
 
-export type Tab = 'dashboard' | 'orders' | 'analysis' | 'procurement' | 'molding' | 'production_status' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'stats' | 'reports' | 'products' | 'settings';
+export type Tab = 'dashboard' | 'factory_floor' | 'orders' | 'analysis' | 'procurement' | 'molding' | 'production_status' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'stats' | 'reports' | 'products' | 'settings';
 export type QuickActionType = 'order' | 'packing' | 'molding';
 
 const App: React.FC = () => {
@@ -190,6 +188,8 @@ const App: React.FC = () => {
     switch (activeTab) {
       case 'dashboard':
         return <DashboardTab setActiveTab={setActiveTab} />;
+      case 'factory_floor':
+        return <FactoryFloorTab />;
       case 'orders':
         return <OrderManagementTab />;
       case 'analysis':

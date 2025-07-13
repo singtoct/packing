@@ -1,8 +1,5 @@
 
-
-
-
-export type Tab = 'dashboard' | 'orders' | 'analysis' | 'procurement' | 'molding' | 'production_status' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'stats' | 'reports' | 'products' | 'settings';
+export type Tab = 'dashboard' | 'factory_floor' | 'orders' | 'analysis' | 'procurement' | 'molding' | 'production_status' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'stats' | 'reports' | 'products' | 'settings';
 
 
 export interface OrderItem {
@@ -31,6 +28,7 @@ export interface MoldingLogEntry {
   machine: string;
   operatorName: string;
   status: string; // e.g., 'รอแปะกันรอย', 'รอประกบ', 'เสร็จสิ้น'
+  materialCost?: number;
 }
 
 export interface InventoryItem {
