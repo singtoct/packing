@@ -134,17 +134,25 @@ export interface BurmeseTranslation {
     [key: string]: string;
 }
 
+export interface AppRole {
+    id: string;
+    name: string;
+}
+
 export interface CompanyInfo {
     name: string;
     address: string;
     taxId: string;
     logoUrl?: string;
+    currentUserRoleId: string;
 }
 
 export interface AppSettings {
     companyInfo: CompanyInfo;
     qcFailureReasons: string[];
     productionStatuses: string[];
+    roles: AppRole[];
+    dashboardLayouts: Record<string, string[]>; // Key is role.id
 }
 
 export interface AppNotification {
@@ -182,4 +190,13 @@ export interface OeeData {
     performance: number;
     quality: number;
     oee: number;
+}
+
+export interface AIInventoryForecastItem {
+    rawMaterialId: string;
+    rawMaterialName: string;
+    unit: string;
+    currentStock: number;
+    daysUntilStockout: number | null;
+    reason: string;
 }

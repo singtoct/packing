@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { getOrders, getPackingLogs, getInventory, getQCEntries, getMoldingLogs, getBOMs, getRawMaterials, getDashboardLayout, saveDashboardLayout, getMachines } from '../services/storageService';
-import { generateProductionPlan } from '../services/geminiService';
-import { OrderItem, PackingLogEntry, InventoryItem, QCEntry, MoldingLogEntry, AIProductionPlanItem } from '../types';
+import { getOrders, getPackingLogs, getInventory, getQCEntries, getMoldingLogs, getBOMs, getRawMaterials, getMachines, getSettings, saveSettings } from '../services/storageService';
+import { generateProductionPlan, generateInventoryForecast } from '../services/geminiService';
+import { OrderItem, PackingLogEntry, InventoryItem, QCEntry, MoldingLogEntry, AIProductionPlanItem, AIInventoryForecastItem, AppSettings } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { ListOrderedIcon, AlertTriangleIcon, TrophyIcon, TrendingUpIcon, CheckCircle2Icon, ClipboardCheckIcon, FactoryIcon, RouteIcon, ExternalLinkIcon, SettingsIcon, XCircleIcon, GripVerticalIcon, SparklesIcon, LoaderIcon } from './icons/Icons';
+import { ListOrderedIcon, AlertTriangleIcon, TrophyIcon, TrendingUpIcon, CheckCircle2Icon, ClipboardCheckIcon, FactoryIcon, RouteIcon, SettingsIcon, XCircleIcon, GripVerticalIcon, SparklesIcon, LoaderIcon, BrainCircuitIcon } from './icons/Icons';
 
 type Tab = 'dashboard' | 'orders' | 'logs' | 'inventory' | 'stats' | 'qc' | 'molding' | 'production_status' | 'employees' | 'reports' | 'procurement' | 'analysis' | 'raw_materials';
 
@@ -29,6 +29,77 @@ const StatCard: React.FC<{ title: string; icon: React.ReactNode; children: React
 );
 
 // --- Individual Card Components ---
+
+const AIInventoryForecastCard: React.FC = () => {
+    const [forecast, setForecast] = useState<AIInventoryForecastItem[] | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleGenerateForecast = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            
+            const orders = getOrders();
+            const moldingLogs = getMoldingLogs().filter(log => new Date(log.date) >= thirtyDaysAgo);
+            const boms = getBOMs();
+            const rawMaterials = getRawMaterials();
+            
+            const generatedForecast = await generateInventoryForecast(orders, moldingLogs, boms, rawMaterials);
+            setForecast(generatedForecast);
+        } catch (err) {
+            setError('Failed to generate forecast. Please try again.');
+            console.error(err);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    
+    return (
+        <StatCard title="AI คาดการณ์สต็อกวัตถุดิบ" icon={<BrainCircuitIcon className="w-6 h-6 text-cyan-500" />} className="bg-cyan-50 border-cyan-200">
+             {isLoading ? (
+                <div className="flex flex-col items-center justify-center h-full">
+                    <LoaderIcon className="w-12 h-12 text-cyan-500"/>
+                    <p className="mt-2 text-cyan-700">AI กำลังวิเคราะห์ข้อมูลสต็อก...</p>
+                </div>
+            ) : error ? (
+                 <div className="text-center text-red-600">{error}</div>
+            ) : forecast ? (
+                forecast.length > 0 ? (
+                <div className="space-y-2 h-full max-h-80 overflow-y-auto pr-2">
+                    {forecast.map((item, index) => (
+                         <div key={index} className="bg-white p-2 rounded-lg border border-gray-200">
+                            <p className="font-bold text-sm text-gray-800 truncate">{item.rawMaterialName}</p>
+                            <div className="flex justify-between items-baseline">
+                                <span className={`text-lg font-bold ${item.daysUntilStockout !== null && item.daysUntilStockout < 7 ? 'text-red-600' : 'text-cyan-600'}`}>
+                                    {item.daysUntilStockout !== null ? `${item.daysUntilStockout} วัน` : 'ไม่ลดลง'}
+                                </span>
+                                <span className="text-xs text-gray-500">{item.reason}</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                 ) : (
+                    <div className="text-center h-full flex flex-col justify-center items-center">
+                        <CheckCircle2Icon className="w-12 h-12 text-green-500" />
+                        <p className="mt-2 font-semibold text-gray-700">วัตถุดิบเพียงพอ</p>
+                        <p className="text-sm text-gray-500">ไม่พบรายการที่มีความเสี่ยงจะหมด</p>
+                    </div>
+                )
+            ) : (
+                <div className="text-center h-full flex flex-col justify-center">
+                    <p className="text-gray-600 mb-4 text-sm">ให้ AI ช่วยวิเคราะห์อัตราการใช้และออเดอร์ในอนาคต เพื่อคาดการณ์ว่าวัตถุดิบจะหมดเมื่อไหร่</p>
+                    <button onClick={handleGenerateForecast} className="bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-cyan-700 transition-colors inline-flex items-center justify-center gap-2">
+                        <BrainCircuitIcon className="w-5 h-5"/>
+                        สร้างรายการคาดการณ์
+                    </button>
+                </div>
+            )}
+        </StatCard>
+    );
+};
 
 const AIPlannerCard: React.FC = () => {
     const [plan, setPlan] = useState<AIProductionPlanItem[] | null>(null);
@@ -259,7 +330,8 @@ const RawMaterialNeedsCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ 
 
 export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ setActiveTab }) => {
     const WIDGETS: Record<string, DashboardWidget> = {
-        aiPlanner: { id: 'aiPlanner', title: 'AI Production Planner', Component: AIPlannerCard, gridSpan: 3 },
+        aiPlanner: { id: 'aiPlanner', title: 'AI Production Planner', Component: AIPlannerCard, gridSpan: 2 },
+        aiInventoryForecast: { id: 'aiInventoryForecast', title: 'AI Inventory Forecast', Component: AIInventoryForecastCard, gridSpan: 1 },
         upcomingOrders: { id: 'upcomingOrders', title: 'Upcoming Orders', Component: UpcomingOrdersCard, gridSpan: 1 },
         pendingQc: { id: 'pendingQc', title: 'Pending QC', Component: PendingQcCard, gridSpan: 1 },
         lowStock: { id: 'lowStock', title: 'Low Stock', Component: LowStockCard, gridSpan: 1 },
@@ -268,10 +340,28 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
         rawMaterialNeeds: { id: 'rawMaterialNeeds', title: 'Raw Material Needs', Component: RawMaterialNeedsCard, gridSpan: 3 },
     };
     
-    const DEFAULT_LAYOUT = ['aiPlanner', 'upcomingOrders', 'pendingQc', 'lowStock', 'productionSummary', 'topPackers', 'rawMaterialNeeds'];
-    
-    const [layout, setLayout] = useState<string[]>(getDashboardLayout() || DEFAULT_LAYOUT);
+    const [settings, setSettings] = useState<AppSettings>(getSettings());
+    const [layout, setLayout] = useState<string[]>([]);
     const [isCustomizeMode, setIsCustomizeMode] = useState(false);
+    
+    useEffect(() => {
+        const handleStorageChange = () => setSettings(getSettings());
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, []);
+
+    useEffect(() => {
+        const currentRole = settings.roles.find(r => r.id === settings.companyInfo.currentUserRoleId);
+        if (currentRole) {
+            const roleLayout = settings.dashboardLayouts[currentRole.id] || [];
+            setLayout(roleLayout);
+        } else {
+            // Fallback to manager role if current role not found
+            const managerRole = settings.roles[0];
+            const managerLayout = settings.dashboardLayouts[managerRole.id] || [];
+            setLayout(managerLayout);
+        }
+    }, [settings]);
     
     const dragItem = useRef<number | null>(null);
     const dragOverItem = useRef<number | null>(null);
@@ -284,28 +374,45 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
         dragOverItem.current = position;
     };
     
-    const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    const handleDrop = () => {
         if (dragItem.current === null || dragOverItem.current === null) return;
-        
         const newLayout = [...layout];
         const dragItemContent = newLayout[dragItem.current];
         newLayout.splice(dragItem.current, 1);
         newLayout.splice(dragOverItem.current, 0, dragItemContent);
-        
         dragItem.current = null;
         dragOverItem.current = null;
-        
         setLayout(newLayout);
     };
 
     const handleSaveLayout = () => {
-        saveDashboardLayout(layout);
+        const roleId = settings.companyInfo.currentUserRoleId;
+        const updatedSettings = {
+            ...settings,
+            dashboardLayouts: {
+                ...settings.dashboardLayouts,
+                [roleId]: layout,
+            },
+        };
+        saveSettings(updatedSettings);
+        setSettings(updatedSettings);
         setIsCustomizeMode(false);
     };
 
     const handleResetLayout = () => {
-        setLayout(DEFAULT_LAYOUT);
-        saveDashboardLayout(DEFAULT_LAYOUT);
+        const defaultLayouts = getSettings().dashboardLayouts; // Re-fetch defaults
+        const roleId = settings.companyInfo.currentUserRoleId;
+        const roleDefault = defaultLayouts[roleId] || [];
+        setLayout(roleDefault);
+        const updatedSettings = {
+            ...settings,
+            dashboardLayouts: {
+                ...settings.dashboardLayouts,
+                [roleId]: roleDefault,
+            },
+        };
+        saveSettings(updatedSettings);
+        setSettings(updatedSettings);
     };
 
     return (

@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { getSettings, saveSettings } from '../services/storageService';
-import { AppSettings } from '../types';
-import { SaveIcon, UploadIcon } from './icons/Icons';
+import { AppSettings, AppRole } from '../types';
+import { SaveIcon, UploadIcon, UsersIcon } from './icons/Icons';
 import { EditableList } from './EditableList';
 
 export const SettingsTab: React.FC = () => {
@@ -16,7 +16,7 @@ export const SettingsTab: React.FC = () => {
         return () => window.removeEventListener('storage', handleStorageChange);
     }, []);
 
-    const handleCompanyInfoChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleCompanyInfoChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setSettings(prev => ({
             ...prev,
@@ -46,13 +46,54 @@ export const SettingsTab: React.FC = () => {
         }
     };
 
-    const handleListUpdate = (key: keyof Omit<AppSettings, 'companyInfo'>, newItems: string[]) => {
+    const handleListUpdate = (key: 'qcFailureReasons' | 'productionStatuses', newItems: string[]) => {
         setSettings(prev => ({
             ...prev,
             [key]: newItems,
         }));
     };
     
+    const handleRolesUpdate = (newRoleNames: string[]) => {
+        setSettings(prev => {
+            const newRoles: AppRole[] = newRoleNames.map(name => {
+                const existing = prev.roles.find(r => r.name === name);
+                return existing || { id: `role_${Date.now()}_${Math.random()}`, name };
+            });
+
+            // Ensure dashboard layouts exist for new roles
+            const newLayouts = { ...prev.dashboardLayouts };
+            const defaultLayout = prev.dashboardLayouts[prev.roles[0]?.id] || [];
+            newRoles.forEach(role => {
+                if (!newLayouts[role.id]) {
+                    newLayouts[role.id] = defaultLayout;
+                }
+            });
+
+            // Remove layouts for deleted roles
+            const newRoleIds = new Set(newRoles.map(r => r.id));
+            Object.keys(newLayouts).forEach(roleId => {
+                if (!newRoleIds.has(roleId)) {
+                    delete newLayouts[roleId];
+                }
+            });
+
+            // If current user's role was deleted, switch to the first available role
+            const currentUserRoleId = newRoleIds.has(prev.companyInfo.currentUserRoleId)
+                ? prev.companyInfo.currentUserRoleId
+                : newRoles[0]?.id || '';
+
+            return {
+                ...prev,
+                roles: newRoles,
+                dashboardLayouts: newLayouts,
+                companyInfo: {
+                    ...prev.companyInfo,
+                    currentUserRoleId
+                }
+            };
+        });
+    };
+
     const handleSaveSettings = () => {
         saveSettings(settings);
         alert('บันทึกการตั้งค่าเรียบร้อยแล้ว');
@@ -129,6 +170,31 @@ export const SettingsTab: React.FC = () => {
                     />
                 </div>
                 <div className="space-y-8">
+                     <div className="p-6 bg-white rounded-xl shadow-lg border border-gray-200">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2"><UsersIcon className="w-5 h-5" /> การจัดการบทบาท</h3>
+                        <p className="text-sm text-gray-500 mb-4">กำหนดบทบาทผู้ใช้เพื่อปรับแต่งแดชบอร์ดให้เหมาะสมกับแต่ละตำแหน่ง</p>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">บทบาทผู้ใช้ปัจจุบันของคุณ</label>
+                            <select 
+                                name="currentUserRoleId" 
+                                value={settings.companyInfo.currentUserRoleId} 
+                                onChange={handleCompanyInfoChange} 
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm"
+                            >
+                                {settings.roles.map(role => (
+                                    <option key={role.id} value={role.id}>{role.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="mt-6">
+                            <EditableList
+                                title="แก้ไขรายการบทบาท"
+                                items={settings.roles.map(r => r.name)}
+                                onUpdate={handleRolesUpdate}
+                                placeholder="เพิ่มบทบาทใหม่..."
+                            />
+                        </div>
+                    </div>
                      <EditableList
                         title="ขั้นตอนการผลิต (สำหรับ Kanban)"
                         items={settings.productionStatuses}

@@ -15,7 +15,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // Type definitions for request body to ensure type safety
 interface ApiRequestBody {
-  type: 'translate' | 'parseOrders' | 'parseRawMaterials' | 'analyzeAnomalies' | 'generateProductionPlan';
+  type: 'translate' | 'parseOrders' | 'parseRawMaterials' | 'analyzeAnomalies' | 'generateProductionPlan' | 'generateInventoryForecast';
   payload: unknown;
 }
 
@@ -35,6 +35,13 @@ interface GeneratePlanPayload {
     orders: OrderItem[];
     inventory: InventoryItem[];
     machines: Machine[];
+    boms: BillOfMaterial[];
+    rawMaterials: RawMaterial[];
+}
+
+interface GenerateInventoryForecastPayload {
+    orders: OrderItem[];
+    moldingLogs: MoldingLogEntry[];
     boms: BillOfMaterial[];
     rawMaterials: RawMaterial[];
 }
@@ -77,6 +84,17 @@ const isGeneratePlanPayload = (payload: unknown): payload is GeneratePlanPayload
         'machines' in payload && Array.isArray((payload as GeneratePlanPayload).machines) &&
         'boms' in payload && Array.isArray((payload as GeneratePlanPayload).boms) &&
         'rawMaterials' in payload && Array.isArray((payload as GeneratePlanPayload).rawMaterials)
+    );
+};
+
+const isGenerateInventoryForecastPayload = (payload: unknown): payload is GenerateInventoryForecastPayload => {
+    return (
+        typeof payload === 'object' &&
+        payload !== null &&
+        'orders' in payload && Array.isArray((payload as GenerateInventoryForecastPayload).orders) &&
+        'moldingLogs' in payload && Array.isArray((payload as GenerateInventoryForecastPayload).moldingLogs) &&
+        'boms' in payload && Array.isArray((payload as GenerateInventoryForecastPayload).boms) &&
+        'rawMaterials' in payload && Array.isArray((payload as GenerateInventoryForecastPayload).rawMaterials)
     );
 };
 
@@ -384,6 +402,65 @@ Return the plan as a JSON array of objects, sorted by priority. If no production
         }
         break;
       }
+      
+      case 'generateInventoryForecast': {
+        if (!isGenerateInventoryForecastPayload(payload)) {
+            return res.status(400).json({ error: 'Invalid payload for inventory forecast request.' });
+        }
+        const prompt = `You are an inventory forecasting AI for a factory. Analyze the provided data to predict when raw materials will run out of stock. Today is ${new Date().toLocaleDateString()}.
+
+You are given:
+1.  **Current Raw Material Inventory**: A list of materials with their current quantities.
+2.  **Historical Usage (Molding Logs)**: Production logs from the last 30 days. Use this to calculate an average daily consumption rate for each material.
+3.  **Future Demand (Open Orders & BOMs)**: A list of open sales orders and the Bill of Materials (BOMs). Use this to calculate the total upcoming demand for each raw material.
+
+Your task is to calculate the 'daysUntilStockout' for each raw material.
+The formula should roughly be: \`Days Until Stockout = Current Stock / (Average Daily Consumption + Prorated Future Demand)\`.
+- Prorate future demand over the next 90 days.
+- If a material has no consumption or demand, its stockout date is effectively infinite; you can return 'null' for daysUntilStockout.
+
+Return a JSON array of the top 10 most critical items (lowest positive daysUntilStockout).
+`;
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: [
+                prompt,
+                "Raw Materials:", JSON.stringify(payload.rawMaterials),
+                "Molding Logs (last 30 days):", JSON.stringify(payload.moldingLogs),
+                "Open Orders:", JSON.stringify(payload.orders),
+                "BOMs:", JSON.stringify(payload.boms),
+            ],
+            config: {
+                responseMimeType: "application/json",
+                temperature: 0.2,
+                responseSchema: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            rawMaterialId: { type: Type.STRING, description: "The unique ID of the raw material." },
+                            rawMaterialName: { type: Type.STRING, description: "The name of the raw material." },
+                            unit: { type: Type.STRING, description: "The unit of measurement." },
+                            currentStock: { type: Type.NUMBER, description: "The current quantity in stock." },
+                            daysUntilStockout: { type: Type.NUMBER, description: "Predicted number of days until stock runs out. Can be null if not depleting." },
+                            reason: { type: Type.STRING, description: "Brief explanation of the forecast (e.g., high historical usage, large upcoming order)." }
+                        },
+                        required: ["rawMaterialId", "rawMaterialName", "unit", "currentStock", "daysUntilStockout", "reason"]
+                    }
+                }
+            },
+        });
+        
+        const responseText = response.text;
+        if (responseText) {
+            result = parseJsonResponse(responseText);
+        } else {
+            result = null;
+        }
+        break;
+      }
+
 
       default:
         return res.status(400).json({ error: 'Invalid API call type specified.' });

@@ -1,5 +1,5 @@
 
-import { OrderItem, PackingLogEntry, InventoryItem, Employee, QCEntry, MoldingLogEntry, RawMaterial, BillOfMaterial, Machine, MaintenanceLog, Supplier, PurchaseOrder, Shipment, Product, AppSettings } from '../types';
+import { OrderItem, PackingLogEntry, InventoryItem, Employee, QCEntry, MoldingLogEntry, RawMaterial, BillOfMaterial, Machine, MaintenanceLog, Supplier, PurchaseOrder, Shipment, Product, AppSettings, AppRole } from '../types';
 import { CTElectricLogo } from '../assets/logo';
 
 const ORDERS_KEY = 'packing_orders';
@@ -17,7 +17,6 @@ const PURCHASE_ORDERS_KEY = 'factory_purchase_orders';
 const SHIPMENTS_KEY = 'factory_shipments';
 const PRODUCTS_KEY = 'factory_products';
 const SETTINGS_KEY = 'factory_settings';
-const DASHBOARD_LAYOUT_KEY = 'dashboard_layout';
 const READ_NOTIFICATIONS_KEY = 'read_notifications';
 
 const DEFAULT_PRODUCTS: Product[] = [
@@ -263,6 +262,17 @@ const DEFAULT_RAW_MATERIALS: RawMaterial[] = [
     { id: 'c9e4d6f0-f0c9-4dy-a-125c-5f4d7361f7d3', name: 'เม็ด PP สีดำ', quantity: 0, unit: 'kg', costPerUnit: 15 },
 ];
 
+const DEFAULT_ROLES: AppRole[] = [
+    { id: 'role_manager', name: 'ผู้จัดการโรงงาน' },
+    { id: 'role_sales', name: 'ฝ่ายขาย' },
+    { id: 'role_production', name: 'ฝ่ายผลิต' },
+];
+
+const DEFAULT_DASHBOARD_LAYOUTS: Record<string, string[]> = {
+    [DEFAULT_ROLES[0].id]: ['aiPlanner', 'aiInventoryForecast', 'upcomingOrders', 'pendingQc', 'lowStock', 'productionSummary', 'topPackers', 'rawMaterialNeeds'],
+    [DEFAULT_ROLES[1].id]: ['upcomingOrders', 'lowStock', 'productionSummary'],
+    [DEFAULT_ROLES[2].id]: ['aiPlanner', 'pendingQc', 'rawMaterialNeeds', 'productionSummary'],
+};
 
 // Generic getter
 const getItems = <T,>(key: string): T[] => {
@@ -374,6 +384,7 @@ const DEFAULT_SETTINGS: AppSettings = {
         address: '123 ถนนสุขุมวิท แขวงบางนา เขตบางนา กรุงเทพมหานคร 10260',
         taxId: '0105558000111',
         logoUrl: CTElectricLogo,
+        currentUserRoleId: DEFAULT_ROLES[0].id,
     },
     qcFailureReasons: [
         'สินค้าชำรุด',
@@ -388,7 +399,9 @@ const DEFAULT_SETTINGS: AppSettings = {
         'รอประกบ',
         'ห้องประกอบ',
         'ห้องแพ็ค',
-    ]
+    ],
+    roles: DEFAULT_ROLES,
+    dashboardLayouts: DEFAULT_DASHBOARD_LAYOUTS,
 };
 
 export const getSettings = (): AppSettings => {
@@ -396,6 +409,19 @@ export const getSettings = (): AppSettings => {
     if (settingsJson) {
         try {
             const stored = JSON.parse(settingsJson);
+            
+            // Ensure roles and layouts are properly merged with defaults
+            const roles = stored.roles || DEFAULT_SETTINGS.roles;
+            const layouts = stored.dashboardLayouts || {};
+            const finalLayouts = { ...DEFAULT_SETTINGS.dashboardLayouts, ...layouts };
+
+            // Ensure every role has a default layout if it's missing
+            roles.forEach((role: AppRole) => {
+                if (!finalLayouts[role.id]) {
+                    finalLayouts[role.id] = DEFAULT_SETTINGS.dashboardLayouts[DEFAULT_SETTINGS.roles[0].id] || [];
+                }
+            });
+
             return {
                 ...DEFAULT_SETTINGS,
                 ...stored,
@@ -405,6 +431,8 @@ export const getSettings = (): AppSettings => {
                 },
                 qcFailureReasons: stored.qcFailureReasons || DEFAULT_SETTINGS.qcFailureReasons,
                 productionStatuses: stored.productionStatuses || DEFAULT_SETTINGS.productionStatuses,
+                roles: roles,
+                dashboardLayouts: finalLayouts,
             };
         } catch(e) {
              console.error("Could not parse settings from localStorage", e);
@@ -469,16 +497,7 @@ export const getAnalysisShortfall = (): { id: string; name: string; unit: string
     }));
 };
 
-// Functions for dashboard layout and notifications
-export const getDashboardLayout = (): string[] | null => {
-    const layoutJson = localStorage.getItem(DASHBOARD_LAYOUT_KEY);
-    return layoutJson ? JSON.parse(layoutJson) : null;
-};
-
-export const saveDashboardLayout = (layout: string[]): void => {
-    localStorage.setItem(DASHBOARD_LAYOUT_KEY, JSON.stringify(layout));
-};
-
+// Functions for notifications
 export const getReadNotificationIds = (): Set<string> => {
     const idsJson = localStorage.getItem(READ_NOTIFICATIONS_KEY);
     return idsJson ? new Set(JSON.parse(idsJson)) : new Set();
