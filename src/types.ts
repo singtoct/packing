@@ -1,6 +1,7 @@
 
 
 
+
 export type Tab = 'dashboard' | 'orders' | 'analysis' | 'procurement' | 'molding' | 'production_status' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'stats' | 'reports' | 'products' | 'settings';
 
 
@@ -153,4 +154,16 @@ export interface AppNotification {
   actionTab: Tab;
   entityId: string;
   date: string;
+}
+
+export interface AnomalyFinding {
+  type: 'machine' | 'operator' | 'product';
+  entityName: string;
+  message: string;
+  suggestion: string;
+  data: {
+    produced: number;
+    rejected: number;
+    rate: number;
+  };
 }

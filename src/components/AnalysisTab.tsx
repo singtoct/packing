@@ -1,6 +1,8 @@
-import React, { useMemo, useState } from 'react';
-import { getOrders, getBOMs, getRawMaterials } from '../services/storageService';
-import { AlertTriangleIcon, CheckCircle2Icon, SigmaIcon } from './icons/Icons';
+import React, { useMemo, useState, useEffect } from 'react';
+import { getOrders, getBOMs, getRawMaterials, getMoldingLogs } from '../services/storageService';
+import { analyzeProductionAnomalies } from '../services/geminiService';
+import { AnomalyFinding } from '../types';
+import { AlertTriangleIcon, CheckCircle2Icon, SigmaIcon, SparklesIcon, LoaderIcon, ShieldAlertIcon } from './icons/Icons';
 
 type SortDirection = 'asc' | 'desc';
 interface SortConfig {
@@ -37,6 +39,81 @@ const SortableHeader: React.FC<{
       </div>
     </th>
   );
+};
+
+const AnomalyDetector: React.FC = () => {
+    const [findings, setFindings] = useState<AnomalyFinding[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [lastAnalyzed, setLastAnalyzed] = useState<string | null>(null);
+
+    const handleRunAnalysis = async () => {
+        setIsLoading(true);
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        const logs = getMoldingLogs().filter(log => new Date(log.date) >= thirtyDaysAgo);
+        
+        if (logs.length === 0) {
+            setFindings([]);
+            setIsLoading(false);
+            setLastAnalyzed(new Date().toLocaleString('th-TH'));
+            return;
+        }
+
+        const results = await analyzeProductionAnomalies(logs);
+        setFindings(results);
+        setLastAnalyzed(new Date().toLocaleString('th-TH'));
+        setIsLoading(false);
+    };
+
+    const AnomalyCard: React.FC<{finding: AnomalyFinding}> = ({finding}) => (
+        <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
+            <div className="flex items-start gap-3">
+                <div className="p-2 bg-red-100 rounded-full"><ShieldAlertIcon className="w-5 h-5 text-red-600"/></div>
+                <div>
+                    <h4 className="font-bold text-gray-800 capitalize">{finding.type}: {finding.entityName}</h4>
+                    <p className="text-sm text-red-700">{finding.message}</p>
+                    <p className="text-sm text-gray-600 mt-1"><strong>Suggestion:</strong> {finding.suggestion}</p>
+                </div>
+            </div>
+        </div>
+    );
+
+    return (
+        <div className="bg-gray-50 p-6 rounded-xl border-2 border-dashed mb-8">
+             <div className="flex flex-wrap gap-4 justify-between items-center mb-4">
+                <div>
+                    <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                        <SparklesIcon className="w-6 h-6 text-teal-500" />
+                        AI ตรวจจับความผิดปกติในการผลิต
+                    </h3>
+                    {lastAnalyzed && <p className="text-xs text-gray-500 mt-1">วิเคราะห์ล่าสุด: {lastAnalyzed}</p>}
+                </div>
+                <button onClick={handleRunAnalysis} disabled={isLoading} className="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 disabled:bg-gray-400">
+                    {isLoading ? <LoaderIcon className="w-5 h-5"/> : <SparklesIcon className="w-5 h-5" />}
+                    {isLoading ? 'กำลังวิเคราะห์...' : 'เริ่มการวิเคราะห์'}
+                </button>
+            </div>
+            {isLoading ? (
+                <div className="text-center py-8">
+                    <LoaderIcon className="w-8 h-8 mx-auto text-teal-600"/>
+                    <p className="mt-2 text-gray-600">AI กำลังประมวลผลข้อมูลการผลิต...</p>
+                </div>
+            ) : findings.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {findings.map((f, i) => <AnomalyCard key={i} finding={f} />)}
+                </div>
+            ) : lastAnalyzed ? (
+                 <div className="text-center py-8">
+                    <CheckCircle2Icon className="w-12 h-12 mx-auto text-green-500"/>
+                    <p className="mt-2 font-semibold text-gray-700">ไม่พบความผิดปกติที่สำคัญ</p>
+                    <p className="text-sm text-gray-500">จากข้อมูลการผลิต 30 วันล่าสุด ทุกอย่างดูเป็นปกติ</p>
+                </div>
+            ) : (
+                <p className="text-center text-gray-500 py-8">คลิกปุ่ม 'เริ่มการวิเคราะห์' เพื่อให้ AI ตรวจหาความผิดปกติ</p>
+            )}
+        </div>
+    );
 };
 
 
@@ -115,14 +192,18 @@ export const AnalysisTab: React.FC = () => {
     return (
         <div>
             <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">วิเคราะห์ความต้องการวัตถุดิบ</h2>
-                <div className="bg-blue-50 text-blue-800 p-3 rounded-lg text-sm font-medium">
-                    คำนวณจากออเดอร์ที่เปิดอยู่ทั้งหมดในระบบ
-                </div>
+                <h2 className="text-2xl font-bold">วิเคราะห์ด้วย AI และสรุปข้อมูล</h2>
+            </div>
+            
+            <AnomalyDetector />
+
+            <h3 className="text-xl font-bold text-gray-800 mb-4">วิเคราะห์ความต้องการวัตถุดิบ (สำหรับออเดอร์ปัจจุบัน)</h3>
+             <div className="bg-blue-50 text-blue-800 p-3 rounded-lg text-sm font-medium mb-4">
+                คำนวณจากออเดอร์ที่เปิดอยู่ทั้งหมดในระบบ
             </div>
 
             {analysisResult.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed">
+                <div className="flex flex-col items-center justify-center h-64 bg-white rounded-lg border">
                     <SigmaIcon className="w-16 h-16 text-gray-400 mb-4" />
                     <h3 className="text-xl font-semibold text-gray-600">ไม่มีข้อมูลให้วิเคราะห์</h3>
                     <p className="text-gray-500">กรุณาเพิ่มออเดอร์และกำหนดสูตรการผลิต (BOM) ก่อน</p>

@@ -3,10 +3,11 @@
 
 
 
-import { BurmeseTranslation, OrderItem, RawMaterial } from "../types";
+
+import { BurmeseTranslation, OrderItem, RawMaterial, MoldingLogEntry, AnomalyFinding } from "../types";
 
 // This function communicates with our secure, serverless API proxy
-async function callApiProxy<T>(type: 'translate' | 'parseOrders' | 'parseRawMaterials', payload: object): Promise<T> {
+async function callApiProxy<T>(type: 'translate' | 'parseOrders' | 'parseRawMaterials' | 'analyzeAnomalies', payload: object): Promise<T> {
     try {
         const response = await fetch('/api/proxy', {
             method: 'POST',
@@ -100,5 +101,20 @@ export const parseIntelligentRawMaterials = async (text: string): Promise<Partia
     } catch (error) {
         console.error("Intelligent raw material parsing failed.", error);
         throw error;
+    }
+};
+
+export const analyzeProductionAnomalies = async (moldingLogs: MoldingLogEntry[]): Promise<AnomalyFinding[]> => {
+    if (!moldingLogs || moldingLogs.length === 0) {
+        return [];
+    }
+    try {
+        const payload = { moldingLogs };
+        const findings = await callApiProxy<AnomalyFinding[]>('analyzeAnomalies', payload);
+        return findings || [];
+    } catch (error) {
+        console.error("Production anomaly analysis failed.", error);
+        // In case of error, return an empty array to not break the UI
+        return [];
     }
 };

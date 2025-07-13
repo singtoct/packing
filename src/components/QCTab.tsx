@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getQCEntries, saveQCEntries, getEmployees, getSettings } from '../services/storageService';
 import { QCEntry, Employee } from '../types';
-import { CheckCircle2Icon, XCircleIcon, AlertTriangleIcon, CameraIcon } from './icons/Icons';
+import { CheckCircle2Icon, XCircleIcon, AlertTriangleIcon, CameraIcon, SearchIcon } from './icons/Icons';
 
 const QCInspectionModal: React.FC<{
     entry: QCEntry;
@@ -152,6 +152,7 @@ export const QCTab: React.FC = () => {
     const [selectedEntry, setSelectedEntry] = useState<QCEntry | null>(null);
     const [sortKey, setSortKey] = useState<SortKey>('packingDate');
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+    const [quickSearchId, setQuickSearchId] = useState('');
 
     useEffect(() => {
         const handleStorageChange = () => {
@@ -172,6 +173,18 @@ export const QCTab: React.FC = () => {
         setSelectedEntry(null);
         setModalOpen(false);
     };
+    
+    const handleQuickSearch = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!quickSearchId.trim()) return;
+        const entry = qcEntries.find(e => e.status === 'Pending' && e.id === quickSearchId.trim());
+        if(entry) {
+            openModal(entry);
+            setQuickSearchId('');
+        } else {
+            alert('ไม่พบรายการรอตรวจสอบสำหรับ ID นี้ หรือรายการนี้ได้ถูกตรวจสอบไปแล้ว');
+        }
+    }
 
     const handleSaveInspection = (updatedEntry: QCEntry) => {
         const updatedEntries = qcEntries.map(e => e.id === updatedEntry.id ? updatedEntry : e);
@@ -221,6 +234,24 @@ export const QCTab: React.FC = () => {
                     <FilterButton status="All" label="ทั้งหมด" count={qcEntries.length} />
                 </div>
             </div>
+             <form onSubmit={handleQuickSearch} className="mb-6 bg-gray-50 p-4 rounded-lg border">
+                 <label htmlFor="quickSearch" className="block text-sm font-medium text-gray-700 mb-2">ค้นหาเร็ว (จาก ID ที่สแกน QR Code)</label>
+                <div className="flex gap-2">
+                    <input
+                        id="quickSearch"
+                        type="text"
+                        value={quickSearchId}
+                        onChange={(e) => setQuickSearchId(e.target.value)}
+                        placeholder="ป้อน Packing Log ID..."
+                        className="flex-grow px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                    />
+                    <button type="submit" className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                        <SearchIcon className="w-5 h-5" />
+                        ค้นหา
+                    </button>
+                </div>
+            </form>
+
              <div className="flex items-center gap-4 mb-4">
                 <label className="text-sm font-medium">เรียงตาม:</label>
                 <select value={sortKey} onChange={e => setSortKey(e.target.value as SortKey)} className="p-2 border border-gray-300 rounded-md text-sm">

@@ -2,6 +2,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI } from "@google/genai";
+import { MoldingLogEntry } from '../src/types';
 
 // Ensure API key is available in the serverless environment
 if (!process.env.API_KEY) {
@@ -15,7 +16,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // Type definitions for request body to ensure type safety
 interface ApiRequestBody {
-  type: 'translate' | 'parseOrders' | 'parseRawMaterials';
+  type: 'translate' | 'parseOrders' | 'parseRawMaterials' | 'analyzeAnomalies';
   payload: unknown;
 }
 
@@ -25,6 +26,10 @@ interface TranslatePayload {
 
 interface ParsePayload {
     text: string;
+}
+
+interface AnalyzeAnomaliesPayload {
+    moldingLogs: MoldingLogEntry[];
 }
 
 // Type guards to validate payloads
@@ -46,13 +51,22 @@ const isParsePayload = (payload: unknown): payload is ParsePayload => {
     );
 };
 
+const isAnalyzeAnomaliesPayload = (payload: unknown): payload is AnalyzeAnomaliesPayload => {
+    return (
+        typeof payload === 'object' &&
+        payload !== null &&
+        'moldingLogs' in payload &&
+        Array.isArray((payload as AnalyzeAnomaliesPayload).moldingLogs)
+    );
+};
+
 // Helper to parse JSON, removing markdown fences
 const parseJsonResponse = (text: string) => {
     let jsonStr = text.trim();
-    const fenceRegex = /^```(?:json)?\s*\n?(.*?)\n?\s*```$/s;
-    const match = jsonStr.match(fenceRegex);
-    if (match && match[1]) {
-        jsonStr = match[1].trim();
+    if (jsonStr.startsWith('```json') && jsonStr.endsWith('```')) {
+        jsonStr = jsonStr.substring(7, jsonStr.length - 3).trim();
+    } else if (jsonStr.startsWith('```') && jsonStr.endsWith('```')) {
+         jsonStr = jsonStr.substring(3, jsonStr.length - 3).trim();
     }
     try {
         return JSON.parse(jsonStr);
@@ -227,6 +241,56 @@ ${payload.text}`;
           config: { responseMimeType: "application/json", temperature: 0.1 },
         });
 
+        const responseText = response.text;
+        if (responseText) {
+            result = parseJsonResponse(responseText);
+        } else {
+            result = null;
+        }
+        break;
+      }
+      
+      case 'analyzeAnomalies': {
+        if (!isAnalyzeAnomaliesPayload(payload)) {
+            return res.status(400).json({ error: 'Invalid payload for anomaly analysis request.' });
+        }
+        const today = new Date().toISOString().split('T')[0];
+        const prompt = `You are a production analyst AI for a factory. Your task is to analyze the provided JSON data of molding logs from the last 30 days to identify anomalies. Today's date is ${today}.
+
+Anomalies to look for:
+1.  **High Machine Rejection Rate**: Any machine with a total rejection rate over 5% on more than 100 parts produced.
+2.  **High Operator Rejection Rate**: Any operator with a total rejection rate over 5% on more than 100 parts produced.
+3.  **High Product Rejection Rate**: Any product with a total rejection rate over 5% across all production.
+
+Return your findings as a JSON array of objects. Each object must have these keys:
+- "type": string, one of "machine", "operator", or "product".
+- "entityName": string, the name of the machine, operator, or product.
+- "message": string, a human-readable summary of the anomaly (e.g., "Rejection rate of 8.5% (55 rejected / 650 produced)").
+- "suggestion": string, a recommended action (e.g., "Schedule maintenance check for this machine.", "Review production process with this operator.").
+- "data": object, containing { "produced": number, "rejected": number, "rate": number }.
+
+Example output:
+[
+  {
+    "type": "machine",
+    "entityName": "เครื่องฉีด 5",
+    "message": "Rejection rate of 8.5% (55 rejected / 650 produced).",
+    "suggestion": "Schedule maintenance check for this machine.",
+    "data": { "produced": 650, "rejected": 55, "rate": 0.085 }
+  }
+]
+
+If no anomalies are found, return an empty array [].
+
+Now, analyze the following data:
+${JSON.stringify(payload.moldingLogs)}
+`;
+         const response = await ai.models.generateContent({
+              model: "gemini-2.5-flash",
+              contents: prompt,
+              config: { responseMimeType: "application/json", temperature: 0.3 },
+            });
+        
         const responseText = response.text;
         if (responseText) {
             result = parseJsonResponse(responseText);
