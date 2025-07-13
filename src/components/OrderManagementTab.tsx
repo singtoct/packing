@@ -1,10 +1,8 @@
 
-
-
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom/client';
-import { OrderItem, BurmeseTranslation, InventoryItem, Product, MoldingLogEntry, QCEntry } from '../types';
-import { getOrders, saveOrders, getInventory, saveInventory, getProducts, getMoldingLogs, getQCEntries } from '../services/storageService';
+import { OrderItem, BurmeseTranslation, InventoryItem, Product, MoldingLogEntry, QCEntry, Customer } from '../types';
+import { getOrders, saveOrders, getInventory, saveInventory, getProducts, getMoldingLogs, getQCEntries, getCustomers } from '../services/storageService';
 import { translateToBurmese } from '../services/geminiService';
 import { PlusCircleIcon, Trash2Icon, PrinterIcon, LoaderIcon, TruckIcon, EditIcon, SparklesIcon, ChevronDownIcon } from './icons/Icons';
 import { CTElectricLogo } from '../assets/logo';
@@ -109,15 +107,20 @@ const EditOrderModal: React.FC<{
     order: OrderItem;
     onClose: () => void;
     onSave: (updatedOrder: OrderItem) => void;
-}> = ({ order, onClose, onSave }) => {
+    customers: Customer[];
+}> = ({ order, onClose, onSave, customers }) => {
     const [editedOrder, setEditedOrder] = useState<OrderItem>(order);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value, type } = e.target;
         setEditedOrder(prev => ({
             ...prev,
-            [name]: type === 'number' ? Number(value) : value,
+            [name]: type === 'number' ? (value === '' ? undefined : Number(value)) : value,
         }));
+    };
+    
+    const handleCustomerChange = (customerId: string) => {
+        setEditedOrder(prev => ({ ...prev, customerId }));
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -130,6 +133,17 @@ const EditOrderModal: React.FC<{
             <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-lg">
                 <h2 className="text-2xl font-bold mb-6">แก้ไขออเดอร์</h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
+                     <div>
+                        <label className="block text-sm font-medium text-gray-700">ลูกค้า (ไม่จำเป็น)</label>
+                        <SearchableInput
+                            options={customers}
+                            value={editedOrder.customerId || ''}
+                            onChange={handleCustomerChange}
+                            displayKey="name"
+                            valueKey="id"
+                            placeholder="ค้นหาลูกค้า..."
+                        />
+                    </div>
                      <div>
                         <label htmlFor="editItemName" className="block text-sm font-medium text-gray-700">ชื่อสินค้า</label>
                         <input type="text" id="editItemName" name="name" value={editedOrder.name} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" required />
@@ -223,46 +237,66 @@ const PrintOrderView: React.FC<{ orders: OrderItem[], translations: BurmeseTrans
 
 export const OrderManagementTab: React.FC = () => {
     const [orders, setOrders] = useState<OrderItem[]>([]);
+    const [translations, setTranslations] = useState<BurmeseTranslation>({});
     const [inventory, setInventory] = useState<InventoryItem[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
-    const [selectedProductId, setSelectedProductId] = useState<string>('');
-    const [newItemQuantity, setNewItemQuantity] = useState(1);
-    const [newDueDate, setNewDueDate] = useState('');
+    const [customers, setCustomers] = useState<Customer[]>([]);
+
     const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
-    const [isPrintingSelected, setIsPrintingSelected] = useState(false);
-    const [editingOrder, setEditingOrder] = useState<OrderItem | null>(null);
+    const [isPrinting, setIsPrinting] = useState(false);
+    const [isPrintingAll, setIsPrintingAll] = useState(false);
+    const [isTranslating, setIsTranslating] = useState(false);
+
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [editedOrder, setEditedOrder] = useState<OrderItem | null>(null);
+    
     const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'dueDate', direction: 'asc' });
+    const [searchTerm, setSearchTerm] = useState('');
     const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
-    const handleToggleDetails = (orderId: string) => {
-        setExpandedOrderId(prev => (prev === orderId ? null : orderId));
-    };
-
-
     useEffect(() => {
-        const today = new Date().toISOString().split('T')[0];
-        setNewDueDate(today);
-        
-        const handleStorageChange = () => {
+        const fetchAndSetData = () => {
             setOrders(getOrders());
             setInventory(getInventory());
-            const prods = getProducts();
-            setProducts(prods);
+            setProducts(getProducts());
+            setCustomers(getCustomers());
         };
-
-        handleStorageChange();
-        window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
+        fetchAndSetData();
+        window.addEventListener('storage', fetchAndSetData);
+        return () => window.removeEventListener('storage', fetchAndSetData);
     }, []);
 
-    useEffect(() => {
-        saveOrders(orders);
-    }, [orders]);
+    const inventoryMap = useMemo(() => new Map(inventory.map(item => [item.name, item.quantity])), [inventory]);
+    const productMap = useMemo(() => new Map(products.map(item => [`${item.name} (${item.color})`, item])), [products]);
+    const customerMap = useMemo(() => new Map(customers.map(c => [c.id, c.name])), [customers]);
 
-    const inventoryMap = useMemo(() => 
-        new Map(inventory.map(item => [item.name, item.quantity])),
-    [inventory]);
+    const sortedOrders = useMemo(() => {
+        let sortableItems = orders.map(order => {
+            const fullName = `${order.name} (${order.color})`;
+            return {
+                ...order,
+                stock: inventoryMap.get(fullName) || 0,
+            };
+        });
+
+        if (sortConfig !== null) {
+            sortableItems.sort((a, b) => {
+                if (a[sortConfig.key] < b[sortConfig.key]) {
+                    return sortConfig.direction === 'asc' ? -1 : 1;
+                }
+                if (a[sortConfig.key] > b[sortConfig.key]) {
+                    return sortConfig.direction === 'asc' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
+        
+        return sortableItems.filter(order =>
+            order.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            order.color.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (order.customerId && customerMap.get(order.customerId)?.toLowerCase().includes(searchTerm.toLowerCase()))
+        );
+    }, [orders, inventoryMap, sortConfig, searchTerm, customerMap]);
 
     const requestSort = (key: OrderSortKey) => {
         let direction: SortDirection = 'asc';
@@ -272,340 +306,200 @@ export const OrderManagementTab: React.FC = () => {
         setSortConfig({ key, direction });
     };
 
-    const sortedOrders = useMemo(() => {
-        let sortableItems = [...orders].map(order => {
-            const inventoryItemName = `${order.name} (${order.color})`;
-            const availableStock = inventoryMap.get(inventoryItemName) || 0;
-            return {
-                ...order,
-                stock: availableStock,
-            };
+    const handleSelectOrder = (id: string, checked: boolean) => {
+        setSelectedOrders(prev => {
+            const newSet = new Set(prev);
+            if (checked) {
+                newSet.add(id);
+            } else {
+                newSet.delete(id);
+            }
+            return newSet;
         });
-
-        if (sortConfig !== null) {
-            sortableItems.sort((a, b) => {
-                const aVal = a[sortConfig.key];
-                const bVal = b[sortConfig.key];
-
-                if (aVal < bVal) {
-                    return sortConfig.direction === 'asc' ? -1 : 1;
-                }
-                if (aVal > bVal) {
-                    return sortConfig.direction === 'asc' ? 1 : -1;
-                }
-                return 0;
-            });
+    };
+    
+    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.checked) {
+            setSelectedOrders(new Set(sortedOrders.map(o => o.id)));
+        } else {
+            setSelectedOrders(new Set());
         }
-        return sortableItems;
-    }, [orders, sortConfig, inventoryMap]);
-
-    const handleAddOrder = (e: React.FormEvent) => {
-        e.preventDefault();
-        const selectedProduct = products.find(p => p.id === selectedProductId);
-        if (!selectedProduct || !newDueDate) return;
-
-        const newOrder: OrderItem = {
-            id: new Date().toISOString(),
-            name: selectedProduct.name,
-            color: selectedProduct.color,
-            quantity: newItemQuantity,
-            dueDate: newDueDate,
-            salePrice: selectedProduct.salePrice,
-        };
-        setOrders(prevOrders => [newOrder, ...prevOrders]);
-        setNewItemQuantity(1);
     };
-
-     const handleUpdateOrder = (updatedOrder: OrderItem) => {
-        setOrders(prevOrders => prevOrders.map(o => o.id === updatedOrder.id ? updatedOrder : o));
-        setEditingOrder(null);
-    };
-
+    
     const handleDeleteOrder = (id: string) => {
-        setOrders(prevOrders => prevOrders.filter(order => order.id !== id));
-        setSelectedOrders(prevSelected => {
-            const newSelected = new Set(prevSelected);
-            newSelected.delete(id);
-            return newSelected;
-        });
+        const updatedOrders = orders.filter(order => order.id !== id);
+        saveOrders(updatedOrders);
+        setOrders(updatedOrders);
     };
 
     const handleDeleteSelected = () => {
         if (selectedOrders.size === 0) return;
         if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบ ${selectedOrders.size} ออเดอร์ที่เลือก?`)) {
-            setOrders(prevOrders => prevOrders.filter(order => !selectedOrders.has(order.id)));
-            setSelectedOrders(new Set());
-        }
-    };
-    
-    const handleSelectOrder = (orderId: string, checked: boolean) => {
-        setSelectedOrders(prev => {
-            const newSet = new Set(prev);
-            if (checked) {
-                newSet.add(orderId);
-            } else {
-                newSet.delete(orderId);
-            }
-            return newSet;
-        });
-    };
-
-    const handleSelectAll = (checked: boolean) => {
-        if (checked) {
-            setSelectedOrders(new Set(orders.map(o => o.id)));
-        } else {
+            const updatedOrders = orders.filter(order => !selectedOrders.has(order.id));
+            saveOrders(updatedOrders);
+            setOrders(updatedOrders);
             setSelectedOrders(new Set());
         }
     };
 
-    const handleShipOrder = (orderId: string) => {
-        const orderToShip = orders.find(o => o.id === orderId);
-        if (!orderToShip) return;
-    
-        const currentInventory = getInventory();
-        const inventoryItemName = `${orderToShip.name} (${orderToShip.color})`;
-        const itemInInventory = currentInventory.find(i => i.name === inventoryItemName);
-    
-        if (!itemInInventory || itemInInventory.quantity < orderToShip.quantity) {
-            alert(`สินค้าในสต็อกไม่เพียงพอ! ต้องการ ${orderToShip.quantity} แต่มีเพียง ${itemInInventory?.quantity || 0} ลัง`);
-            return;
-        }
-    
-        itemInInventory.quantity -= orderToShip.quantity;
-        const updatedInventory = itemInInventory.quantity > 0 
-            ? currentInventory.map(i => i.name === inventoryItemName ? itemInInventory : i)
-            : currentInventory.filter(i => i.name !== inventoryItemName);
-        
-        saveInventory(updatedInventory);
-        setInventory(updatedInventory);
-    
-        const updatedOrders = orders.filter(o => o.id !== orderId);
-        setOrders(updatedOrders); 
-        
-        if (selectedOrders.has(orderId)) {
-            handleSelectOrder(orderId, false);
-        }
-    };
-
-    const handlePrintSelected = async () => {
-        if (selectedOrders.size === 0) return;
-        setIsPrintingSelected(true);
-        const ordersToPrint = orders.filter(o => selectedOrders.has(o.id));
-        const uniqueItemNames: string[] = Array.from(new Set(ordersToPrint.map(o => o?.name).filter((name): name is string => !!name)));
-        
+    const handleTranslate = async () => {
+        setIsTranslating(true);
+        const itemNames = [...new Set(orders.map(o => o.name))];
         try {
-            const translations = await translateToBurmese(uniqueItemNames);
-            const printWindow = window.open('', '_blank', 'width=800,height=600');
-            if (printWindow) {
-                const printRoot = document.createElement('div');
-                printWindow.document.body.appendChild(printRoot);
-    
-                const tailwindScript = printWindow.document.createElement('script');
-                tailwindScript.src = 'https://cdn.tailwindcss.com';
-                printWindow.document.head.appendChild(tailwindScript);
-                
-                const kanitFontLink = printWindow.document.createElement('link');
-                kanitFontLink.href = "https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap";
-                kanitFontLink.rel = "stylesheet";
-                printWindow.document.head.appendChild(kanitFontLink);
-                
-                const fontStyleEl = printWindow.document.createElement('style');
-                fontStyleEl.innerHTML = `body { font-family: 'Kanit', sans-serif; }`;
-                printWindow.document.head.appendChild(fontStyleEl);
-                
-                const root = ReactDOM.createRoot(printRoot);
-                root.render(<PrintOrderView orders={ordersToPrint} translations={translations} />);
-
-                printWindow.onafterprint = () => printWindow.close();
-    
-                setTimeout(() => {
-                    printWindow.focus();
-                    printWindow.print();
-                }, 500);
-            }
+            const result = await translateToBurmese(itemNames);
+            setTranslations(result);
         } catch (error) {
-            console.error("Failed during print preparation:", error);
-            alert("เกิดข้อผิดพลาดในการเตรียมพิมพ์ กรุณาลองใหม่อีกครั้ง");
-        } finally {
-            setIsPrintingSelected(false);
+            console.error("Translation failed", error);
+            alert("การแปลล้มเหลว");
         }
+        setIsTranslating(false);
     };
 
-    const handleSaveImportedOrders = (newOrders: OrderItem[]) => {
-        setOrders(prev => [...newOrders, ...prev]);
+    const handlePrint = (printAll: boolean) => {
+        setIsPrinting(true);
+        setIsPrintingAll(printAll);
+
+        setTimeout(() => { // allow state to update
+            const ordersToPrint = printAll ? sortedOrders : sortedOrders.filter(o => selectedOrders.has(o.id));
+            if (ordersToPrint.length === 0) {
+                setIsPrinting(false);
+                return;
+            }
+
+            const printWindow = window.open('', '', 'height=800,width=1000');
+            if (printWindow) {
+                printWindow.document.write('<html><head><title>Print Orders</title></head><body><div id="print-root"></div></body></html>');
+                printWindow.document.close();
+                const printRoot = printWindow.document.getElementById('print-root');
+                if (printRoot) {
+                    const root = ReactDOM.createRoot(printRoot);
+                    root.render(<PrintOrderView orders={ordersToPrint} translations={translations} />);
+                    setTimeout(() => {
+                        printWindow.focus();
+                        printWindow.print();
+                        printWindow.close();
+                        setIsPrinting(false);
+                    }, 500);
+                } else {
+                    setIsPrinting(false);
+                }
+            } else {
+                setIsPrinting(false);
+                alert('ไม่สามารถเปิดหน้าต่างพิมพ์ได้ กรุณาปิดการบล็อกป๊อปอัป');
+            }
+        }, 100);
+    };
+
+    const handleSaveOrder = (updatedOrder: OrderItem) => {
+        const updatedOrders = orders.map(o => o.id === updatedOrder.id ? updatedOrder : o);
+        saveOrders(updatedOrders);
+        setOrders(updatedOrders);
+        setEditedOrder(null);
+    };
+
+    const handleSaveImportedOrders = (importedOrders: OrderItem[]) => {
+        const updatedOrders = [...importedOrders, ...orders];
+        saveOrders(updatedOrders);
+        setOrders(updatedOrders);
+        setIsImportModalOpen(false);
     };
     
-    const productOptions = useMemo(() => {
-        return products.map(p => ({
-            ...p,
-            displayName: `${p.name} (${p.color})`,
-            id: p.id,
-        }));
-    }, [products]);
-
     return (
         <div>
-            {isImportModalOpen && (
-                <IntelligentOrderImportModal 
-                    onClose={() => setIsImportModalOpen(false)}
-                    onSave={handleSaveImportedOrders}
-                />
-            )}
-            {editingOrder && (
-                <EditOrderModal
-                    order={editingOrder}
-                    onClose={() => setEditingOrder(null)}
-                    onSave={handleUpdateOrder}
-                />
-            )}
-            <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">สร้างออเดอร์ใหม่</h2>
-                 <button 
-                    onClick={() => setIsImportModalOpen(true)}
-                    className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
-                >
-                    <SparklesIcon className="w-5 h-5"/>
-                    นำเข้าอัจฉริยะ
-                </button>
-            </div>
-            <form onSubmit={handleAddOrder} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end bg-gray-50 p-4 rounded-lg border">
-                <div className="col-span-1 md:col-span-2">
-                    <label htmlFor="productSelect" className="block text-sm font-medium text-gray-700">สินค้า</label>
-                    <SearchableInput
-                        options={productOptions}
-                        value={selectedProductId}
-                        onChange={setSelectedProductId}
-                        displayKey="displayName"
-                        valueKey="id"
-                        placeholder="ค้นหาสินค้า..."
-                        className="mt-1"
-                    />
-                </div>
+            {editedOrder && <EditOrderModal order={editedOrder} onClose={() => setEditedOrder(null)} onSave={handleSaveOrder} customers={customers} />}
+            {isImportModalOpen && <IntelligentOrderImportModal onClose={() => setIsImportModalOpen(false)} onSave={handleSaveImportedOrders} />}
 
-                <div>
-                    <label htmlFor="itemQuantity" className="block text-sm font-medium text-gray-700">จำนวน (ลัง)</label>
-                    <input type="number" id="itemQuantity" min="1" value={newItemQuantity} onChange={e => setNewItemQuantity(Number(e.target.value))} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" required />
-                </div>
-                
-                <div>
-                    <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700">วันครบกำหนด</label>
-                    <input type="date" id="dueDate" value={newDueDate} onChange={e => setNewDueDate(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" required />
-                </div>
-                <div className="col-span-full flex justify-end">
-                    <button type="submit" className="inline-flex items-center justify-center gap-2 w-full md:w-auto px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-                        <PlusCircleIcon className="w-5 h-5" />
-                        เพิ่มออเดอร์
+            <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold">จัดการออเดอร์</h2>
+                <div className="flex gap-2 flex-wrap">
+                    <button onClick={() => setIsImportModalOpen(true)} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-teal-600 hover:bg-teal-700 focus:outline-none">
+                        <SparklesIcon className="w-5 h-5"/>
+                        นำเข้าอัจฉริยะ
+                    </button>
+                    <button onClick={handleTranslate} disabled={isTranslating} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none">
+                        {isTranslating ? <LoaderIcon className="w-5 h-5"/> : <TruckIcon className="w-5 h-5"/>}
+                        แปลเป็นพม่า
+                    </button>
+                    <button onClick={() => handlePrint(false)} disabled={selectedOrders.size === 0 || isPrinting} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none disabled:bg-gray-400">
+                        {isPrinting && !isPrintingAll ? <LoaderIcon className="w-5 h-5"/> : <PrinterIcon className="w-5 h-5"/>}
+                        พิมพ์ที่เลือก
+                    </button>
+                     <button onClick={() => handlePrint(true)} disabled={sortedOrders.length === 0 || isPrinting} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none disabled:bg-gray-400">
+                        {isPrinting && isPrintingAll ? <LoaderIcon className="w-5 h-5"/> : <PrinterIcon className="w-5 h-5"/>}
+                        พิมพ์ทั้งหมด
                     </button>
                 </div>
-            </form>
+            </div>
 
-            <div className="mt-10">
-                <div className="flex flex-wrap gap-4 justify-between items-center mb-4">
-                    <h2 className="text-2xl font-bold">รายการออเดอร์ทั้งหมด</h2>
-                    <div className="flex gap-2">
-                        <button 
-                            onClick={handleDeleteSelected} 
-                            disabled={selectedOrders.size === 0}
-                            className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                        >
-                            <Trash2Icon className="w-5 h-5" />
-                            <span>ลบ ({selectedOrders.size})</span>
-                        </button>
-                         <button 
-                            onClick={handlePrintSelected} 
-                            disabled={selectedOrders.size === 0 || isPrintingSelected}
-                            className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                        >
-                            {isPrintingSelected ? <LoaderIcon className="w-5 h-5"/> : <PrinterIcon className="w-5 h-5" />}
-                            <span>ปริ้นท์ ({selectedOrders.size})</span>
-                        </button>
-                    </div>
-                </div>
-                <div className="rounded-lg border border-gray-200 shadow-sm overflow-x-auto">
-                    <table className="min-w-full bg-white divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="p-4 w-12">
-                                    <input 
-                                        type="checkbox"
-                                        className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                                        onChange={(e) => handleSelectAll(e.target.checked)}
-                                        checked={orders.length > 0 && selectedOrders.size === orders.length}
-                                        disabled={orders.length === 0}
-                                        aria-label="Select all orders"
-                                    />
-                                </th>
-                                <SortableHeader label="สินค้า" sortKey="name" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
-                                <SortableHeader label="จำนวน" sortKey="quantity" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
-                                <SortableHeader label="ครบกำหนด" sortKey="dueDate" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
-                                <SortableHeader label="สต็อก" sortKey="stock" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                                <th scope="col" className="px-2 py-3"><span className="sr-only">Details</span></th>
-                            </tr>
-                        </thead>
-                         <tbody className="divide-y divide-gray-200">
-                            {sortedOrders.length > 0 ? (
-                                sortedOrders.map(order => (
-                                    <React.Fragment key={order.id}>
-                                        <tr className={selectedOrders.has(order.id) ? 'bg-green-50' : 'bg-white'}>
-                                            <td className="p-4">
-                                                <input 
-                                                    type="checkbox"
-                                                    className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500 flex-shrink-0"
-                                                    checked={selectedOrders.has(order.id)}
-                                                    onChange={(e) => handleSelectOrder(order.id, e.target.checked)}
-                                                    aria-labelledby={`order-name-${order.id}`}
-                                                />
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div id={`order-name-${order.id}`}>
-                                                    <p className="font-semibold text-base text-gray-800">{order.name}</p>
-                                                    <p className="text-sm text-gray-500">สี: {order.color}</p>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{order.quantity} ลัง</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                                <span className="font-bold text-red-600">{new Date(order.dueDate).toLocaleDateString('th-TH')}</span>
-                                            </td>
-                                            <td className={`px-6 py-4 whitespace-nowrap text-sm font-bold ${order.stock >= order.quantity ? 'text-green-600' : 'text-red-600'}`}>
-                                                {order.stock}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex items-center gap-1">
-                                                    <button 
-                                                        onClick={() => handleShipOrder(order.id)} 
-                                                        disabled={!(order.stock >= order.quantity)}
-                                                        className="p-2 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-100 rounded-full transition-colors disabled:text-gray-400 disabled:bg-gray-100 disabled:cursor-not-allowed" 
-                                                        aria-label={order.stock >= order.quantity ? `Ship order ${order.name}`: `Not enough stock for ${order.name}`}
-                                                        title={order.stock >= order.quantity ? `จัดส่งออเดอร์ (มี ${order.stock} ในสต็อก)` : `สต็อกไม่พอ (มี ${order.stock} / ต้องการ ${order.quantity})`}
-                                                    >
-                                                        <TruckIcon className="w-5 h-5" />
-                                                    </button>
-                                                    <button onClick={() => setEditingOrder(order)} className="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-100 rounded-full transition-colors" aria-label={`Edit order ${order.name}`}>
-                                                        <EditIcon className="w-5 h-5" />
-                                                    </button>
-                                                    <button onClick={() => handleDeleteOrder(order.id)} className="p-2 text-red-500 hover:text-red-700 hover:bg-red-100 rounded-full transition-colors" aria-label={`Delete order ${order.name}`}>
-                                                        <Trash2Icon className="w-5 h-5" />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                            <td className="px-2 py-4">
-                                                <button onClick={() => handleToggleDetails(order.id)} className="p-1 rounded-full hover:bg-gray-200">
-                                                    <ChevronDownIcon className={`w-5 h-5 text-gray-500 transition-transform ${expandedOrderId === order.id ? 'rotate-180' : ''}`} />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                        {expandedOrderId === order.id && <OrderDetailsRow order={order} />}
-                                    </React.Fragment>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan={7} className="text-center text-gray-500 py-8 bg-white">ยังไม่มีออเดอร์</td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+            <div className="mb-4 flex justify-between">
+                <input
+                    type="text"
+                    placeholder="ค้นหาออเดอร์ (ชื่อสินค้า, สี, ลูกค้า)..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="w-full md:w-1/3 px-4 py-2 border border-gray-300 rounded-md shadow-sm"
+                />
+                <button
+                    onClick={handleDeleteSelected}
+                    disabled={selectedOrders.size === 0}
+                    className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 disabled:bg-gray-400"
+                >
+                    <Trash2Icon className="w-5 h-5" />
+                    ลบที่เลือก ({selectedOrders.size})
+                </button>
+            </div>
+
+            <div className="overflow-x-auto">
+                <table className="min-w-full bg-white divide-y divide-gray-200 rounded-lg shadow-sm border">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th scope="col" className="p-4">
+                                <input type="checkbox" onChange={handleSelectAll} checked={sortedOrders.length > 0 && selectedOrders.size === sortedOrders.length} className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500" />
+                            </th>
+                            <SortableHeader label="สินค้า" sortConfig={sortConfig} requestSort={requestSort} sortKey="name" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"/>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อพม่า</th>
+                            <SortableHeader label="จำนวน" sortConfig={sortConfig} requestSort={requestSort} sortKey="quantity" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"/>
+                            <SortableHeader label="สต็อก" sortConfig={sortConfig} requestSort={requestSort} sortKey="stock" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"/>
+                            <SortableHeader label="วันส่ง" sortConfig={sortConfig} requestSort={requestSort} sortKey="dueDate" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"/>
+                            <th scope="col" className="relative px-6 py-3">
+                                <span className="sr-only">Actions</span>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                        {sortedOrders.map((order) => {
+                            const isLowStock = order.quantity > order.stock;
+                            return (
+                                <React.Fragment key={order.id}>
+                                    <tr className={selectedOrders.has(order.id) ? 'bg-green-50' : ''}>
+                                        <td className="p-4">
+                                            <input type="checkbox" checked={selectedOrders.has(order.id)} onChange={e => handleSelectOrder(order.id, e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500" />
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <p className="text-sm font-medium text-gray-900">{order.name}</p>
+                                            <p className="text-sm text-gray-500">{order.color}</p>
+                                            {order.customerId && <p className="text-xs text-blue-600 font-semibold">{customerMap.get(order.customerId)}</p>}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{translations[order.name] || '-'}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.quantity}</td>
+                                        <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${isLowStock ? 'text-red-600' : 'text-green-600'}`}>
+                                            {order.stock}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(order.dueDate).toLocaleDateString('th-TH')}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            <button onClick={() => setExpandedOrderId(expandedOrderId === order.id ? null : order.id)} className="p-2 text-gray-500 hover:bg-gray-100 rounded-full" title="ดูรายละเอียดเพิ่มเติม">
+                                                <ChevronDownIcon className={`w-5 h-5 transition-transform ${expandedOrderId === order.id ? 'rotate-180' : ''}`} />
+                                            </button>
+                                            <button onClick={() => setEditedOrder(order)} className="p-2 text-blue-600 hover:bg-blue-100 rounded-full" title="แก้ไข"><EditIcon className="w-4 h-4" /></button>
+                                            <button onClick={() => handleDeleteOrder(order.id)} className="p-2 text-red-600 hover:bg-red-100 rounded-full" title="ลบ"><Trash2Icon className="w-4 h-4" /></button>
+                                        </td>
+                                    </tr>
+                                    {expandedOrderId === order.id && <OrderDetailsRow order={order} />}
+                                </React.Fragment>
+                            );
+                        })}
+                    </tbody>
+                </table>
             </div>
         </div>
     );

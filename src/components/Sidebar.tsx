@@ -1,12 +1,13 @@
 
 
+
 import React, { useState, useMemo } from 'react';
 import { Tab } from '../App';
 import { 
     LayoutDashboardIcon, ListOrderedIcon, TruckIcon, SigmaIcon, ShoppingCartIcon, 
     FactoryIcon, RouteIcon, BoxIcon, ClipboardCheckIcon, ArchiveIcon, BeakerIcon, 
     UsersIcon, WrenchIcon, DollarSignIcon, BarChart3Icon, FileTextIcon, ChevronDownIcon,
-    DatabaseIcon, SearchIcon, SettingsIcon, LayoutGridIcon, PieChartIcon
+    DatabaseIcon, SearchIcon, SettingsIcon, LayoutGridIcon, PieChartIcon, HeartHandshakeIcon, MessageSquareWarningIcon
 } from './icons/Icons';
 
 interface MenuItemProps {
@@ -88,12 +89,21 @@ const menuConfig = [
     },
     {
         isCategory: true,
-        title: 'การขายและจัดส่ง',
+        title: 'การขายและลูกค้า',
         icon: <TruckIcon className="w-5 h-5"/>,
         children: [
             { tab: 'orders', title: 'จัดการออเดอร์', icon: <ListOrderedIcon className="w-5 h-5"/> },
             { tab: 'shipments', title: 'ติดตามการจัดส่ง', icon: <TruckIcon className="w-5 h-5"/> },
         ],
+    },
+    {
+        isCategory: true,
+        title: 'ลูกค้าสัมพันธ์',
+        icon: <HeartHandshakeIcon className="w-5 h-5"/>,
+        children: [
+             { tab: 'customers', title: 'จัดการลูกค้า', icon: <UsersIcon className="w-5 h-5" /> },
+             { tab: 'complaints', title: 'บันทึกข้อร้องเรียน', icon: <MessageSquareWarningIcon className="w-5 h-5" /> },
+        ]
     },
     {
         isCategory: true,
@@ -138,7 +148,7 @@ const menuConfig = [
 ];
 
 export const Sidebar: React.FC<{ activeTab: Tab, setActiveTab: (tab: Tab) => void, logoUrl?: string }> = ({ activeTab, setActiveTab, logoUrl }) => {
-    const [openMenus, setOpenMenus] = useState<Set<string>>(new Set(['การผลิต', 'การขายและจัดส่ง', 'คลังสินค้าและวัตถุดิบ', 'วิเคราะห์และรายงาน']));
+    const [openMenus, setOpenMenus] = useState<Set<string>>(new Set(['การผลิต', 'การขายและลูกค้า', 'คลังสินค้าและวัตถุดิบ', 'วิเคราะห์และรายงาน']));
     const [searchTerm, setSearchTerm] = useState('');
 
     const toggleMenu = (title: string) => {

@@ -1,5 +1,5 @@
 
-import { OrderItem, PackingLogEntry, InventoryItem, Employee, QCEntry, MoldingLogEntry, RawMaterial, BillOfMaterial, Machine, MaintenanceLog, Supplier, PurchaseOrder, Shipment, Product, AppSettings, AppRole } from '../types';
+import { OrderItem, PackingLogEntry, InventoryItem, Employee, QCEntry, MoldingLogEntry, RawMaterial, BillOfMaterial, Machine, MaintenanceLog, Supplier, PurchaseOrder, Shipment, Product, AppSettings, AppRole, Customer, Complaint } from '../types';
 import { CTElectricLogo } from '../assets/logo';
 
 const ORDERS_KEY = 'packing_orders';
@@ -18,6 +18,8 @@ const SHIPMENTS_KEY = 'factory_shipments';
 const PRODUCTS_KEY = 'factory_products';
 const SETTINGS_KEY = 'factory_settings';
 const READ_NOTIFICATIONS_KEY = 'read_notifications';
+const CUSTOMERS_KEY = 'factory_customers';
+const COMPLAINTS_KEY = 'factory_complaints';
 
 const DEFAULT_PRODUCTS: Product[] = [
     { id: 'a0b1c2d3-e4f5-g6h7-i8j9-k0l1m2n3o4p5', name: 'บล็อคลอย G-Power 2x4', color: 'สีขาว', salePrice: 3.69, cycleTimeSeconds: 12 },
@@ -376,6 +378,14 @@ export const savePurchaseOrders = (pos: PurchaseOrder[]): void => saveItems<Purc
 // Shipment specific functions
 export const getShipments = (): Shipment[] => getItems<Shipment>(SHIPMENTS_KEY);
 export const saveShipments = (shipments: Shipment[]): void => saveItems<Shipment>(SHIPMENTS_KEY, shipments);
+
+// Customer specific functions
+export const getCustomers = (): Customer[] => getItems<Customer>(CUSTOMERS_KEY);
+export const saveCustomers = (customers: Customer[]): void => saveItems<Customer>(CUSTOMERS_KEY, customers);
+
+// Complaint specific functions
+export const getComplaints = (): Complaint[] => getItems<Complaint>(COMPLAINTS_KEY);
+export const saveComplaints = (complaints: Complaint[]): void => saveItems<Complaint>(COMPLAINTS_KEY, complaints);
 
 // App Settings specific functions
 const DEFAULT_SETTINGS: AppSettings = {

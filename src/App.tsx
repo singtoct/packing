@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { OrderManagementTab } from './components/OrderManagementTab';
@@ -22,12 +21,15 @@ import { ShipmentTrackingTab } from './components/ShipmentTrackingTab';
 import { ProductsTab } from './components/ProductsTab';
 import { SettingsTab } from './components/SettingsTab';
 import { FactoryFloorTab } from './components/FactoryFloorTab';
+import { CustomersTab } from './components/CustomersTab';
+import { ComplaintsTab } from './components/ComplaintsTab';
+import { WorkerApp } from './components/WorkerApp';
 import { QuickActionModal } from './components/QuickActionModal';
 import { BellIcon, PlusIcon, ListOrderedIcon, ClipboardCheckIcon, WrenchIcon, FactoryIcon, ShieldAlertIcon } from './components/icons/Icons';
 import { getSettings, getInventory, getOrders, getQCEntries, getMachines, getReadNotificationIds, saveReadNotificationIds, getMoldingLogs } from './services/storageService';
 import { InventoryItem, AppNotification, AppSettings } from './types';
 
-export type Tab = 'dashboard' | 'factory_floor' | 'orders' | 'analysis' | 'procurement' | 'molding' | 'production_status' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'profit_analysis' | 'stats' | 'reports' | 'products' | 'settings';
+export type Tab = 'dashboard' | 'factory_floor' | 'orders' | 'analysis' | 'procurement' | 'molding' | 'production_status' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'profit_analysis' | 'stats' | 'reports' | 'products' | 'settings' | 'customers' | 'complaints';
 export type QuickActionType = 'order' | 'packing' | 'molding';
 
 const App: React.FC = () => {
@@ -38,6 +40,7 @@ const App: React.FC = () => {
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
   const [quickActionType, setQuickActionType] = useState<QuickActionType | null>(null);
   const [settings, setSettings] = useState<AppSettings>(getSettings());
+  const [isWorkerMode, setIsWorkerMode] = useState(false);
 
   const generateNotifications = () => {
     const today = new Date();
@@ -147,6 +150,13 @@ const App: React.FC = () => {
     const currentSettings = getSettings();
     setSettings(currentSettings);
     
+    const productionRole = currentSettings.roles.find(r => r.name === 'ฝ่ายผลิต');
+    if (productionRole && currentSettings.companyInfo.currentUserRoleId === productionRole.id) {
+        setIsWorkerMode(true);
+    } else {
+        setIsWorkerMode(false);
+    }
+    
     document.title = currentSettings.companyInfo.name || 'CT.ELECTRIC - Production System';
     const favicon = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
     if (favicon && currentSettings.companyInfo.logoUrl) {
@@ -157,8 +167,15 @@ const App: React.FC = () => {
     generateNotifications();
     
     const handleStorageChange = () => {
+        const newSettings = getSettings();
+        setSettings(newSettings);
+        const productionRole = newSettings.roles.find(r => r.name === 'ฝ่ายผลิต');
+        if (productionRole && newSettings.companyInfo.currentUserRoleId === productionRole.id) {
+            setIsWorkerMode(true);
+        } else {
+            setIsWorkerMode(false);
+        }
         generateNotifications();
-        setSettings(getSettings());
     };
     window.addEventListener('storage', handleStorageChange);
     
@@ -226,6 +243,10 @@ const App: React.FC = () => {
         return <MaintenanceTab />;
       case 'employees':
         return <EmployeeManagementTab />;
+      case 'customers':
+        return <CustomersTab />;
+      case 'complaints':
+        return <ComplaintsTab />;
       case 'cost_analysis':
         return <CostAnalysisTab />;
       case 'profit_analysis':
@@ -251,6 +272,10 @@ const App: React.FC = () => {
     };
     return iconMap[type] || <BellIcon className="w-5 h-5 text-gray-500" />;
   };
+
+  if (isWorkerMode) {
+      return <WorkerApp onDataUpdate={onDataUpdate} />;
+  }
 
   return (
     <div className="flex h-screen bg-gray-100 font-sans">

@@ -1,5 +1,5 @@
 
-export type Tab = 'dashboard' | 'factory_floor' | 'orders' | 'analysis' | 'procurement' | 'molding' | 'production_status' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'stats' | 'reports' | 'products' | 'settings';
+export type Tab = 'dashboard' | 'factory_floor' | 'orders' | 'analysis' | 'procurement' | 'molding' | 'production_status' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'profit_analysis' | 'stats' | 'reports' | 'products' | 'settings' | 'customers' | 'complaints';
 
 
 export interface OrderItem {
@@ -9,6 +9,7 @@ export interface OrderItem {
   quantity: number;
   dueDate: string;
   salePrice?: number; // Price per case
+  customerId?: string;
 }
 
 export interface PackingLogEntry {
@@ -72,6 +73,7 @@ export interface RawMaterial {
   quantity: number;
   unit: string; // e.g., 'kg', 'ชิ้น', 'ม้วน'
   costPerUnit?: number;
+  defaultSupplierId?: string;
 }
 
 export interface BillOfMaterial {
@@ -199,4 +201,21 @@ export interface AIInventoryForecastItem {
     currentStock: number;
     daysUntilStockout: number | null;
     reason: string;
+}
+
+export interface Customer {
+  id: string;
+  name: string;
+  address: string;
+  contactPerson: string;
+  phone: string;
+}
+
+export interface Complaint {
+  id: string;
+  customerId: string;
+  orderId: string;
+  complaintDate: string;
+  description: string;
+  status: 'Open' | 'Investigating' | 'Resolved';
 }

@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { RawMaterial, BillOfMaterial, MoldingLogEntry, Product, PurchaseOrder, Supplier } from '../types';
@@ -219,6 +220,11 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
     const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'name', direction: 'asc' });
     const [searchTerm, setSearchTerm] = useState('');
     const [expandedMaterialId, setExpandedMaterialId] = useState<string | null>(null);
+    const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+
+    useEffect(() => {
+        setSuppliers(getSuppliers());
+    }, []);
 
     const handleToggleHistory = (materialId: string) => {
         setExpandedMaterialId(prev => (prev === materialId ? null : materialId));
@@ -279,7 +285,7 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
         setCostPerUnit('');
     };
     
-    const handleUpdateField = (id: string, field: 'quantity' | 'costPerUnit', value: number) => {
+    const handleUpdateField = (id: string, field: keyof RawMaterial, value: any) => {
         const updated = rawMaterials.map(m => m.id === id ? { ...m, [field]: value } : m);
         setRawMaterials(updated);
         saveRawMaterials(updated);
@@ -483,7 +489,7 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
                 <table className="min-w-full bg-white divide-y divide-gray-200 rounded-lg shadow-sm border">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th className="p-4">
+                            <th className="p-4 w-12">
                                <input 
                                     type="checkbox"
                                     className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
@@ -492,9 +498,9 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
                                     disabled={filteredAndSortedMaterials.length === 0}
                                 />
                             </th>
-                            <SortableHeader sortKey="name" label="ชื่อวัตถุดิบ" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider" />
+                            <SortableHeader sortKey="name" label="ชื่อวัตถุดิบ" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider w-2/5" />
                             <SortableHeader sortKey="quantity" label="จำนวนในสต็อก" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider" />
-                            <SortableHeader sortKey="unit" label="หน่วย" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider" />
+                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">ซัพพลายเออร์หลัก</th>
                             <SortableHeader sortKey="costPerUnit" label="ต้นทุน/หน่วย (บาท)" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider" />
                             <th className="px-6 py-3 w-28 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Actions</th>
                         </tr>
@@ -520,8 +526,18 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
                                             onChange={e => handleUpdateField(mat.id, 'quantity', Number(e.target.value))}
                                             className={`w-24 text-right ${commonInputStyle}`}
                                         />
+                                        <span className="ml-2">{mat.unit}</span>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{mat.unit}</td>
+                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <select
+                                            value={mat.defaultSupplierId || ''}
+                                            onChange={e => handleUpdateField(mat.id, 'defaultSupplierId', e.target.value)}
+                                            className={`w-full text-sm ${commonInputStyle}`}
+                                        >
+                                            <option value="">-- ไม่ระบุ --</option>
+                                            {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                        </select>
+                                    </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                          <input 
                                             type="number"

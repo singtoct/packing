@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom/client';
 import { getSuppliers, saveSuppliers, getPurchaseOrders, savePurchaseOrders, getRawMaterials, saveRawMaterials, getAnalysisShortfall, getSettings } from '../services/storageService';
@@ -195,12 +196,52 @@ export const ProcurementTab: React.FC = () => {
         window.addEventListener('storage', refreshData);
         return () => window.removeEventListener('storage', refreshData);
     }, []);
+    
+    const handleAutoCreatePOs = () => {
+        if (shortfall.length === 0) return;
+        const materialsMap = new Map(rawMaterials.map(m => [m.id, m]));
+        const posBySupplier = new Map<string, { po: Omit<PurchaseOrder, 'id'>, supplierName: string }>();
 
-    const openPOModalWithShortfall = () => {
-        const initialItems = shortfall.map(s => ({ rawMaterialId: s.id, quantity: s.shortfall }));
-        setPoInitialItems(initialItems);
-        setIsPOModalOpen(true);
+        shortfall.forEach(item => {
+            const material = materialsMap.get(item.id);
+            if (!material || !material.defaultSupplierId) {
+                alert(`กรุณากำหนดซัพพลายเออร์หลักสำหรับ "${material?.name || item.name}" ก่อน`);
+                throw new Error("Missing default supplier");
+            }
+
+            if (!posBySupplier.has(material.defaultSupplierId)) {
+                const supplier = suppliers.find(s => s.id === material.defaultSupplierId);
+                posBySupplier.set(material.defaultSupplierId, {
+                    supplierName: supplier?.name || 'Unknown',
+                    po: {
+                        poNumber: `PO-${Date.now()}-${supplier?.name.substring(0,3) || ''}`,
+                        supplierId: material.defaultSupplierId,
+                        orderDate: new Date().toISOString().split('T')[0],
+                        expectedDate: '',
+                        status: 'Draft',
+                        items: []
+                    }
+                });
+            }
+            
+            const poData = posBySupplier.get(material.defaultSupplierId)!;
+            poData.po.items.push({
+                rawMaterialId: item.id,
+                quantity: Math.ceil(item.shortfall), // Round up to whole number
+                unitPrice: material.costPerUnit || 0
+            });
+        });
+        
+        if (window.confirm(`ระบบจะสร้างใบสั่งซื้อฉบับร่าง ${posBySupplier.size} ใบ ยืนยันหรือไม่?`)) {
+            const newPOs = Array.from(posBySupplier.values()).map(data => ({ ...data.po, id: crypto.randomUUID() }));
+            const updatedPOs = [...newPOs, ...purchaseOrders].sort((a,b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
+            savePurchaseOrders(updatedPOs);
+            setPurchaseOrders(updatedPOs);
+            alert('สร้างใบสั่งซื้อฉบับร่างเรียบร้อยแล้ว');
+            setView('pos');
+        }
     };
+
 
     const openNewPOModal = () => {
         setPoInitialItems([]);
@@ -311,8 +352,8 @@ export const ProcurementTab: React.FC = () => {
                         <button onClick={openNewPOModal} className={buttonPrimaryStyle}>
                             <PlusCircleIcon className="w-5 h-5"/> สร้างใบสั่งซื้อใหม่
                         </button>
-                        <button onClick={openPOModalWithShortfall} className={buttonPrimaryStyle} disabled={shortfall.length === 0}>
-                            <PlusCircleIcon className="w-5 h-5"/> สร้าง PO จากรายการที่ขาด
+                        <button onClick={handleAutoCreatePOs} className={buttonPrimaryStyle} disabled={shortfall.length === 0}>
+                            <PlusCircleIcon className="w-5 h-5"/> สร้าง PO อัตโนมัติจากรายการที่ขาด
                         </button>
                     </div>
                     <p className="text-sm text-gray-600 mb-4">รายการนี้คำนวณจากออเดอร์ที่เปิดอยู่ทั้งหมดเทียบกับสต็อกวัตถุดิบคงเหลือ</p>
