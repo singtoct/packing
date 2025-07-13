@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { Product, BillOfMaterial, RawMaterial } from '../types';
@@ -40,6 +41,7 @@ interface ProductExcelRow {
     Name?: string;
     Color?: string;
     SalePrice?: number;
+    CycleTimeSeconds?: number;
 }
 
 const EditProductModal: React.FC<{
@@ -53,7 +55,7 @@ const EditProductModal: React.FC<{
         const { name, value, type } = e.target;
         setEditedProduct(prev => ({
             ...prev,
-            [name]: type === 'number' ? Number(value) : value,
+            [name]: type === 'number' ? (value === '' ? undefined : Number(value)) : value,
         }));
     };
 
@@ -76,8 +78,12 @@ const EditProductModal: React.FC<{
                         <input type="text" name="color" value={editedProduct.color} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">ราคาขาย (ต่อลัง)</label>
+                        <label className="block text-sm font-medium text-gray-700">ราคาขาย (ต่อชิ้น)</label>
                         <input type="number" name="salePrice" min="0" step="0.01" value={editedProduct.salePrice} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">Cycle Time (วินาที)</label>
+                        <input type="number" name="cycleTimeSeconds" min="0" step="0.1" value={editedProduct.cycleTimeSeconds ?? ''} onChange={handleChange} placeholder="Optional for OEE" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
                     </div>
                     <div className="flex justify-end gap-4 pt-4">
                         <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-md">ยกเลิก</button>
@@ -121,14 +127,15 @@ const ImportReviewModal: React.FC<{
                 </div>
                 <div className="flex-grow overflow-y-auto border rounded-lg bg-gray-50 p-2">
                     <div className="space-y-2">
-                        <div className="grid grid-cols-[3fr,2fr,2fr,auto] gap-2 text-xs font-bold px-2 py-1">
-                            <span>ชื่อสินค้า (Name)</span><span>สี (Color)</span><span>ราคาขาย (SalePrice)</span><span></span>
+                        <div className="grid grid-cols-[3fr,2fr,2fr,2fr,auto] gap-2 text-xs font-bold px-2 py-1">
+                            <span>ชื่อสินค้า (Name)</span><span>สี (Color)</span><span>ราคาขาย (SalePrice)</span><span>CycleTime (sec)</span><span></span>
                         </div>
                         {data.map(p => (
-                            <div key={p._tempId} className="grid grid-cols-[3fr,2fr,2fr,auto] gap-2 items-center bg-white p-2 rounded shadow-sm">
+                            <div key={p._tempId} className="grid grid-cols-[3fr,2fr,2fr,2fr,auto] gap-2 items-center bg-white p-2 rounded shadow-sm">
                                 <input type="text" value={p.Name || ''} onChange={e => handleItemChange(p._tempId, 'Name', e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
                                 <input type="text" value={p.Color || ''} onChange={e => handleItemChange(p._tempId, 'Color', e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
                                 <input type="number" value={p.SalePrice || 0} onChange={e => handleItemChange(p._tempId, 'SalePrice', Number(e.target.value))} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
+                                <input type="number" value={p.CycleTimeSeconds || ''} onChange={e => handleItemChange(p._tempId, 'CycleTimeSeconds', Number(e.target.value))} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
                                 <button onClick={() => handleRemoveItem(p._tempId)} className="p-1 text-red-500 hover:text-red-700"><Trash2Icon className="w-4 h-4"/></button>
                             </div>
                         ))}
@@ -152,6 +159,7 @@ export const ProductsTab: React.FC = () => {
     const [name, setName] = useState('');
     const [color, setColor] = useState('');
     const [salePrice, setSalePrice] = useState<number | ''>('');
+    const [cycleTime, setCycleTime] = useState<number | ''>('');
 
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
     const [stagedData, setStagedData] = useState<ProductExcelRow[]>([]);
@@ -216,6 +224,8 @@ export const ProductsTab: React.FC = () => {
             sortableItems.sort((a, b) => {
                 const aVal = a[sortConfig.key];
                 const bVal = b[sortConfig.key];
+                if (aVal === undefined) return 1;
+                if (bVal === undefined) return -1;
                 if (aVal < bVal) {
                     return sortConfig.direction === 'asc' ? -1 : 1;
                 }
@@ -236,7 +246,8 @@ export const ProductsTab: React.FC = () => {
             id: crypto.randomUUID(),
             name,
             color,
-            salePrice: Number(salePrice)
+            salePrice: Number(salePrice),
+            cycleTimeSeconds: cycleTime === '' ? undefined : Number(cycleTime),
         };
         const updated = [...products, newProduct];
         setProducts(updated);
@@ -244,6 +255,7 @@ export const ProductsTab: React.FC = () => {
         setName('');
         setColor('');
         setSalePrice('');
+        setCycleTime('');
     };
 
     const handleUpdateProduct = (updatedProduct: Product) => {
@@ -287,9 +299,9 @@ export const ProductsTab: React.FC = () => {
 
 
     const handleExportTemplate = () => {
-        const headers = [['ชื่อสินค้า', 'สี', 'ราคาขาย']];
+        const headers = [['Name', 'Color', 'SalePrice', 'CycleTimeSeconds']];
         const ws = XLSX.utils.aoa_to_sheet(headers);
-        ws['!cols'] = [{wch: 40}, {wch: 20}, {wch: 15}];
+        ws['!cols'] = [{wch: 40}, {wch: 20}, {wch: 15}, {wch: 20}];
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Product_Template");
         XLSX.writeFile(wb, "Product_Import_Template.xlsx");
@@ -311,7 +323,7 @@ export const ProductsTab: React.FC = () => {
                 const findHeader = (row: Record<string, any>, ...possibleNames: string[]): string | undefined => {
                     const rowKeys = Object.keys(row);
                     for (const name of possibleNames) {
-                        const foundKey = rowKeys.find(key => key.toLowerCase().trim() === name.toLowerCase());
+                        const foundKey = rowKeys.find(key => key.toLowerCase().trim().replace(/ /g, '') === name.toLowerCase());
                         if (foundKey) return foundKey;
                     }
                     return undefined;
@@ -321,6 +333,7 @@ export const ProductsTab: React.FC = () => {
                 const nameHeader = findHeader(firstRow, 'name', 'ชื่อสินค้า');
                 const colorHeader = findHeader(firstRow, 'color', 'สี');
                 const salePriceHeader = findHeader(firstRow, 'saleprice', 'ราคาขาย');
+                const cycleTimeHeader = findHeader(firstRow, 'cycletimeseconds', 'cycletime(s)');
 
                 if (!nameHeader || !colorHeader) {
                     alert('ไม่พบหัวคอลัมน์ที่จำเป็น (Name/ชื่อสินค้า, Color/สี) ในไฟล์ Excel');
@@ -331,19 +344,34 @@ export const ProductsTab: React.FC = () => {
                 const processedData: ProductExcelRow[] = json.map(row => {
                     const name = row[nameHeader!];
                     const color = row[colorHeader!];
-                    let salePrice: number | string | undefined = salePriceHeader ? row[salePriceHeader] : undefined;
 
-                    if (typeof salePrice === 'string') {
-                        salePrice = Number(salePrice.replace(/[^0-9.-]+/g, ""));
+                    let salePriceValue: number;
+                    const rawSalePrice = salePriceHeader ? row[salePriceHeader] : undefined;
+                    if (typeof rawSalePrice === 'string') {
+                        const parsed = Number(rawSalePrice.replace(/[^0-9.-]+/g, ""));
+                        salePriceValue = isNaN(parsed) ? 0 : parsed;
+                    } else if (typeof rawSalePrice === 'number' && !isNaN(rawSalePrice)) {
+                        salePriceValue = rawSalePrice;
+                    } else {
+                        salePriceValue = 0;
                     }
-                    if (salePrice === undefined || salePrice === null || isNaN(Number(salePrice))) {
-                        salePrice = 0;
+                    
+                    let cycleTimeValue: number | undefined;
+                    const rawCycleTime = cycleTimeHeader ? row[cycleTimeHeader] : undefined;
+                    if (typeof rawCycleTime === 'string') {
+                        const parsed = Number(rawCycleTime.replace(/[^0-9.-]+/g, ""));
+                        cycleTimeValue = isNaN(parsed) ? undefined : parsed;
+                    } else if (typeof rawCycleTime === 'number' && !isNaN(rawCycleTime)) {
+                        cycleTimeValue = rawCycleTime;
+                    } else {
+                        cycleTimeValue = undefined;
                     }
 
                     return {
                         Name: String(name),
                         Color: String(color),
-                        SalePrice: Number(salePrice),
+                        SalePrice: salePriceValue,
+                        CycleTimeSeconds: cycleTimeValue,
                     };
                 }).filter(row => row.Name && row.Color);
 
@@ -371,14 +399,16 @@ export const ProductsTab: React.FC = () => {
             const name = row.Name;
             const color = row.Color;
             const salePrice = Number(row.SalePrice);
+            const cycleTimeSeconds = row.CycleTimeSeconds !== undefined ? Number(row.CycleTimeSeconds) : undefined;
 
             if (name && color && !isNaN(salePrice)) {
                 const key = `${name}-${color}`;
                 const existing = productMap.get(key);
                 if (existing) {
                     existing.salePrice = salePrice;
+                    existing.cycleTimeSeconds = cycleTimeSeconds;
                 } else {
-                    productMap.set(key, { id: crypto.randomUUID(), name, color, salePrice });
+                    productMap.set(key, { id: crypto.randomUUID(), name, color, salePrice, cycleTimeSeconds });
                 }
             }
         });
@@ -409,7 +439,7 @@ export const ProductsTab: React.FC = () => {
                     </button>
                 </div>
             </div>
-             <form onSubmit={handleAddProduct} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end bg-gray-50 p-4 rounded-lg border mb-10">
+             <form onSubmit={handleAddProduct} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end bg-gray-50 p-4 rounded-lg border mb-10">
                 <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700">ชื่อสินค้า</label>
                     <input type="text" value={name} onChange={e => setName(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required />
@@ -419,8 +449,12 @@ export const ProductsTab: React.FC = () => {
                     <input type="text" value={color} onChange={e => setColor(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required />
                 </div>
                  <div>
-                    <label className="block text-sm font-medium text-gray-700">ราคาขาย (ต่อลัง)</label>
+                    <label className="block text-sm font-medium text-gray-700">ราคาขาย (ต่อชิ้น)</label>
                     <input type="number" min="0" step="0.01" value={salePrice} onChange={e => setSalePrice(e.target.value === '' ? '' : Number(e.target.value))} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700">Cycle Time (วินาที)</label>
+                    <input type="number" min="0" step="0.1" value={cycleTime} onChange={e => setCycleTime(e.target.value === '' ? '' : Number(e.target.value))} placeholder="สำหรับ OEE" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
                 </div>
                 <div className="col-span-full flex justify-end">
                      <button type="submit" className="inline-flex items-center justify-center gap-2 w-full md:w-auto px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700">
@@ -455,6 +489,7 @@ export const ProductsTab: React.FC = () => {
                             </th>
                             <SortableHeader sortKey="name" label="สินค้า" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase" />
                             <SortableHeader sortKey="salePrice" label="ราคาขาย" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase" justify="right" />
+                            <SortableHeader sortKey="cycleTimeSeconds" label="Cycle Time (s)" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase" justify="right" />
                             <SortableHeader sortKey="cost" label="ต้นทุนวัตถุดิบ" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase" justify="right" />
                             <SortableHeader sortKey="profit" label="กำไร" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase" justify="right" />
                             <th className="relative px-6 py-3 w-28"><span className="sr-only">Actions</span></th>
@@ -478,6 +513,7 @@ export const ProductsTab: React.FC = () => {
                                         <p className="text-sm text-gray-500">{p.color}</p>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-green-700">{p.salePrice.toFixed(2)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500">{p.cycleTimeSeconds || '-'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-orange-700">{p.cost > 0 ? p.cost.toFixed(2) : '-'}</td>
                                     <td className={`px-6 py-4 whitespace-nowrap text-sm text-right font-bold ${profit >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
                                         {p.cost > 0 ? profit.toFixed(2) : '-'}
@@ -489,7 +525,7 @@ export const ProductsTab: React.FC = () => {
                                 </tr>
                             )
                         }) : (
-                            <tr><td colSpan={6} className="text-center text-gray-500 py-8">
+                            <tr><td colSpan={7} className="text-center text-gray-500 py-8">
                                 <DatabaseIcon className="mx-auto w-12 h-12 text-gray-300"/>
                                 <p className="mt-2">ยังไม่มีสินค้าในระบบ</p>
                             </td></tr>

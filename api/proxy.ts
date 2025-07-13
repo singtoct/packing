@@ -1,8 +1,7 @@
 
-
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { GoogleGenAI } from "@google/genai";
-import { MoldingLogEntry } from '../src/types';
+import { GoogleGenAI, Type } from "@google/genai";
+import { MoldingLogEntry, OrderItem, InventoryItem, Machine, BillOfMaterial, RawMaterial } from '../src/types';
 
 // Ensure API key is available in the serverless environment
 if (!process.env.API_KEY) {
@@ -16,7 +15,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // Type definitions for request body to ensure type safety
 interface ApiRequestBody {
-  type: 'translate' | 'parseOrders' | 'parseRawMaterials' | 'analyzeAnomalies';
+  type: 'translate' | 'parseOrders' | 'parseRawMaterials' | 'analyzeAnomalies' | 'generateProductionPlan';
   payload: unknown;
 }
 
@@ -31,6 +30,15 @@ interface ParsePayload {
 interface AnalyzeAnomaliesPayload {
     moldingLogs: MoldingLogEntry[];
 }
+
+interface GeneratePlanPayload {
+    orders: OrderItem[];
+    inventory: InventoryItem[];
+    machines: Machine[];
+    boms: BillOfMaterial[];
+    rawMaterials: RawMaterial[];
+}
+
 
 // Type guards to validate payloads
 const isTranslatePayload = (payload: unknown): payload is TranslatePayload => {
@@ -57,6 +65,18 @@ const isAnalyzeAnomaliesPayload = (payload: unknown): payload is AnalyzeAnomalie
         payload !== null &&
         'moldingLogs' in payload &&
         Array.isArray((payload as AnalyzeAnomaliesPayload).moldingLogs)
+    );
+};
+
+const isGeneratePlanPayload = (payload: unknown): payload is GeneratePlanPayload => {
+    return (
+        typeof payload === 'object' &&
+        payload !== null &&
+        'orders' in payload && Array.isArray((payload as GeneratePlanPayload).orders) &&
+        'inventory' in payload && Array.isArray((payload as GeneratePlanPayload).inventory) &&
+        'machines' in payload && Array.isArray((payload as GeneratePlanPayload).machines) &&
+        'boms' in payload && Array.isArray((payload as GeneratePlanPayload).boms) &&
+        'rawMaterials' in payload && Array.isArray((payload as GeneratePlanPayload).rawMaterials)
     );
 };
 
@@ -291,6 +311,71 @@ ${JSON.stringify(payload.moldingLogs)}
               config: { responseMimeType: "application/json", temperature: 0.3 },
             });
         
+        const responseText = response.text;
+        if (responseText) {
+            result = parseJsonResponse(responseText);
+        } else {
+            result = null;
+        }
+        break;
+      }
+      
+      case 'generateProductionPlan': {
+        if (!isGeneratePlanPayload(payload)) {
+            return res.status(400).json({ error: 'Invalid payload for production plan request.' });
+        }
+        
+        const prompt = `You are an expert production planner for a plastic injection molding factory. Your goal is to create an optimal daily production plan based on the provided data. Today is ${new Date().toLocaleDateString()}.
+
+You are given:
+1.  **Open Sales Orders**: Prioritize orders with closer due dates.
+2.  **Current Finished Goods Inventory**: Identify products below their minimum stock level.
+3.  **Available Machines**: Only use machines with 'Running' status.
+4.  **Bills of Materials (BOMs)**: Defines raw materials needed for each product.
+5.  **Raw Material Inventory**: Current stock of raw materials.
+
+Your task is to generate a prioritized list of production tasks for today.
+
+CRITICAL CONSTRAINTS:
+1.  **Material Check**: Before scheduling a product, you MUST verify that ALL required raw materials are available in sufficient quantity by checking the BOM against the raw material inventory. If materials are insufficient, DO NOT schedule the item.
+2.  **Prioritization Logic**:
+    a. Highest priority: Fulfilling open sales orders. Prioritize orders with the nearest due dates first.
+    b. Second priority: Replenishing finished goods that have fallen below their specified 'minStock' level.
+3.  **Machine Allocation**: Distribute tasks among available 'Running' machines.
+
+Return the plan as a JSON array of objects, sorted by priority. If no production is possible or necessary, return an empty array.
+`;
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: [
+                prompt,
+                "Sales Orders:", JSON.stringify(payload.orders),
+                "Finished Goods Inventory:", JSON.stringify(payload.inventory),
+                "Machines:", JSON.stringify(payload.machines),
+                "BOMs:", JSON.stringify(payload.boms),
+                "Raw Materials:", JSON.stringify(payload.rawMaterials),
+            ],
+            config: {
+                responseMimeType: "application/json",
+                temperature: 0.2,
+                responseSchema: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            productName: { type: Type.STRING, description: "The full name of the product to produce." },
+                            quantity: { type: Type.NUMBER, description: "The number of units (pieces) to produce." },
+                            machine: { type: Type.STRING, description: "The recommended machine name to use." },
+                            reason: { type: Type.STRING, description: "A brief justification for this production task." },
+                            priority: { type: Type.NUMBER, description: "A number from 1 (highest) to 10 (lowest)." }
+                        },
+                        required: ["productName", "quantity", "machine", "reason", "priority"]
+                    }
+                }
+            },
+        });
+
         const responseText = response.text;
         if (responseText) {
             result = parseJsonResponse(responseText);

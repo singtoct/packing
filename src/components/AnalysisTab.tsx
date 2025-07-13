@@ -1,14 +1,165 @@
+
 import React, { useMemo, useState, useEffect } from 'react';
-import { getOrders, getBOMs, getRawMaterials, getMoldingLogs } from '../services/storageService';
+import { getOrders, getBOMs, getRawMaterials, getMoldingLogs, getMachines, getMaintenanceLogs, getProducts } from '../services/storageService';
 import { analyzeProductionAnomalies } from '../services/geminiService';
-import { AnomalyFinding } from '../types';
-import { AlertTriangleIcon, CheckCircle2Icon, SigmaIcon, SparklesIcon, LoaderIcon, ShieldAlertIcon } from './icons/Icons';
+import { AnomalyFinding, OeeData } from '../types';
+import { AlertTriangleIcon, CheckCircle2Icon, SigmaIcon, SparklesIcon, LoaderIcon, ShieldAlertIcon, FactoryIcon } from './icons/Icons';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from 'recharts';
+
 
 type SortDirection = 'asc' | 'desc';
 interface SortConfig {
     key: string;
     direction: SortDirection;
 }
+
+const OEEAnalysis: React.FC = () => {
+    const [oeeData, setOeeData] = useState<OeeData[]>([]);
+    const [dateRange, setDateRange] = useState<number>(30); // Default to 30 days
+
+    useEffect(() => {
+        const calculateOEE = () => {
+            const machines = getMachines();
+            const allProducts = getProducts();
+            const productMap = new Map(allProducts.map(p => [p.name, p]));
+            const maintenanceLogs = getMaintenanceLogs();
+            const moldingLogs = getMoldingLogs();
+
+            const end = new Date();
+            const start = new Date();
+            start.setDate(end.getDate() - dateRange);
+
+            const filteredMoldingLogs = moldingLogs.filter(log => {
+                const logDate = new Date(log.date);
+                return logDate >= start && logDate <= end;
+            });
+            const filteredMaintenanceLogs = maintenanceLogs.filter(log => {
+                const logDate = new Date(log.date);
+                return logDate >= start && logDate <= end;
+            });
+
+            const data: OeeData[] = machines.map(machine => {
+                const machineMoldingLogs = filteredMoldingLogs.filter(log => log.machine === machine.name);
+                const machineMaintenanceLogs = filteredMaintenanceLogs.filter(log => log.machineId === machine.id);
+
+                const plannedProductionTime = dateRange * 24 * 3600; // in seconds
+                const totalDowntime = machineMaintenanceLogs.reduce((sum, log) => sum + (log.downtimeHours * 3600), 0);
+                const runTime = plannedProductionTime - totalDowntime;
+
+                const availability = runTime > 0 ? (runTime / plannedProductionTime) : 0;
+                
+                const totalProduced = machineMoldingLogs.reduce((sum, log) => sum + log.quantityProduced, 0);
+                const totalRejected = machineMoldingLogs.reduce((sum, log) => sum + log.quantityRejected, 0);
+                const totalGood = totalProduced - totalRejected;
+                
+                const quality = totalProduced > 0 ? (totalGood / totalProduced) : 0;
+                
+                const idealRunTime = machineMoldingLogs.reduce((sum, log) => {
+                    // Extract base product name before color
+                    const baseProductName = log.productName.split(' (')[0]; 
+                    const product = productMap.get(baseProductName);
+                    const cycleTime = product?.cycleTimeSeconds || 10; // Default cycle time if not set
+                    return sum + (log.quantityProduced * cycleTime);
+                }, 0);
+
+                const performance = runTime > 0 ? (idealRunTime / runTime) : 0;
+                
+                const oee = availability * performance * quality;
+                
+                return {
+                    machineName: machine.name,
+                    availability,
+                    performance,
+                    quality,
+                    oee,
+                };
+            });
+            
+            setOeeData(data.sort((a,b) => b.oee - a.oee));
+        };
+
+        calculateOEE();
+    }, [dateRange]);
+
+    const FilterButton: React.FC<{ range: number; label: string }> = ({ range, label }) => (
+        <button
+            onClick={() => setDateRange(range)}
+            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                dateRange === range
+                    ? 'bg-blue-600 text-white shadow'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 border'
+            }`}
+        >
+            {label}
+        </button>
+    );
+    
+    const formatPercent = (value: number) => `${(value * 100).toFixed(1)}%`;
+
+    return (
+        <div className="bg-gray-50 p-6 rounded-xl border-2 border-dashed mb-8">
+            <div className="flex flex-wrap gap-4 justify-between items-center mb-4">
+                <div>
+                    <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                        <FactoryIcon className="w-6 h-6 text-blue-500" />
+                        ประสิทธิภาพเครื่องจักรโดยรวม (OEE)
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-1">คำนวณจากข้อมูลย้อนหลังตามช่วงวันที่ที่เลือก</p>
+                </div>
+                 <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-lg">
+                    <FilterButton range={7} label="7 วัน" />
+                    <FilterButton range={30} label="30 วัน" />
+                    <FilterButton range={90} label="90 วัน" />
+                </div>
+            </div>
+            {oeeData.length > 0 ? (
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    <div className="w-full h-80">
+                        <ResponsiveContainer width="100%" height="100%">
+                             <BarChart data={oeeData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis type="number" domain={[0, 1]} tickFormatter={formatPercent} />
+                                <YAxis type="category" dataKey="machineName" width={80} tick={{fontSize: 12}} />
+                                <Tooltip formatter={(value: number) => formatPercent(value)} />
+                                <Legend />
+                                <Bar dataKey="oee" name="OEE" fill="#2563eb" background={{ fill: '#eee' }} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                    <div className="overflow-x-auto">
+                         <table className="min-w-full bg-white text-sm">
+                            <thead className="bg-gray-100">
+                                <tr>
+                                    <th className="p-2 text-left">Machine</th>
+                                    <th className="p-2 text-right">Availability</th>
+                                    <th className="p-2 text-right">Performance</th>
+                                    <th className="p-2 text-right">Quality</th>
+                                    <th className="p-2 text-right font-bold">OEE</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {oeeData.map(d => (
+                                    <tr key={d.machineName} className="border-t">
+                                        <td className="p-2 font-semibold">{d.machineName}</td>
+                                        <td className="p-2 text-right">{formatPercent(d.availability)}</td>
+                                        <td className="p-2 text-right">{formatPercent(d.performance)}</td>
+                                        <td className="p-2 text-right">{formatPercent(d.quality)}</td>
+                                        <td className={`p-2 text-right font-bold ${d.oee > 0.8 ? 'text-green-600' : d.oee > 0.6 ? 'text-yellow-600' : 'text-red-600'}`}>{formatPercent(d.oee)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            ) : (
+                 <div className="text-center py-8">
+                    <p className="text-gray-500">ไม่มีข้อมูลการผลิตในช่วงเวลานี้</p>
+                </div>
+            )}
+        </div>
+    );
+};
+
 
 // Helper component for sortable table headers
 const SortableHeader: React.FC<{
@@ -196,6 +347,8 @@ export const AnalysisTab: React.FC = () => {
             </div>
             
             <AnomalyDetector />
+            
+            <OEEAnalysis />
 
             <h3 className="text-xl font-bold text-gray-800 mb-4">วิเคราะห์ความต้องการวัตถุดิบ (สำหรับออเดอร์ปัจจุบัน)</h3>
              <div className="bg-blue-50 text-blue-800 p-3 rounded-lg text-sm font-medium mb-4">

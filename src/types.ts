@@ -44,6 +44,7 @@ export interface Product {
   name: string;
   color: string;
   salePrice: number;
+  cycleTimeSeconds?: number; // Ideal time in seconds to produce one unit
 }
 
 export interface Employee {
@@ -166,4 +167,20 @@ export interface AnomalyFinding {
     rejected: number;
     rate: number;
   };
+}
+
+export interface AIProductionPlanItem {
+    productName: string;
+    quantity: number;
+    machine: string;
+    reason: string;
+    priority: number;
+}
+
+export interface OeeData {
+    machineName: string;
+    availability: number;
+    performance: number;
+    quality: number;
+    oee: number;
 }

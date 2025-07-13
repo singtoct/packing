@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { getOrders, getPackingLogs, getInventory, getQCEntries, getMoldingLogs, getBOMs, getRawMaterials, getDashboardLayout, saveDashboardLayout } from '../services/storageService';
-import { OrderItem, PackingLogEntry, InventoryItem, QCEntry, MoldingLogEntry } from '../types';
+import { getOrders, getPackingLogs, getInventory, getQCEntries, getMoldingLogs, getBOMs, getRawMaterials, getDashboardLayout, saveDashboardLayout, getMachines } from '../services/storageService';
+import { generateProductionPlan } from '../services/geminiService';
+import { OrderItem, PackingLogEntry, InventoryItem, QCEntry, MoldingLogEntry, AIProductionPlanItem } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { ListOrderedIcon, AlertTriangleIcon, TrophyIcon, TrendingUpIcon, CheckCircle2Icon, ClipboardCheckIcon, FactoryIcon, RouteIcon, ExternalLinkIcon, SettingsIcon, XCircleIcon, GripVerticalIcon } from './icons/Icons';
+import { ListOrderedIcon, AlertTriangleIcon, TrophyIcon, TrendingUpIcon, CheckCircle2Icon, ClipboardCheckIcon, FactoryIcon, RouteIcon, ExternalLinkIcon, SettingsIcon, XCircleIcon, GripVerticalIcon, SparklesIcon, LoaderIcon } from './icons/Icons';
 
 type Tab = 'dashboard' | 'orders' | 'logs' | 'inventory' | 'stats' | 'qc' | 'molding' | 'production_status' | 'employees' | 'reports' | 'procurement' | 'analysis' | 'raw_materials';
 
@@ -28,6 +29,74 @@ const StatCard: React.FC<{ title: string; icon: React.ReactNode; children: React
 );
 
 // --- Individual Card Components ---
+
+const AIPlannerCard: React.FC = () => {
+    const [plan, setPlan] = useState<AIProductionPlanItem[] | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleGeneratePlan = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const orders = getOrders();
+            const inventory = getInventory();
+            const machines = getMachines();
+            const boms = getBOMs();
+            const rawMaterials = getRawMaterials();
+            const generatedPlan = await generateProductionPlan(orders, inventory, machines, boms, rawMaterials);
+            setPlan(generatedPlan);
+        } catch (err) {
+            setError('Failed to generate plan. Please try again.');
+            console.error(err);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <StatCard title="แผนการผลิตที่แนะนำโดย AI" icon={<SparklesIcon className="w-6 h-6 text-violet-500" />} className="bg-violet-50 border-violet-200">
+            {isLoading ? (
+                <div className="flex flex-col items-center justify-center h-full">
+                    <LoaderIcon className="w-12 h-12 text-violet-500"/>
+                    <p className="mt-2 text-violet-700">AI กำลังวิเคราะห์ข้อมูล...</p>
+                </div>
+            ) : error ? (
+                 <div className="text-center text-red-600">{error}</div>
+            ) : plan ? (
+                plan.length > 0 ? (
+                <div className="space-y-3 h-full max-h-80 overflow-y-auto pr-2">
+                    {plan.map((item, index) => (
+                         <div key={index} className="bg-white p-3 rounded-lg border border-gray-200">
+                            <div className="flex justify-between items-start">
+                                <p className="font-bold text-gray-800">{item.priority}. {item.productName}</p>
+                                <span className="text-sm font-semibold text-violet-600">{item.machine}</span>
+                            </div>
+                            <p className="text-sm text-gray-600">จำนวน: <span className="font-medium">{item.quantity.toLocaleString()} ชิ้น</span></p>
+                            <p className="text-xs text-gray-500 mt-1 italic">เหตุผล: {item.reason}</p>
+                        </div>
+                    ))}
+                </div>
+                 ) : (
+                    <div className="text-center h-full flex flex-col justify-center items-center">
+                        <CheckCircle2Icon className="w-12 h-12 text-green-500" />
+                         <p className="mt-2 font-semibold text-gray-700">ทุกอย่างเรียบร้อยดี!</p>
+                        <p className="text-sm text-gray-500">ไม่มีรายการผลิตที่จำเป็นในขณะนี้</p>
+                    </div>
+                )
+            ) : (
+                <div className="text-center h-full flex flex-col justify-center">
+                    <p className="text-gray-600 mb-4">ให้ AI ช่วยวางแผนการผลิตสำหรับวันนี้ โดยพิจารณาจากออเดอร์, สต็อก และวัตถุดิบ</p>
+                    <button onClick={handleGeneratePlan} className="bg-violet-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-violet-700 transition-colors inline-flex items-center justify-center gap-2">
+                        <SparklesIcon className="w-5 h-5"/>
+                        สร้างแผนสำหรับวันนี้
+                    </button>
+                </div>
+            )}
+        </StatCard>
+    );
+};
+
 
 const UpcomingOrdersCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ setActiveTab }) => {
     const [orders, setOrders] = useState<OrderItem[]>([]);
@@ -190,15 +259,16 @@ const RawMaterialNeedsCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ 
 
 export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ setActiveTab }) => {
     const WIDGETS: Record<string, DashboardWidget> = {
-        productionSummary: { id: 'productionSummary', title: 'Production Summary', Component: ProductionSummaryCard, gridSpan: 2 },
+        aiPlanner: { id: 'aiPlanner', title: 'AI Production Planner', Component: AIPlannerCard, gridSpan: 3 },
         upcomingOrders: { id: 'upcomingOrders', title: 'Upcoming Orders', Component: UpcomingOrdersCard, gridSpan: 1 },
         pendingQc: { id: 'pendingQc', title: 'Pending QC', Component: PendingQcCard, gridSpan: 1 },
         lowStock: { id: 'lowStock', title: 'Low Stock', Component: LowStockCard, gridSpan: 1 },
+        productionSummary: { id: 'productionSummary', title: 'Production Summary', Component: ProductionSummaryCard, gridSpan: 2 },
         topPackers: { id: 'topPackers', title: 'Top Packers (Last 7 Days)', Component: TopPackersCard, gridSpan: 1 },
         rawMaterialNeeds: { id: 'rawMaterialNeeds', title: 'Raw Material Needs', Component: RawMaterialNeedsCard, gridSpan: 3 },
     };
     
-    const DEFAULT_LAYOUT = ['productionSummary', 'upcomingOrders', 'pendingQc', 'lowStock', 'topPackers', 'rawMaterialNeeds'];
+    const DEFAULT_LAYOUT = ['aiPlanner', 'upcomingOrders', 'pendingQc', 'lowStock', 'productionSummary', 'topPackers', 'rawMaterialNeeds'];
     
     const [layout, setLayout] = useState<string[]>(getDashboardLayout() || DEFAULT_LAYOUT);
     const [isCustomizeMode, setIsCustomizeMode] = useState(false);

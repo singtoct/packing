@@ -1,13 +1,8 @@
 
-
-
-
-
-
-import { BurmeseTranslation, OrderItem, RawMaterial, MoldingLogEntry, AnomalyFinding } from "../types";
+import { BurmeseTranslation, OrderItem, RawMaterial, MoldingLogEntry, AnomalyFinding, AIProductionPlanItem, InventoryItem, Machine, BillOfMaterial } from "../types";
 
 // This function communicates with our secure, serverless API proxy
-async function callApiProxy<T>(type: 'translate' | 'parseOrders' | 'parseRawMaterials' | 'analyzeAnomalies', payload: object): Promise<T> {
+async function callApiProxy<T>(type: 'translate' | 'parseOrders' | 'parseRawMaterials' | 'analyzeAnomalies' | 'generateProductionPlan', payload: object): Promise<T> {
     try {
         const response = await fetch('/api/proxy', {
             method: 'POST',
@@ -116,5 +111,22 @@ export const analyzeProductionAnomalies = async (moldingLogs: MoldingLogEntry[])
         console.error("Production anomaly analysis failed.", error);
         // In case of error, return an empty array to not break the UI
         return [];
+    }
+};
+
+export const generateProductionPlan = async (
+    orders: OrderItem[], 
+    inventory: InventoryItem[], 
+    machines: Machine[], 
+    boms: BillOfMaterial[], 
+    rawMaterials: RawMaterial[]
+): Promise<AIProductionPlanItem[]> => {
+    try {
+        const payload = { orders, inventory, machines, boms, rawMaterials };
+        const plan = await callApiProxy<AIProductionPlanItem[]>('generateProductionPlan', payload);
+        return plan || [];
+    } catch (error) {
+        console.error("AI Production Plan generation failed:", error);
+        throw error; // Let the UI handle this error
     }
 };
