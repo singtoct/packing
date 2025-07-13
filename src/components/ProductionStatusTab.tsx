@@ -1,8 +1,10 @@
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { getMoldingLogs, saveMoldingLogs, getSettings } from '../services/storageService';
 import { MoldingLogEntry } from '../types';
-import { RouteIcon } from './icons/Icons';
+import { RouteIcon, QrCodeIcon } from './icons/Icons';
+import { QRScannerModal } from './QRScannerModal';
 
 const UpdateStatusModal: React.FC<{
     log: MoldingLogEntry;
@@ -61,6 +63,7 @@ const UpdateStatusModal: React.FC<{
 export const ProductionStatusTab: React.FC = () => {
     const [allLogs, setAllLogs] = useState<MoldingLogEntry[]>([]);
     const [modalOpen, setModalOpen] = useState(false);
+    const [scannerOpen, setScannerOpen] = useState(false);
     const [selectedLog, setSelectedLog] = useState<MoldingLogEntry | null>(null);
     const [productionStages, setProductionStages] = useState<string[]>([]);
 
@@ -102,12 +105,30 @@ export const ProductionStatusTab: React.FC = () => {
         saveMoldingLogs(updatedLogs);
         setAllLogs(updatedLogs);
     };
+    
+    const handleScanSuccess = (logId: string) => {
+        setScannerOpen(false);
+        const logToUpdate = allLogs.find(log => log.id === logId);
+        if (logToUpdate) {
+            openModal(logToUpdate);
+        } else {
+            alert('ไม่พบข้อมูลสำหรับ QR Code นี้');
+        }
+    };
 
     return (
         <div>
              {modalOpen && selectedLog && <UpdateStatusModal log={selectedLog} onClose={() => setModalOpen(false)} onSave={handleSaveStatus} productionStatuses={getSettings().productionStatuses} />}
+             {scannerOpen && <QRScannerModal onScan={handleScanSuccess} onClose={() => setScannerOpen(false)} />}
             <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">สถานะการผลิต (Kanban Board)</h2>
+                <button 
+                    onClick={() => setScannerOpen(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-teal-600 hover:bg-teal-700 focus:outline-none"
+                >
+                    <QrCodeIcon className="w-5 h-5"/>
+                    สแกนเพื่ออัปเดตงาน
+                </button>
             </div>
             <div className="flex gap-6 overflow-x-auto pb-4">
                 {productionStages.map(stage => (

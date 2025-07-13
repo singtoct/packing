@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { PurchaseOrder, Supplier, CompanyInfo } from '../types';
 

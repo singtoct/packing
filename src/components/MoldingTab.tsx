@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { MoldingLogEntry, Employee, RawMaterial, BillOfMaterial, Product } from '../types';
 import { getMoldingLogs, saveMoldingLogs, getEmployees, getRawMaterials, saveRawMaterials, getBOMs, getProducts, getSettings } from '../services/storageService';
-import { PlusCircleIcon, Trash2Icon, AlertTriangleIcon, DownloadIcon, UploadIcon, XCircleIcon } from './icons/Icons';
+import { PlusCircleIcon, Trash2Icon, AlertTriangleIcon, DownloadIcon, UploadIcon, XCircleIcon, QrCodeIcon } from './icons/Icons';
 import { SearchableInput } from './SearchableInput';
 
 interface StagedLog {
@@ -376,6 +376,30 @@ export const MoldingTab: React.FC = () => {
             saveMoldingLogs(updatedLogs);
         }
     };
+    
+    const handlePrintQrCode = (logId: string) => {
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(logId)}`;
+        const printWindow = window.open('', '_blank', 'width=400,height=400');
+        if (printWindow) {
+            printWindow.document.write(`
+                <html><head><title>Print QR Code</title>
+                <style>body { font-family: sans-serif; text-align: center; margin-top: 50px; }</style>
+                </head><body>
+                <img src="${qrUrl}" alt="QR Code" />
+                <p>Log ID: <strong>${logId}</strong></p>
+                <script>
+                    window.onload = function() {
+                        setTimeout(() => { 
+                            window.print(); 
+                            window.close(); 
+                        }, 250);
+                    };
+                </script>
+                </body></html>
+            `);
+            printWindow.document.close();
+        }
+    };
 
     const handleSelectLog = (id: string, checked: boolean) => {
         setSelectedLogs(prev => {
@@ -700,7 +724,7 @@ export const MoldingTab: React.FC = () => {
                             <SortableHeader sortKey="quantityRejected" label="ของเสีย" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
                             <SortableHeader sortKey="machine" label="เครื่องจักร" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
                             <SortableHeader sortKey="operatorName" label="ผู้ควบคุม" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
-                            <th scope="col" className="relative px-6 py-3"><span className="sr-only">ลบ</span></th>
+                            <th scope="col" className="relative px-6 py-3"><span className="sr-only">Actions</span></th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
@@ -723,7 +747,10 @@ export const MoldingTab: React.FC = () => {
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.machine}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-semibold">{log.operatorName}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <button onClick={() => handleDeleteLog(log.id)} className="text-red-600 hover:text-red-900" aria-label={`Delete log for ${log.productName}`}><Trash2Icon className="w-4 h-4" /></button>
+                                        <div className="flex gap-2 justify-end">
+                                            <button onClick={() => handlePrintQrCode(log.id)} className="text-gray-500 hover:text-blue-600" aria-label={`Print QR for ${log.productName}`} title="Print QR Code"><QrCodeIcon className="w-4 h-4" /></button>
+                                            <button onClick={() => handleDeleteLog(log.id)} className="text-red-600 hover:text-red-900" aria-label={`Delete log for ${log.productName}`}><Trash2Icon className="w-4 h-4" /></button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))

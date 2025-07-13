@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState } from 'react';
 import { getMoldingLogs, getProducts } from '../services/storageService';
 import { MoldingLogEntry, Product } from '../types';
@@ -31,21 +30,22 @@ export const ProfitabilityAnalysisTab: React.FC = () => {
     const profitabilityData = useMemo((): ProfitabilityData[] => {
         const logs = getMoldingLogs();
         const products = getProducts();
-        const productMap = new Map(products.map(p => [p.name, p]));
+        const productMap = new Map(products.map(p => [`${p.name} (${p.color})`, p]));
         
-        const data = new Map<string, { totalProduced: number; totalCost: number; salePrice: number }>();
+        const data = new Map<string, { totalProduced: number; totalCost: number; salePrice: number; date: string }>();
 
         logs.forEach(log => {
             if (!log.materialCost) return;
             
-            // Extract base product name before color
-            const baseProductName = log.productName.split(' (')[0].trim();
-            const product = productMap.get(baseProductName);
+            const product = productMap.get(log.productName);
             
             if (product) {
-                const existing = data.get(log.productName) || { totalProduced: 0, totalCost: 0, salePrice: product.salePrice };
+                const existing = data.get(log.productName) || { totalProduced: 0, totalCost: 0, salePrice: product.salePrice, date: log.date };
                 existing.totalProduced += log.quantityProduced;
                 existing.totalCost += log.materialCost;
+                if(new Date(log.date) > new Date(existing.date)) {
+                    existing.date = log.date;
+                }
                 data.set(log.productName, existing);
             }
         });
@@ -67,10 +67,10 @@ export const ProfitabilityAnalysisTab: React.FC = () => {
 
     const filteredData = useMemo(() => {
         return profitabilityData.filter(item => {
-            const logDate = getMoldingLogs().find(log => log.productName === item.productName)?.date;
-            if(!logDate) return false;
+            const log = getMoldingLogs().find(log => log.productName === item.productName);
+            if(!log) return false;
             
-            const recordDate = new Date(logDate);
+            const recordDate = new Date(log.date);
             const startDate = dateRange.start ? new Date(dateRange.start) : null;
             const endDate = dateRange.end ? new Date(dateRange.end) : null;
             if (endDate) endDate.setHours(23, 59, 59, 999);
