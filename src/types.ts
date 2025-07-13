@@ -138,6 +138,7 @@ export interface CompanyInfo {
     name: string;
     address: string;
     taxId: string;
+    logoUrl?: string;
 }
 
 export interface AppSettings {

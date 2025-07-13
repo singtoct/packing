@@ -1,6 +1,5 @@
 
 import React, { useState, useMemo } from 'react';
-import { CTElectricLogo } from '../assets/logo';
 import { Tab } from '../App';
 import { 
     LayoutDashboardIcon, ListOrderedIcon, TruckIcon, SigmaIcon, ShoppingCartIcon, 
@@ -136,7 +135,7 @@ const menuConfig = [
     },
 ];
 
-export const Sidebar: React.FC<{ activeTab: Tab, setActiveTab: (tab: Tab) => void }> = ({ activeTab, setActiveTab }) => {
+export const Sidebar: React.FC<{ activeTab: Tab, setActiveTab: (tab: Tab) => void, logoUrl?: string }> = ({ activeTab, setActiveTab, logoUrl }) => {
     const [openMenus, setOpenMenus] = useState<Set<string>>(new Set(['การผลิต', 'การขายและจัดส่ง', 'คลังสินค้าและวัตถุดิบ']));
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -187,7 +186,7 @@ export const Sidebar: React.FC<{ activeTab: Tab, setActiveTab: (tab: Tab) => voi
         <aside className="w-64 bg-gray-800 text-white flex-shrink-0 flex flex-col">
             <div className="bg-gray-900 h-16 flex items-center justify-center px-4">
                 <div className="flex items-center gap-3">
-                    <img src={CTElectricLogo} alt="CT.ELECTRIC Logo" className="h-10" />
+                    {logoUrl && <img src={logoUrl} alt="Company Logo" className="h-10 w-auto object-contain" />}
                 </div>
             </div>
 

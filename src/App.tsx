@@ -22,9 +22,8 @@ import { SettingsTab } from './components/SettingsTab';
 import { FactoryFloorTab } from './components/FactoryFloorTab';
 import { QuickActionModal } from './components/QuickActionModal';
 import { BellIcon, PlusIcon, ListOrderedIcon, ClipboardCheckIcon, WrenchIcon, FactoryIcon, ShieldAlertIcon } from './components/icons/Icons';
-import { CTElectricLogo } from './assets/logo';
-import { getInventory, getOrders, getQCEntries, getMachines, getReadNotificationIds, saveReadNotificationIds, getMoldingLogs } from './services/storageService';
-import { InventoryItem, AppNotification } from './types';
+import { getSettings, getInventory, getOrders, getQCEntries, getMachines, getReadNotificationIds, saveReadNotificationIds, getMoldingLogs } from './services/storageService';
+import { InventoryItem, AppNotification, AppSettings } from './types';
 
 export type Tab = 'dashboard' | 'factory_floor' | 'orders' | 'analysis' | 'procurement' | 'molding' | 'production_status' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'stats' | 'reports' | 'products' | 'settings';
 export type QuickActionType = 'order' | 'packing' | 'molding';
@@ -36,6 +35,7 @@ const App: React.FC = () => {
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
   const [quickActionType, setQuickActionType] = useState<QuickActionType | null>(null);
+  const [settings, setSettings] = useState<AppSettings>(getSettings());
 
   const generateNotifications = () => {
     const today = new Date();
@@ -142,15 +142,22 @@ const App: React.FC = () => {
   }
 
   useEffect(() => {
-    document.title = 'CT.ELECTRIC - Production System';
+    const currentSettings = getSettings();
+    setSettings(currentSettings);
+    
+    document.title = currentSettings.companyInfo.name || 'CT.ELECTRIC - Production System';
     const favicon = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-    if (favicon) {
-      favicon.href = CTElectricLogo;
+    if (favicon && currentSettings.companyInfo.logoUrl) {
+      favicon.href = currentSettings.companyInfo.logoUrl;
     }
+
     setReadNotifications(getReadNotificationIds());
     generateNotifications();
     
-    const handleStorageChange = () => generateNotifications();
+    const handleStorageChange = () => {
+        generateNotifications();
+        setSettings(getSettings());
+    };
     window.addEventListener('storage', handleStorageChange);
     
     return () => {
@@ -160,6 +167,7 @@ const App: React.FC = () => {
   
   const onDataUpdate = () => {
     generateNotifications();
+    setSettings(getSettings());
     setActiveTab(activeTab); 
   }
 
@@ -242,7 +250,7 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-gray-100 font-sans">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} logoUrl={settings.companyInfo.logoUrl} />
       
       {quickActionType && <QuickActionModal actionType={quickActionType} onClose={() => setQuickActionType(null)} onDataUpdate={onDataUpdate} />}
 

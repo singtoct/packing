@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { getSettings, saveSettings } from '../services/storageService';
 import { AppSettings } from '../types';
-import { SaveIcon } from './icons/Icons';
+import { SaveIcon, UploadIcon } from './icons/Icons';
 import { EditableList } from './EditableList';
 
 export const SettingsTab: React.FC = () => {
     const [settings, setSettings] = useState<AppSettings>(getSettings());
+    const logoInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         // This ensures that if settings are updated elsewhere, this component reflects it.
@@ -23,6 +25,25 @@ export const SettingsTab: React.FC = () => {
                 [name]: value,
             },
         }));
+    };
+
+    const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setSettings(prev => ({
+                    ...prev,
+                    companyInfo: {
+                        ...prev.companyInfo,
+                        logoUrl: reader.result as string,
+                    },
+                }));
+            };
+            reader.readAsDataURL(file);
+        } else {
+            alert('กรุณาเลือกไฟล์รูปภาพ (PNG, JPG, SVG, etc.)');
+        }
     };
 
     const handleListUpdate = (key: keyof Omit<AppSettings, 'companyInfo'>, newItems: string[]) => {
@@ -65,6 +86,38 @@ export const SettingsTab: React.FC = () => {
                              <div>
                                 <label className="block text-sm font-medium text-gray-700">เลขประจำตัวผู้เสียภาษี</label>
                                 <input type="text" name="taxId" value={settings.companyInfo.taxId} onChange={handleCompanyInfoChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-6 bg-white rounded-xl shadow-lg border border-gray-200">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-4">โลโก้บริษัท</h3>
+                        <div className="flex items-center gap-6">
+                            <div className="w-32 h-32 flex-shrink-0 bg-gray-100 rounded-md flex items-center justify-center border p-2">
+                                {settings.companyInfo.logoUrl ? (
+                                    <img src={settings.companyInfo.logoUrl} alt="Company Logo" className="max-w-full max-h-full object-contain" />
+                                ) : (
+                                    <span className="text-xs text-gray-500">ไม่มีโลโก้</span>
+                                )}
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-600 mb-3">
+                                    อัปโหลดโลโก้ (แนะนำให้ใช้ไฟล์ .png หรือ .svg ที่มีพื้นหลังโปร่งใส)
+                                </p>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    ref={logoInputRef}
+                                    onChange={handleLogoUpload}
+                                    className="hidden"
+                                />
+                                <button
+                                    onClick={() => logoInputRef.current?.click()}
+                                    className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50"
+                                >
+                                    <UploadIcon className="w-5 h-5" />
+                                    เลือกไฟล์รูปภาพ
+                                </button>
                             </div>
                         </div>
                     </div>

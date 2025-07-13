@@ -1,5 +1,6 @@
 
 import { OrderItem, PackingLogEntry, InventoryItem, Employee, QCEntry, MoldingLogEntry, RawMaterial, BillOfMaterial, Machine, MaintenanceLog, Supplier, PurchaseOrder, Shipment, Product, AppSettings } from '../types';
+import { CTElectricLogo } from '../assets/logo';
 
 const ORDERS_KEY = 'packing_orders';
 const LOGS_KEY = 'packing_logs';
@@ -371,7 +372,8 @@ const DEFAULT_SETTINGS: AppSettings = {
     companyInfo: {
         name: 'CT.ELECTRIC',
         address: '123 ถนนสุขุมวิท แขวงบางนา เขตบางนา กรุงเทพมหานคร 10260',
-        taxId: '0105558000111'
+        taxId: '0105558000111',
+        logoUrl: CTElectricLogo,
     },
     qcFailureReasons: [
         'สินค้าชำรุด',
@@ -399,8 +401,10 @@ export const getSettings = (): AppSettings => {
                 ...stored,
                 companyInfo: {
                     ...DEFAULT_SETTINGS.companyInfo,
-                    ...stored.companyInfo,
+                    ...(stored.companyInfo || {}),
                 },
+                qcFailureReasons: stored.qcFailureReasons || DEFAULT_SETTINGS.qcFailureReasons,
+                productionStatuses: stored.productionStatuses || DEFAULT_SETTINGS.productionStatuses,
             };
         } catch(e) {
              console.error("Could not parse settings from localStorage", e);
