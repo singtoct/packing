@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { MoldingLogEntry, Employee, RawMaterial, BillOfMaterial, Product } from '../types';
@@ -269,6 +268,12 @@ export const MoldingTab: React.FC = () => {
             sortableItems.sort((a, b) => {
                 const aVal = a[sortConfig.key];
                 const bVal = b[sortConfig.key];
+
+                // Handle undefined values by pushing them to the end
+                if (aVal === undefined && bVal === undefined) return 0;
+                if (aVal === undefined) return 1;
+                if (bVal === undefined) return -1;
+
                 if (aVal < bVal) {
                     return sortConfig.direction === 'asc' ? -1 : 1;
                 }
