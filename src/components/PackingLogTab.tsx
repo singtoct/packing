@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import * as XLSX from 'xlsx';
-import { PackingLogEntry, Employee, QCEntry } from '../types';
-import { getPackingLogs, savePackingLogs, getOrders, getInventory, saveInventory, getEmployees, getQCEntries, saveQCEntries, getMoldingLogs } from '../services/storageService';
+import { PackingLogEntry, Employee, QCEntry, Product } from '../types';
+import { getPackingLogs, savePackingLogs, getOrders, getInventory, saveInventory, getEmployees, getQCEntries, saveQCEntries, getMoldingLogs, getProducts } from '../services/storageService';
 import { PlusCircleIcon, Trash2Icon, FileSpreadsheetIcon, DownloadIcon, UploadIcon, XCircleIcon } from './icons/Icons';
 import { SearchableInput } from './SearchableInput';
 
@@ -129,22 +129,8 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
             setPackerName(loadedEmployees[0].name);
         }
 
-        // Source 1: Open Sales Orders
-        const orders = getOrders();
-        const itemsFromOrders = new Set(orders.map(o => `${o.name} (${o.color})`));
-        
-        // Source 2: Items ready for packing from Molding department
-        const moldingLogs = getMoldingLogs();
-        const itemsFromMolding = new Set(
-            moldingLogs
-                // Items are ready for packing if their status indicates they are finished or in a packing stage.
-                .filter(log => log.status === 'เสร็จสิ้น' || log.status.includes('แพ็ค'))
-                .map(log => log.productName)
-        );
-        
-        // Combine, remove duplicates, and sort
-        const combinedItems = new Set([...itemsFromOrders, ...itemsFromMolding]);
-        const uniqueItemNames = Array.from(combinedItems).sort();
+        const products: Product[] = getProducts();
+        const uniqueItemNames = products.map(p => `${p.name} (${p.color})`).sort();
         
         setAvailableItems(uniqueItemNames);
         
