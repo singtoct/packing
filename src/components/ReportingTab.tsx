@@ -139,7 +139,7 @@ const LotTraceability: React.FC = () => {
             )}
         </div>
     );
-}
+};
 
 
 export const ReportingTab: React.FC = () => {
@@ -289,3 +289,4 @@ export const ReportingTab: React.FC = () => {
             </div>
         </div>
     );
+};

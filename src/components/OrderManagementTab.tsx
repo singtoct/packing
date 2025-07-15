@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom/client';
 import { OrderItem, BurmeseTranslation, InventoryItem, Product, MoldingLogEntry, QCEntry, Customer } from '../types';
@@ -584,3 +585,4 @@ export const OrderManagementTab: React.FC = () => {
             </div>
         </div>
     );
+};

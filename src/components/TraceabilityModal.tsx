@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { OrderItem, PackingLogEntry, MoldingLogEntry, BillOfMaterial, RawMaterial } from '../types';
 import { BoxIcon, FactoryIcon, BeakerIcon, XCircleIcon } from './icons/Icons';
@@ -78,3 +79,4 @@ export const TraceabilityModal: React.FC<Props> = ({ result, onClose }) => {
             </div>
         </div>
     );
+};

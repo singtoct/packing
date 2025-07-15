@@ -135,3 +135,4 @@ export const InventoryTab: React.FC<{ setLowStockCheck: () => void; }> = ({ setL
             </div>
         </div>
     );
+};
