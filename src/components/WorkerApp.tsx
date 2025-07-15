@@ -1,9 +1,9 @@
-
 import React, { useState } from 'react';
 import { PackingLogTab } from './PackingLogTab';
 import { MoldingTab } from './MoldingTab';
 import { ProductionStatusTab } from './ProductionStatusTab';
-import { FactoryIcon, BoxIcon, RouteIcon } from './icons/Icons';
+import { FactoryIcon, BoxIcon, RouteIcon, LogOutIcon } from './icons/Icons';
+import { getSettings, saveSettings } from '../services/storageService';
 
 interface WorkerAppProps {
     onDataUpdate: () => void;
@@ -13,13 +13,29 @@ type WorkerTab = 'molding' | 'packing' | 'status';
 
 export const WorkerApp: React.FC<WorkerAppProps> = ({ onDataUpdate }) => {
     const [activeTab, setActiveTab] = useState<WorkerTab | null>(null);
+    
+    const handleExitWorkerMode = () => {
+        if (window.confirm("คุณต้องการออกจาก Worker Mode หรือไม่?")) {
+            const settings = getSettings();
+            // Find a non-production role, default to manager or the first role available
+            const managerRole = settings.roles.find(r => r.name === 'ผู้จัดการโรงงาน');
+            const nonProductionRole = managerRole || settings.roles.find(r => r.name !== 'ฝ่ายผลิต');
+
+            if (nonProductionRole) {
+                settings.companyInfo.currentUserRoleId = nonProductionRole.id;
+                saveSettings(settings);
+                window.location.reload();
+            } else {
+                alert("ไม่พบบทบาทอื่นให้สลับไป โปรดติดต่อผู้ดูแลระบบ");
+            }
+        }
+    };
 
     const renderContent = () => {
         if (!activeTab) {
             return (
                 <div className="p-4">
-                    <h1 className="text-2xl font-bold text-center mb-8">Worker Mode</h1>
-                    <div className="grid grid-cols-1 gap-6">
+                    <div className="grid grid-cols-1 gap-6 mt-8">
                         <WorkerButton
                             label="บันทึกการผลิต (ฉีด)"
                             icon={<FactoryIcon className="w-10 h-10" />}
@@ -64,16 +80,23 @@ export const WorkerApp: React.FC<WorkerAppProps> = ({ onDataUpdate }) => {
 
     return (
         <div className="min-h-screen bg-gray-100 font-sans">
-            {activeTab && (
-                <header className="bg-gray-800 text-white p-4 flex items-center">
-                    <button onClick={() => setActiveTab(null)} className="mr-4 font-bold text-2xl">&larr;</button>
+            <header className="bg-gray-800 text-white p-4 flex items-center justify-between">
+                <div className="flex items-center">
+                    {activeTab && (
+                        <button onClick={() => setActiveTab(null)} className="mr-4 font-bold text-2xl">&larr;</button>
+                    )}
                     <h1 className="text-xl font-bold">
                         {activeTab === 'molding' && 'บันทึกการผลิต'}
                         {activeTab === 'packing' && 'บันทึกการแพ็ค'}
                         {activeTab === 'status' && 'ติดตามสถานะ'}
+                        {!activeTab && 'Worker Mode'}
                     </h1>
-                </header>
-            )}
+                </div>
+                <button onClick={handleExitWorkerMode} className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-md bg-red-600 hover:bg-red-700 transition-colors" title="ออกจาก Worker Mode">
+                    <LogOutIcon className="w-5 h-5"/>
+                    <span>ออก</span>
+                </button>
+            </header>
             <main className="p-2 sm:p-4">
                 <div className="bg-white p-4 rounded-xl shadow-lg min-h-full">
                     {renderContent()}
