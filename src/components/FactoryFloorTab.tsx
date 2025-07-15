@@ -1,71 +1,50 @@
 
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getMachines, getMoldingLogs, getMaintenanceLogs, getProducts } from '../services/storageService';
 import { Machine, MoldingLogEntry, Product, MaintenanceLog } from '../types';
-import { FactoryIcon, WrenchIcon, CheckCircle2Icon, AlertTriangleIcon, RefreshCwIcon, LoaderIcon } from './icons/Icons';
-
-interface DailyOeeData {
-    availability: number;
-    performance: number;
-    quality: number;
-    oee: number;
-}
+import { FactoryIcon, WrenchIcon, CheckCircle2Icon, AlertTriangleIcon, RefreshCwIcon, LoaderIcon, User, Clock, Package, Milestone } from 'lucide-react'; // Assuming lucide-react is available
 
 interface MachineData {
     machine: Machine;
     currentLog: MoldingLogEntry | null;
-    dailyOEE: DailyOeeData | null;
+    dailyTotalProduced: number;
+    estimatedRunHours: number;
 }
 
-const calculateDailyOEE = (
+const calculateDailyData = (
     machine: Machine,
     allMoldingLogs: MoldingLogEntry[],
-    allMaintenanceLogs: MaintenanceLog[],
     productMap: Map<string, Product>
-): DailyOeeData => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
+): { dailyTotalProduced: number, estimatedRunHours: number, latestLog: MoldingLogEntry | null } => {
+    const todayStr = new Date().toISOString().split('T')[0];
 
     const machineLogsToday = allMoldingLogs.filter(log => {
-        const logDate = new Date(log.date);
-        return log.machine === machine.name && logDate >= today && logDate < tomorrow;
+        return log.machine === machine.name && log.date === todayStr;
     });
 
-    const maintenanceToday = allMaintenanceLogs.filter(log => {
-        const logDate = new Date(log.date);
-        return log.machineId === machine.id && logDate >= today && logDate < tomorrow;
-    });
-
-    const plannedTime = 24 * 3600; // seconds in a day
-    const totalDowntime = maintenanceToday.reduce((sum, log) => sum + (log.downtimeHours * 3600), 0);
-    const runTime = plannedTime - totalDowntime;
-
-    const availability = runTime > 0 ? (runTime / plannedTime) : 0;
-    
     if (machineLogsToday.length === 0) {
-        return { availability, performance: 0, quality: 0, oee: 0 };
+        return { dailyTotalProduced: 0, estimatedRunHours: 0, latestLog: null };
     }
 
-    const totalProduced = machineLogsToday.reduce((sum, log) => sum + log.quantityProduced, 0);
-    const totalRejected = machineLogsToday.reduce((sum, log) => sum + log.quantityRejected, 0);
-    const totalGood = totalProduced - totalRejected;
-    
-    const quality = totalProduced > 0 ? (totalGood / totalProduced) : 0;
+    const dailyTotalProduced = machineLogsToday.reduce((sum, log) => sum + log.quantityProduced, 0);
 
-    const idealRunTime = machineLogsToday.reduce((sum, log) => {
-        const baseProductName = log.productName.split(' (')[0];
-        const product = productMap.get(baseProductName);
-        const cycleTime = product?.cycleTimeSeconds || 15; // Default if not found
+    const totalCycleTimeSeconds = machineLogsToday.reduce((sum, log) => {
+        // Find product by full name first, then by base name if needed
+        let product = productMap.get(log.productName);
+        if(!product) {
+            const baseName = log.productName.split(' (')[0];
+            product = productMap.get(baseName);
+        }
+        const cycleTime = product?.cycleTimeSeconds || 15; // Default cycle time
         return sum + (log.quantityProduced * cycleTime);
     }, 0);
 
-    const performance = runTime > 0 ? (idealRunTime / runTime) : 0;
-    
-    const oee = availability * performance * quality;
-    
-    return { availability, performance, quality, oee };
+    const estimatedRunHours = totalCycleTimeSeconds / 3600;
+
+    const latestLog = machineLogsToday.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
+    return { dailyTotalProduced, estimatedRunHours, latestLog };
 };
 
 
@@ -78,22 +57,17 @@ export const FactoryFloorTab: React.FC = () => {
         setIsLoading(true);
         const machines = getMachines().sort((a,b) => a.name.localeCompare(b.name));
         const allMoldingLogs = getMoldingLogs();
-        const allMaintenanceLogs = getMaintenanceLogs();
         const allProducts = getProducts();
-        const productMap = new Map(allProducts.map(p => [p.name, p]));
-        
-        const todayStr = new Date().toISOString().split('T')[0];
+        // Create a map that includes both full name `Product (Color)` and base name `Product`
+        const productMap = new Map<string, Product>();
+        allProducts.forEach(p => {
+             productMap.set(`${p.name} (${p.color})`, p);
+             productMap.set(p.name, p);
+        });
 
         const data: MachineData[] = machines.map(machine => {
-            const machineLogsToday = allMoldingLogs
-                .filter(log => log.machine === machine.name && log.date === todayStr)
-                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-            
-            const currentLog = machineLogsToday.length > 0 ? machineLogsToday[0] : null;
-            
-            const dailyOEE = calculateDailyOEE(machine, allMoldingLogs, allMaintenanceLogs, productMap);
-
-            return { machine, currentLog, dailyOEE };
+            const { dailyTotalProduced, estimatedRunHours, latestLog } = calculateDailyData(machine, allMoldingLogs, productMap);
+            return { machine, currentLog: latestLog, dailyTotalProduced, estimatedRunHours };
         });
 
         setMachineData(data);
@@ -105,7 +79,6 @@ export const FactoryFloorTab: React.FC = () => {
         fetchData();
         const interval = setInterval(fetchData, 60000); // Auto-refresh every minute
         
-        // Listen to storage changes to refresh immediately
         window.addEventListener('storage', fetchData);
         
         return () => {
@@ -116,27 +89,25 @@ export const FactoryFloorTab: React.FC = () => {
 
     const StatusIndicator: React.FC<{ status: Machine['status'] }> = ({ status }) => {
         const styles = {
-            Running: { bg: 'bg-green-500', text: 'Running' },
-            Down: { bg: 'bg-red-500', text: 'Down' },
-            Maintenance: { bg: 'bg-yellow-500', text: 'Maintenance' },
+            Running: { bg: 'bg-green-500', text: 'ทำงาน' },
+            Down: { bg: 'bg-red-500', text: 'หยุด' },
+            Maintenance: { bg: 'bg-yellow-500', text: 'ซ่อมบำรุง' },
         };
         const current = styles[status];
         return (
             <div className="flex items-center gap-2">
-                <span className={`w-3 h-3 rounded-full ${current.bg}`}></span>
+                <span className={`w-3 h-3 rounded-full ${current.bg} animate-pulse`}></span>
                 <span className="font-semibold text-sm">{current.text}</span>
             </div>
         );
     };
     
-    const OEEBar: React.FC<{ value: number, label: string }> = ({ value, label }) => (
-        <div>
-            <div className="flex justify-between items-center text-xs mb-1">
-                <span className="text-gray-600">{label}</span>
-                <span className="font-bold">{(value * 100).toFixed(1)}%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-                <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${value * 100}%` }}></div>
+    const DataRow: React.FC<{icon: React.ReactNode, label: string, value: React.ReactNode}> = ({icon, label, value}) => (
+        <div className="flex items-start gap-3 text-sm">
+            <div className="flex-shrink-0 w-5 h-5 text-gray-500 mt-0.5">{icon}</div>
+            <div className="flex-1">
+                <span className="text-gray-600">{label}:</span>
+                <span className="ml-2 font-semibold text-gray-800">{value}</span>
             </div>
         </div>
     );
@@ -145,7 +116,7 @@ export const FactoryFloorTab: React.FC = () => {
         <div>
             <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
                 <div>
-                    <h2 className="text-2xl font-bold">ภาพรวมโรงงาน (Real-time)</h2>
+                    <h2 className="text-2xl font-bold">สถานะเครื่องฉีด (Real-time)</h2>
                     {lastUpdated && <p className="text-sm text-gray-500">อัปเดตล่าสุด: {lastUpdated.toLocaleTimeString('th-TH')}</p>}
                 </div>
                 <button onClick={fetchData} disabled={isLoading} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400">
@@ -160,56 +131,22 @@ export const FactoryFloorTab: React.FC = () => {
                 </div>
             ) : machineData.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {machineData.map(({ machine, currentLog, dailyOEE }) => {
-                        const rejectRate = currentLog && currentLog.quantityProduced > 0 
-                            ? (currentLog.quantityRejected / currentLog.quantityProduced)
-                            : 0;
-
-                        return (
+                    {machineData.map(({ machine, currentLog, dailyTotalProduced, estimatedRunHours }) => (
                         <div key={machine.id} className="bg-white p-4 rounded-xl shadow-lg border-t-4" style={{borderColor: machine.status === 'Running' ? '#22c55e' : machine.status === 'Down' ? '#ef4444' : '#f59e0b'}}>
-                            <div className="flex justify-between items-start mb-3">
+                            <div className="flex justify-between items-start mb-4">
                                 <h3 className="text-lg font-bold text-gray-800">{machine.name}</h3>
                                 <StatusIndicator status={machine.status} />
                             </div>
 
-                            <div className="bg-gray-50 p-3 rounded-lg min-h-[120px]">
-                                {currentLog ? (
-                                    <>
-                                        <p className="text-xs text-gray-500">Current Job:</p>
-                                        <p className="font-semibold text-gray-800 break-words">{currentLog.productName}</p>
-                                        <p className="text-xs text-gray-500 mt-2">Operator: <span className="font-medium">{currentLog.operatorName}</span></p>
-                                        <div className="flex justify-between mt-2 text-xs">
-                                            <span>ผลิต: {currentLog.quantityProduced.toLocaleString()}</span>
-                                            <span className={rejectRate > 0.05 ? 'text-red-600 font-bold' : 'text-gray-600'}>
-                                                เสีย: {currentLog.quantityRejected} ({(rejectRate * 100).toFixed(1)}%)
-                                            </span>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                                        <WrenchIcon className="w-6 h-6 mb-2"/>
-                                        <p className="text-sm">ไม่มีงานสำหรับวันนี้</p>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="mt-4">
-                                <h4 className="text-sm font-semibold text-gray-700 mb-2">Daily OEE</h4>
-                                {dailyOEE ? (
-                                <div className="space-y-2">
-                                    <div className="text-center mb-2">
-                                        <p className="text-2xl font-bold text-blue-600">{(dailyOEE.oee * 100).toFixed(1)}%</p>
-                                    </div>
-                                    <OEEBar value={dailyOEE.availability} label="Avail." />
-                                    <OEEBar value={dailyOEE.performance} label="Perf." />
-                                    <OEEBar value={dailyOEE.quality} label="Qual." />
-                                </div>
-                                ) : (
-                                    <p className="text-xs text-gray-400 text-center">ไม่มีข้อมูล OEE</p>
-                                )}
+                            <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                                <DataRow icon={<Package className="w-5 h-5" />} label="สินค้าที่ผลิต" value={currentLog?.productName || '-'} />
+                                <DataRow icon={<Milestone className="w-5 h-5" />} label="ยอดผลิตวันนี้" value={`${dailyTotalProduced.toLocaleString()} ชิ้น`} />
+                                <DataRow icon={<Clock className="w-5 h-5" />} label="ชม. ทำงาน" value={`${estimatedRunHours.toFixed(1)} ชม. (โดยประมาณ)`} />
+                                <DataRow icon={<User className="w-5 h-5" />} label="ผู้ควบคุม" value={currentLog?.operatorName || '-'} />
+                                <DataRow icon={<WrenchIcon className="w-5 h-5" />} label="กะ" value={currentLog?.shift || '-'} />
                             </div>
                         </div>
-                    )})}
+                    ))}
                 </div>
             ) : (
                  <div className="flex flex-col items-center justify-center h-96 bg-gray-50 rounded-lg">

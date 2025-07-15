@@ -73,7 +73,7 @@ const menuConfig = [
     { 
         isCategory: false, 
         tab: 'factory_floor' as Tab, 
-        title: 'ภาพรวมโรงงาน', 
+        title: 'สถานะเครื่องฉีด', 
         icon: <LayoutGridIcon className="w-5 h-5"/> 
     },
     {

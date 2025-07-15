@@ -13,6 +13,7 @@ interface StagedLog {
     quantityRejected: number;
     machine: string;
     operatorName: string;
+    shift: 'เช้า' | 'บ่าย' | 'ดึก';
     status: string;
 }
 
@@ -23,6 +24,7 @@ interface MoldingLogExcelRow {
     QuantityRejected?: number;
     Machine?: string;
     OperatorName?: string;
+    Shift?: 'เช้า' | 'บ่าย' | 'ดึก';
     Status?: string;
 }
 
@@ -137,6 +139,7 @@ export const MoldingTab: React.FC = () => {
     const [quantityRejected, setQuantityRejected] = useState(0);
     const [machine, setMachine] = useState('เครื่อง 1');
     const [operatorName, setOperatorName] = useState('');
+    const [shift, setShift] = useState<'เช้า' | 'บ่าย' | 'ดึก'>('เช้า');
     const [date, setDate] = useState('');
     const [nextStep, setNextStep] = useState('');
     const [employees, setEmployees] = useState<Employee[]>([]);
@@ -344,6 +347,7 @@ export const MoldingTab: React.FC = () => {
             quantityRejected,
             machine,
             operatorName,
+            shift,
             status: status,
             materialCost: materialCheck.totalCost > 0 ? materialCheck.totalCost : undefined,
         };
@@ -426,9 +430,9 @@ export const MoldingTab: React.FC = () => {
     };
     
     const handleExportTemplate = () => {
-        const headers = [['Date', 'ProductName', 'QuantityProduced', 'QuantityRejected', 'Machine', 'OperatorName', 'Status']];
+        const headers = [['Date', 'ProductName', 'QuantityProduced', 'QuantityRejected', 'Machine', 'OperatorName', 'Shift', 'Status']];
         const ws = XLSX.utils.aoa_to_sheet(headers);
-        ws['!cols'] = [{wch: 15}, {wch: 40}, {wch: 15}, {wch: 15}, {wch: 20}, {wch: 20}, {wch: 20}];
+        ws['!cols'] = [{wch: 15}, {wch: 40}, {wch: 15}, {wch: 15}, {wch: 20}, {wch: 20}, {wch: 10}, {wch: 20}];
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Molding_Log_Template");
         XLSX.writeFile(wb, "Molding_Log_Import_Template.xlsx");
@@ -458,6 +462,7 @@ export const MoldingTab: React.FC = () => {
                             quantityRejected: Number(row.QuantityRejected || 0),
                             machine: row.Machine || 'N/A',
                             operatorName: row.OperatorName || 'N/A',
+                            shift: row.Shift || 'เช้า',
                             status: row.Status || 'รอแปะกันรอย'
                         });
                     }
@@ -566,8 +571,8 @@ export const MoldingTab: React.FC = () => {
             </div>
 
             <form onSubmit={handleAddLog} className="space-y-6 bg-gray-50 p-6 rounded-lg border mb-10">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                    <div className="sm:col-span-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+                    <div className="sm:col-span-2 lg:col-span-1">
                         <label htmlFor="productName" className="block text-sm font-medium text-gray-700">ชื่อสินค้า/ชิ้นส่วน</label>
                         <SearchableInput
                             options={moldingProductOptions}
@@ -605,6 +610,14 @@ export const MoldingTab: React.FC = () => {
                         <label htmlFor="operatorName" className="block text-sm font-medium text-gray-700">ผู้ควบคุมเครื่อง</label>
                         <select id="operatorName" value={operatorName} onChange={e => setOperatorName(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm" required>
                             {employees.map(emp => <option key={emp.id} value={emp.name}>{emp.name}</option>)}
+                        </select>
+                    </div>
+                     <div>
+                        <label htmlFor="shift" className="block text-sm font-medium text-gray-700">กะ</label>
+                        <select id="shift" value={shift} onChange={e => setShift(e.target.value as any)} className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm" required>
+                            <option value="เช้า">เช้า</option>
+                            <option value="บ่าย">บ่าย</option>
+                            <option value="ดึก">ดึก</option>
                         </select>
                     </div>
                     <div>
