@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { getPackingLogs, getEmployees, getMoldingLogs, getMachines, getShipments, getPurchaseOrders, getRawMaterials, getSuppliers } from '../services/storageService';
-import { PackingLogEntry, Employee, MoldingLogEntry, Machine, Shipment, PurchaseOrder } from '../types';
+import { getMoldingLogs, getEmployees, getSettings, getPurchaseOrders, getRawMaterials } from '../services/storageService';
+import { MoldingLogEntry, Employee, PurchaseOrder, RawMaterial } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { BoxIcon, FactoryIcon, ShoppingCartIcon, TruckIcon } from './icons/Icons';
+import { FactoryIcon, ShoppingCartIcon, TruckIcon } from './icons/Icons';
 
-type StatView = 'packing' | 'molding' | 'shipping' | 'purchasing';
+type StatView = 'production' | 'shipping' | 'purchasing';
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#34d399', '#60a5fa', '#fbbf24'];
 
 const StatCard: React.FC<{ title: string; value: string | number; description?: string }> = ({ title, value, description }) => (
@@ -29,16 +29,14 @@ const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, per
     );
 };
 
-// --- Child Components for each stat view ---
-
-const PackingStats: React.FC = () => {
-    const [logs, setLogs] = useState<PackingLogEntry[]>([]);
+const ProductionStats: React.FC = () => {
+    const [logs, setLogs] = useState<MoldingLogEntry[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [dateRange, setDateRange] = useState(30);
-    const [selectedPacker, setSelectedPacker] = useState('All');
+    const [selectedOperator, setSelectedOperator] = useState('All');
 
     useEffect(() => {
-        setLogs(getPackingLogs());
+        setLogs(getMoldingLogs());
         setEmployees(getEmployees());
     }, []);
 
@@ -50,14 +48,14 @@ const PackingStats: React.FC = () => {
         return logs.filter(log => {
             const logDate = new Date(log.date);
             const dateMatch = dateRange === 0 || (logDate >= startDate && logDate <= endDate);
-            const packerMatch = selectedPacker === 'All' || log.packerName === selectedPacker;
-            return dateMatch && packerMatch;
+            const operatorMatch = selectedOperator === 'All' || log.operatorName === selectedOperator;
+            return dateMatch && operatorMatch;
         });
-    }, [logs, dateRange, selectedPacker]);
+    }, [logs, dateRange, selectedOperator]);
 
     const topProductsData = useMemo(() => {
         const aggregated = filteredLogs.reduce((acc, log) => {
-            acc[log.name] = (acc[log.name] || 0) + log.quantity;
+            acc[log.productName] = (acc[log.productName] || 0) + log.quantityProduced;
             return acc;
         }, {} as Record<string, number>);
         
@@ -65,6 +63,11 @@ const PackingStats: React.FC = () => {
             .sort((a,b) => b.quantity - a.quantity)
             .slice(0, 10);
     }, [filteredLogs]);
+    
+    const operatorNames = useMemo(() => {
+        const names = new Set(logs.map(l => l.operatorName));
+        return employees.filter(e => names.has(e.name));
+    }, [logs, employees]);
 
     return (
         <div className="space-y-6">
@@ -75,22 +78,22 @@ const PackingStats: React.FC = () => {
                     <option value={90}>90 วันล่าสุด</option>
                     <option value={0}>ทั้งหมด</option>
                 </select>
-                <select value={selectedPacker} onChange={e => setSelectedPacker(e.target.value)} className="p-2 border rounded-md">
-                    <option value="All">พนักงานทั้งหมด</option>
-                    {employees.map(emp => <option key={emp.id} value={emp.name}>{emp.name}</option>)}
+                <select value={selectedOperator} onChange={e => setSelectedOperator(e.target.value)} className="p-2 border rounded-md">
+                    <option value="All">ผู้ควบคุมทั้งหมด</option>
+                    {operatorNames.map(emp => <option key={emp.id} value={emp.name}>{emp.name}</option>)}
                 </select>
             </div>
             
             <div className="bg-white p-4 rounded-lg shadow border">
-                <h3 className="font-bold mb-4">สินค้าที่แพ็คเยอะที่สุด</h3>
+                <h3 className="font-bold mb-4">สินค้าที่ผลิตเยอะที่สุด (หน่วย: ชิ้น)</h3>
                 <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={topProductsData} layout="vertical" margin={{ left: 100 }}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis type="number" />
                         <YAxis type="category" dataKey="name" width={150} tick={{ fontSize: 12 }} />
-                        <Tooltip />
+                        <Tooltip formatter={(value: number) => `${value.toLocaleString()} ชิ้น`}/>
                         <Legend />
-                        <Bar dataKey="quantity" name="จำนวน (ลัง)" fill="#10b981" />
+                        <Bar dataKey="quantity" name="จำนวน (ชิ้น)" fill="#10b981" />
                     </BarChart>
                 </ResponsiveContainer>
             </div>
@@ -98,146 +101,56 @@ const PackingStats: React.FC = () => {
     );
 };
 
-const MoldingStats: React.FC = () => {
+const ShippingStats: React.FC = () => {
     const [logs, setLogs] = useState<MoldingLogEntry[]>([]);
-    const [employees, setEmployees] = useState<Employee[]>([]);
-    const [machines, setMachines] = useState<Machine[]>([]);
-    const [dateRange, setDateRange] = useState(30);
 
     useEffect(() => {
         setLogs(getMoldingLogs());
-        setEmployees(getEmployees());
-        setMachines(getMachines());
     }, []);
-    
-    const filteredLogs = useMemo(() => {
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(endDate.getDate() - dateRange);
+
+    const summaryData = useMemo(() => {
+        const productionStatuses = getSettings().productionStatuses;
+        const finalStage = productionStatuses.length > 0 ? (productionStatuses[productionStatuses.length - 1].startsWith('รอ') ? productionStatuses[productionStatuses.length - 1] : `รอ${productionStatuses[productionStatuses.length - 1]}`) : 'รอแพ็ค';
         
-        return logs.filter(log => {
-            const logDate = new Date(log.date);
-            return dateRange === 0 || (logDate >= startDate && logDate <= endDate);
+        let finished = 0;
+        let inFinalStage = 0;
+        let inProgress = 0;
+        const topFinishedProducts = new Map<string, number>();
+
+        logs.forEach(log => {
+            if (log.status === 'เสร็จสิ้น') {
+                finished += log.quantityProduced;
+                topFinishedProducts.set(log.productName, (topFinishedProducts.get(log.productName) || 0) + log.quantityProduced);
+            } else if (log.status === finalStage) {
+                inFinalStage += log.quantityProduced;
+            } else {
+                inProgress += log.quantityProduced;
+            }
         });
-    }, [logs, dateRange]);
-
-    const summaryData = useMemo(() => {
-        const byProduct = filteredLogs.reduce((acc, log) => {
-            const key = log.productName;
-            acc[key] = (acc[key] || 0) + log.quantityProduced;
-            return acc;
-        }, {} as Record<string, number>);
-
-        const byMachine = filteredLogs.reduce((acc, log) => {
-             const key = log.machine;
-             if(!acc[key]) acc[key] = { produced: 0, rejected: 0};
-             acc[key].produced += log.quantityProduced;
-             acc[key].rejected += log.quantityRejected;
-             return acc;
-        }, {} as Record<string, {produced: number, rejected: number}>);
-
-        const totalProduced = filteredLogs.reduce((sum, log) => sum + log.quantityProduced, 0);
-        const totalRejected = filteredLogs.reduce((sum, log) => sum + log.quantityRejected, 0);
 
         return {
-            topProducts: Object.entries(byProduct).map(([name, quantity]) => ({ name, quantity })).sort((a,b) => b.quantity - a.quantity).slice(0, 5),
-            machinePerf: Object.entries(byMachine).map(([name, data]) => ({ name, ...data, rejectRate: data.produced > 0 ? data.rejected / data.produced : 0 })).sort((a,b) => b.produced - a.produced),
-            totalProduced,
-            totalRejected
+            finished,
+            inFinalStage,
+            inProgress,
+            topFinished: Array.from(topFinishedProducts.entries()).map(([name, quantity]) => ({name, quantity})).sort((a,b) => b.quantity-a.quantity).slice(0,5)
         };
-    }, [filteredLogs]);
+    }, [logs]);
 
     return (
         <div className="space-y-6">
-            <div className="flex gap-4 items-center p-4 bg-gray-50 rounded-lg">
-                 <select value={dateRange} onChange={e => setDateRange(Number(e.target.value))} className="p-2 border rounded-md">
-                    <option value={7}>7 วันล่าสุด</option>
-                    <option value={30}>30 วันล่าสุด</option>
-                    <option value={90}>90 วันล่าสุด</option>
-                    <option value={0}>ทั้งหมด</option>
-                </select>
-            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <StatCard title="ผลิตได้ทั้งหมด" value={summaryData.totalProduced.toLocaleString()} description="ชิ้น" />
-                <StatCard title="ของเสียทั้งหมด" value={summaryData.totalRejected.toLocaleString()} description="ชิ้น" />
-                <StatCard title="อัตราของเสียรวม" value={`${(summaryData.totalProduced > 0 ? (summaryData.totalRejected / summaryData.totalProduced) * 100 : 0).toFixed(2)}%`} />
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white p-4 rounded-lg shadow border">
-                    <h3 className="font-bold mb-4">Top 5 สินค้าที่ผลิตเยอะที่สุด</h3>
-                     <ResponsiveContainer width="100%" height={300}>
-                        <PieChart>
-                            <Pie data={summaryData.topProducts} dataKey="quantity" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={renderCustomizedLabel} labelLine={false}>
-                                {summaryData.topProducts.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                            </Pie>
-                            <Tooltip />
-                            <Legend />
-                        </PieChart>
-                    </ResponsiveContainer>
-                </div>
-                 <div className="bg-white p-4 rounded-lg shadow border">
-                    <h3 className="font-bold mb-4">ประสิทธิภาพเครื่องจักร (เรียงตามจำนวนผลิต)</h3>
-                     <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={summaryData.machinePerf} margin={{left: 20}}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="name" />
-                            <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
-                            <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" tickFormatter={(value) => `${(value*100).toFixed(0)}%`} />
-                            <Tooltip />
-                            <Legend />
-                            <Bar yAxisId="left" dataKey="produced" name="ผลิตได้" fill="#8884d8" />
-                            <Bar yAxisId="left" dataKey="rejected" name="ของเสีย" fill="#f87171" />
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const ShippingStats: React.FC = () => {
-    const [shipments, setShipments] = useState<Shipment[]>([]);
-    
-    useEffect(() => {
-        setShipments(getShipments());
-    }, []);
-
-    const summaryData = useMemo(() => {
-        const byStatus = shipments.reduce((acc, ship) => {
-            acc[ship.status] = (acc[ship.status] || 0) + 1;
-            return acc;
-        }, {} as Record<string, number>);
-
-        const byCarrier = shipments.reduce((acc, ship) => {
-            acc[ship.carrier] = (acc[ship.carrier] || 0) + 1;
-            return acc;
-        }, {} as Record<string, number>);
-        
-        return {
-            total: shipments.length,
-            inTransit: byStatus['In Transit'] || 0,
-            delivered: byStatus['Delivered'] || 0,
-            delayed: byStatus['Delayed'] || 0,
-            topCarriers: Object.entries(byCarrier).map(([name, value]) => ({name, value})).sort((a,b) => b.value - a.value).slice(0,5),
-        }
-    }, [shipments]);
-
-    return (
-        <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <StatCard title="การจัดส่งทั้งหมด" value={summaryData.total} />
-                <StatCard title="กำลังจัดส่ง" value={summaryData.inTransit} />
-                <StatCard title="ส่งแล้ว" value={summaryData.delivered} />
-                <StatCard title="ล่าช้า" value={summaryData.delayed} />
+                <StatCard title="ผลิตเสร็จสิ้น (พร้อมส่ง)" value={summaryData.finished.toLocaleString()} description="ชิ้น" />
+                <StatCard title="อยู่ในขั้นตอนสุดท้าย" value={summaryData.inFinalStage.toLocaleString()} description="ชิ้น" />
+                <StatCard title="กำลังอยู่ในสายการผลิต" value={summaryData.inProgress.toLocaleString()} description="ชิ้น" />
             </div>
             <div className="bg-white p-4 rounded-lg shadow border">
-                <h3 className="font-bold mb-4">สัดส่วนบริษัทขนส่ง</h3>
+                <h3 className="font-bold mb-4">Top 5 สินค้าที่ผลิตเสร็จแล้ว (หน่วย: ชิ้น)</h3>
                 <ResponsiveContainer width="100%" height={300}>
                     <PieChart>
-                        <Pie data={summaryData.topCarriers} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
-                             {summaryData.topCarriers.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                        <Pie data={summaryData.topFinished} dataKey="quantity" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={renderCustomizedLabel} labelLine={false}>
+                             {summaryData.topFinished.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                         </Pie>
-                        <Tooltip/>
+                        <Tooltip formatter={(value: number) => `${value.toLocaleString()} ชิ้น`}/>
                         <Legend />
                     </PieChart>
                 </ResponsiveContainer>
@@ -248,45 +161,50 @@ const ShippingStats: React.FC = () => {
 
 const PurchasingStats: React.FC = () => {
     const [POs, setPOs] = useState<PurchaseOrder[]>([]);
-    const suppliers = getSuppliers();
-    const supplierMap = useMemo(() => new Map(suppliers.map(s => [s.id, s.name])), [suppliers]);
+    const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
 
     useEffect(() => {
         setPOs(getPurchaseOrders());
+        setRawMaterials(getRawMaterials());
     }, []);
+    
+    const materialMap = useMemo(() => new Map(rawMaterials.map(rm => [rm.id, rm])), [rawMaterials]);
 
     const summaryData = useMemo(() => {
-        const totalValue = POs.reduce((sum, po) => sum + po.items.reduce((itemSum, item) => itemSum + (item.quantity * item.unitPrice), 0), 0);
+        let totalPcsPurchased = 0;
+        const byMaterial = new Map<string, number>();
 
-        const bySupplier = POs.reduce((acc, po) => {
-            const supplierName = supplierMap.get(po.supplierId) || 'Unknown';
-            const poValue = po.items.reduce((itemSum, item) => itemSum + (item.quantity * item.unitPrice), 0);
-            acc[supplierName] = (acc[supplierName] || 0) + poValue;
-            return acc;
-        }, {} as Record<string, number>);
-
+        POs.forEach(po => {
+            po.items.forEach(item => {
+                const material = materialMap.get(item.rawMaterialId);
+                if (material && (material.unit.toLowerCase() === 'pcs.' || material.unit === 'ชิ้น')) {
+                    totalPcsPurchased += item.quantity;
+                    byMaterial.set(material.name, (byMaterial.get(material.name) || 0) + item.quantity);
+                }
+            });
+        });
+        
         return {
-            totalValue,
-            topSuppliers: Object.entries(bySupplier).map(([name, value]) => ({name, value})).sort((a,b) => b.value - a.value).slice(0,5),
+            totalPcsPurchased,
+            topMaterials: Array.from(byMaterial.entries()).map(([name, quantity]) => ({name, quantity})).sort((a,b) => b.quantity - a.quantity).slice(0,10),
         };
-    }, [POs, supplierMap]);
+    }, [POs, materialMap]);
     
     return (
         <div className="space-y-6">
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <StatCard title="ใบสั่งซื้อทั้งหมด" value={POs.length.toLocaleString()} />
-                <StatCard title="มูลค่าการสั่งซื้อรวม" value={summaryData.totalValue.toLocaleString('th-TH', { style: 'currency', currency: 'THB' })} />
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <StatCard title="ยอดสั่งซื้อรวม (หน่วย: ชิ้น)" value={summaryData.totalPcsPurchased.toLocaleString()} description="นับเฉพาะวัตถุดิบที่มีหน่วยเป็น Pcs. หรือ ชิ้น" />
             </div>
             <div className="bg-white p-4 rounded-lg shadow border">
-                <h3 className="font-bold mb-4">Top 5 ซัพพลายเออร์ (ตามมูลค่าสั่งซื้อ)</h3>
+                <h3 className="font-bold mb-4">Top 10 วัตถุดิบที่สั่งซื้อเยอะที่สุด (หน่วย: ชิ้น)</h3>
                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={summaryData.topSuppliers} margin={{left: 20}}>
+                    <BarChart data={summaryData.topMaterials} layout="vertical" margin={{left: 100}}>
                         <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
-                        <YAxis tickFormatter={(val) => `${(val/1000).toLocaleString()}k`} />
-                        <Tooltip formatter={(value: number) => value.toLocaleString('th-TH', { style: 'currency', currency: 'THB' })}/>
+                        <XAxis type="number" />
+                        <YAxis type="category" dataKey="name" width={150} tick={{ fontSize: 12 }} />
+                        <Tooltip formatter={(value: number) => `${value.toLocaleString()} ชิ้น`}/>
                         <Legend />
-                        <Bar dataKey="value" name="มูลค่าสั่งซื้อ" fill="#8b5cf6" />
+                        <Bar dataKey="quantity" name="จำนวน (ชิ้น)" fill="#8b5cf6" />
                     </BarChart>
                 </ResponsiveContainer>
             </div>
@@ -295,7 +213,7 @@ const PurchasingStats: React.FC = () => {
 };
 
 export const StatisticsTab: React.FC = () => {
-    const [activeView, setActiveView] = useState<StatView>('packing');
+    const [activeView, setActiveView] = useState<StatView>('production');
     
     const ViewButton: React.FC<{ view: StatView, label: string, icon: React.ReactNode }> = ({ view, label, icon }) => (
         <button
@@ -313,8 +231,7 @@ export const StatisticsTab: React.FC = () => {
 
     const renderContent = () => {
         switch (activeView) {
-            case 'packing': return <PackingStats />;
-            case 'molding': return <MoldingStats />;
+            case 'production': return <ProductionStats />;
             case 'shipping': return <ShippingStats />;
             case 'purchasing': return <PurchasingStats />;
             default: return null;
@@ -324,11 +241,10 @@ export const StatisticsTab: React.FC = () => {
     return (
         <div>
             <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
-                <h2 className="text-2xl font-bold">สถิติและข้อมูลเชิงลึก</h2>
+                <h2 className="text-2xl font-bold">สถิติและข้อมูลเชิงลึก (หน่วย: ชิ้น)</h2>
                 <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-lg">
-                    <ViewButton view="packing" label="การแพ็ค" icon={<BoxIcon className="w-5 h-5"/>} />
-                    <ViewButton view="molding" label="การผลิต" icon={<FactoryIcon className="w-5 h-5"/>} />
-                    <ViewButton view="shipping" label="การจัดส่ง" icon={<TruckIcon className="w-5 h-5"/>} />
+                    <ViewButton view="production" label="การผลิต" icon={<FactoryIcon className="w-5 h-5"/>} />
+                    <ViewButton view="shipping" label="สถานะสินค้าพร้อมส่ง" icon={<TruckIcon className="w-5 h-5"/>} />
                     <ViewButton view="purchasing" label="การจัดซื้อ" icon={<ShoppingCartIcon className="w-5 h-5"/>} />
                 </div>
             </div>
