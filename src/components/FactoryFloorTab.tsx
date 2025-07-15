@@ -1,9 +1,7 @@
-
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getMachines, getMoldingLogs, getMaintenanceLogs, getProducts } from '../services/storageService';
 import { Machine, MoldingLogEntry, Product, MaintenanceLog } from '../types';
-import { FactoryIcon, WrenchIcon, CheckCircle2Icon, AlertTriangleIcon, RefreshCwIcon, LoaderIcon, User, Clock, Package, Milestone } from 'lucide-react'; // Assuming lucide-react is available
+import { FactoryIcon, WrenchIcon, RefreshCwIcon, LoaderIcon, UserIcon, ClockIcon, PackageIcon, MilestoneIcon } from './icons/Icons';
 
 interface MachineData {
     machine: Machine;
@@ -139,10 +137,10 @@ export const FactoryFloorTab: React.FC = () => {
                             </div>
 
                             <div className="bg-gray-50 p-4 rounded-lg space-y-3">
-                                <DataRow icon={<Package className="w-5 h-5" />} label="สินค้าที่ผลิต" value={currentLog?.productName || '-'} />
-                                <DataRow icon={<Milestone className="w-5 h-5" />} label="ยอดผลิตวันนี้" value={`${dailyTotalProduced.toLocaleString()} ชิ้น`} />
-                                <DataRow icon={<Clock className="w-5 h-5" />} label="ชม. ทำงาน" value={`${estimatedRunHours.toFixed(1)} ชม. (โดยประมาณ)`} />
-                                <DataRow icon={<User className="w-5 h-5" />} label="ผู้ควบคุม" value={currentLog?.operatorName || '-'} />
+                                <DataRow icon={<PackageIcon className="w-5 h-5" />} label="สินค้าที่ผลิต" value={currentLog?.productName || '-'} />
+                                <DataRow icon={<MilestoneIcon className="w-5 h-5" />} label="ยอดผลิตวันนี้" value={`${dailyTotalProduced.toLocaleString()} ชิ้น`} />
+                                <DataRow icon={<ClockIcon className="w-5 h-5" />} label="ชม. ทำงาน" value={`${estimatedRunHours.toFixed(1)} ชม. (โดยประมาณ)`} />
+                                <DataRow icon={<UserIcon className="w-5 h-5" />} label="ผู้ควบคุม" value={currentLog?.operatorName || '-'} />
                                 <DataRow icon={<WrenchIcon className="w-5 h-5" />} label="กะ" value={currentLog?.shift || '-'} />
                             </div>
                         </div>
