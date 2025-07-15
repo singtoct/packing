@@ -8,7 +8,7 @@ export interface OrderItem {
   color: string;
   quantity: number;
   dueDate: string;
-  salePrice?: number; // Price per case
+  salePrice?: number; // Price per piece
   customerId?: string;
 }
 

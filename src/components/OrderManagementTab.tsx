@@ -153,11 +153,11 @@ const EditOrderModal: React.FC<{
                         <input type="text" id="editItemColor" name="color" value={editedOrder.color} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" required />
                     </div>
                     <div>
-                        <label htmlFor="editItemQuantity" className="block text-sm font-medium text-gray-700">จำนวน (ลัง)</label>
+                        <label htmlFor="editItemQuantity" className="block text-sm font-medium text-gray-700">จำนวน (ชิ้น)</label>
                         <input type="number" id="editItemQuantity" name="quantity" min="1" value={editedOrder.quantity} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" required />
                     </div>
                      <div>
-                        <label htmlFor="editSalePrice" className="block text-sm font-medium text-gray-700">ราคาขาย (ต่อลัง)</label>
+                        <label htmlFor="editSalePrice" className="block text-sm font-medium text-gray-700">ราคาขาย (ต่อชิ้น)</label>
                         <input type="number" id="editSalePrice" name="salePrice" min="0" value={editedOrder.salePrice || ''} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" placeholder="Optional" />
                     </div>
                     <div>
@@ -210,7 +210,7 @@ const PrintOrderView: React.FC<{ orders: OrderItem[], translations: BurmeseTrans
                         <th className="border border-black p-2 font-semibold">ชื่อสินค้า (ไทย)</th>
                         <th className="border border-black p-2 font-semibold">ชื่อสินค้า (พม่า)</th>
                         <th className="border border-black p-2 font-semibold">สี</th>
-                        <th className="border border-black p-2 font-semibold">จำนวน (ลัง)</th>
+                        <th className="border border-black p-2 font-semibold">จำนวน (ชิ้น)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -482,7 +482,7 @@ export const OrderManagementTab: React.FC = () => {
                     />
                 </div>
                 <div>
-                    <label htmlFor="newItemQuantity" className="block text-sm font-medium text-gray-700">จำนวน (ลัง)</label>
+                    <label htmlFor="newItemQuantity" className="block text-sm font-medium text-gray-700">จำนวน (ชิ้น)</label>
                     <input
                         id="newItemQuantity"
                         type="number"

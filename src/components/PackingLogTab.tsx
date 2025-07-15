@@ -293,7 +293,7 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
         const dataToExport = sortedLogs.map(log => ({
             'วันที่': new Date(log.date).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }),
             'ชื่อสินค้า': log.name,
-            'จำนวน (ลัง)': log.quantity,
+            'จำนวน (ชิ้น)': log.quantity,
             'ผู้บันทึก': log.packerName
         }));
         
@@ -320,7 +320,7 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
                 const newStagedLogs: StagedLog[] = [];
                 json.forEach((row) => {
                     const productName = row['ชื่อสินค้า'];
-                    const quantity = row['จำนวน (ลัง)'];
+                    const quantity = row['จำนวน (ชิ้น)'];
                     const packer = row['ผู้บันทึก'];
                     const rowDate = row['วันที่'];
 
@@ -399,7 +399,7 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
                     </button>
                     <button onClick={() => {
                         const wb = XLSX.utils.book_new();
-                        const ws = XLSX.utils.aoa_to_sheet([["วันที่", "ชื่อสินค้า", "จำนวน (ลัง)", "ผู้บันทึก"]]);
+                        const ws = XLSX.utils.aoa_to_sheet([["วันที่", "ชื่อสินค้า", "จำนวน (ชิ้น)", "ผู้บันทึก"]]);
                         ws['!cols'] = [{ wch: 15 }, { wch: 50 }, { wch: 15 }, { wch: 20 }];
                         XLSX.utils.book_append_sheet(wb, ws, "Packing Import Template");
                         XLSX.writeFile(wb, "Packing_Import_Template.xlsx");
@@ -424,7 +424,7 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
                     />
                 </div>
                 <div>
-                    <label htmlFor="logQuantity" className="block text-sm font-medium text-gray-700">จำนวน (ลัง)</label>
+                    <label htmlFor="logQuantity" className="block text-sm font-medium text-gray-700">จำนวน (ชิ้น)</label>
                     <input type="number" id="logQuantity" min="1" value={logQuantity} onChange={e => setLogQuantity(Number(e.target.value))} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" required />
                 </div>
                 <div>
@@ -469,7 +469,7 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
                             </th>
                             <SortableHeader sortKey="date" label="วันที่" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
                             <SortableHeader sortKey="name" label="ชื่อสินค้า" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
-                            <SortableHeader sortKey="quantity" label="จำนวน (ลัง)" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
+                            <SortableHeader sortKey="quantity" label="จำนวน (ชิ้น)" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
                             <SortableHeader sortKey="packerName" label="ผู้บันทึก" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />
                             <th scope="col" className="relative px-6 py-3"><span className="sr-only">ลบ</span></th>
                         </tr>

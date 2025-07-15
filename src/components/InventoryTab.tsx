@@ -63,7 +63,7 @@ export const InventoryTab: React.FC<{ setLowStockCheck: () => void; }> = ({ setL
     return (
         <div>
             <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">สต็อกสินค้าคงคลัง (ที่แพ็คแล้ว)</h2>
+                <h2 className="text-2xl font-bold">สต็อกสินค้าคงคลัง (ชิ้น)</h2>
                 <input
                     type="text"
                     placeholder="ค้นหาสินค้า..."
@@ -78,7 +78,7 @@ export const InventoryTab: React.FC<{ setLowStockCheck: () => void; }> = ({ setL
                         <tr>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">ชื่อสินค้า</th>
                             <th scope="col" className="px-6 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider w-1/6">สต็อกปัจจุบัน</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider w-1/4">สต็อกขั้นต่ำ (ลัง)</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider w-1/4">สต็อกขั้นต่ำ (ชิ้น)</th>
                             <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">การกระทำ</th>
                         </tr>
                     </thead>

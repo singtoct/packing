@@ -167,22 +167,22 @@ Example response format:
 Each object in the array represents a single order and must have the following keys:
 - "name": string, The name of the product.
 - "color": string, The color of the product.
-- "quantity": number, The number of cases ordered.
-- "salePrice": number, The price per case. This is optional. If not mentioned, omit the key or set it to null.
+- "quantity": number, The number of pieces ordered.
+- "salePrice": number, The price per piece. This is optional. If not mentioned, omit the key or set it to null.
 - "dueDate": string, The delivery due date in "YYYY-MM-DD" format. If no date is mentioned for an item, use today's date which is ${today}.
 
 Here are some examples of input text and the expected output:
 
 Input:
-ฝาหน้ากาก CT A-103 สีขาว 50 ลัง ราคา 350 บาท ส่งวันที่ 25/12/2024
-สายไฟ VAF 2x1.5 สีขาว 20 ลัง 2500 บาท
-ปลั๊กกราวด์คู่ สีดำ 100ลัง
+ฝาหน้ากาก CT A-103 สีขาว 5000 ชิ้น ราคา 3.57 บาท ส่งวันที่ 25/12/2024
+สายไฟ VAF 2x1.5 สีขาว 200 ชิ้น
+ปลั๊กกราวด์คู่ สีดำ 1000 ชิ้น ราคา 15 บาท
 
 Expected Output:
 [
-  { "name": "ฝาหน้ากาก CT A-103", "color": "สีขาว", "quantity": 50, "salePrice": 350, "dueDate": "2024-12-25" },
-  { "name": "สายไฟ VAF 2x1.5", "color": "สีขาว", "quantity": 20, "salePrice": 2500, "dueDate": "${today}" },
-  { "name": "ปลั๊กกราวด์คู่", "color": "สีดำ", "quantity": 100, "dueDate": "${today}" }
+  { "name": "ฝาหน้ากาก CT A-103", "color": "สีขาว", "quantity": 5000, "salePrice": 3.57, "dueDate": "2024-12-25" },
+  { "name": "สายไฟ VAF 2x1.5", "color": "สีขาว", "quantity": 200, "dueDate": "${today}" },
+  { "name": "ปลั๊กกราวด์คู่", "color": "สีดำ", "quantity": 1000, "salePrice": 15, "dueDate": "${today}" }
 ]
 
 Now, parse the following text and provide ONLY the JSON array as a response:

@@ -1,6 +1,5 @@
 
 
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Employee, PackingLogEntry } from '../types';
 import { getEmployees, saveEmployees, getPackingLogs } from '../services/storageService';
@@ -193,7 +192,7 @@ const EmployeeDetails: React.FC<{ employee: Employee }> = ({ employee }) => {
                 <div className="bg-green-50 p-4 rounded-lg text-center">
                     <p className="text-sm font-medium text-green-800">ยอดแพ็ครวมทั้งหมด</p>
                     <p className="text-4xl font-bold text-green-600">{stats.totalPacks.toLocaleString()}</p>
-                    <p className="text-sm text-green-800">ลัง</p>
+                    <p className="text-sm text-green-800">ชิ้น</p>
                 </div>
                 <div className="bg-emerald-50 p-4 rounded-lg">
                     <h4 className="text-sm font-medium text-emerald-800 text-center mb-2">ยอดแพ็ค 7 วันล่าสุด</h4>
@@ -215,7 +214,7 @@ const EmployeeDetails: React.FC<{ employee: Employee }> = ({ employee }) => {
                         <tr>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">วันที่</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">สินค้า</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">จำนวน (ลัง)</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">จำนวน (ชิ้น)</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">

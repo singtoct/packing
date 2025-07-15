@@ -182,7 +182,7 @@ const UpcomingOrdersCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ se
                         <li key={order.id} className="text-sm border-b border-gray-100 pb-2">
                             <p className="font-semibold text-gray-800 truncate">{order.name} ({order.color})</p>
                             <div className="flex justify-between items-center text-gray-500">
-                                <span>จำนวน: {order.quantity} ลัง</span>
+                                <span>จำนวน: {order.quantity} ชิ้น</span>
                                 <span className="font-bold text-red-500">{new Date(order.dueDate).toLocaleDateString('th-TH')}</span>
                             </div>
                         </li>
@@ -271,13 +271,13 @@ const TopPackersCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ setAct
         setPackers(Object.entries(summary).map(([name, quantity]) => ({ name, quantity })).sort((a, b) => b.quantity - a.quantity).slice(0, 5));
     }, []);
     return (
-        <StatCard title="พนักงานแพ็คดีเด่น (7 วัน)" icon={<TrophyIcon className="w-6 h-6 text-amber-500" />} onClick={() => setActiveTab('employees')}>
+        <StatCard title="ยอดแพ็คสูงสุด (7 วันล่าสุด)" icon={<TrophyIcon className="w-6 h-6 text-amber-500" />} onClick={() => setActiveTab('employees')}>
              {packers.length > 0 ? (
                 <ul className="space-y-2">
                     {packers.map((packer, index) => (
                         <li key={packer.name} className="flex justify-between items-center text-sm">
                             <span className="font-semibold">{index + 1}. {packer.name}</span>
-                            <span className="font-bold text-green-600">{packer.quantity.toLocaleString()} ลัง</span>
+                            <span className="font-bold text-green-600">{packer.quantity.toLocaleString()} ชิ้น</span>
                         </li>
                     ))}
                 </ul>
