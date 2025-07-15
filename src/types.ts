@@ -220,3 +220,16 @@ export interface Complaint {
   description: string;
   status: 'Open' | 'Investigating' | 'Resolved';
 }
+
+export interface ProductionQueueItem {
+  id: string;
+  machineId: string;
+  productId: string; // The Product ID
+  productName: string; // The full product name "Product (Color)"
+  quantityGoal: number;
+  quantityProduced: number; // Sum from relevant molding logs
+  status: 'Queued' | 'In Progress' | 'Completed';
+  priority: number; // e.g., 1 = highest
+  addedDate: string;
+  orderId?: string; // Optional link to sales order
+}

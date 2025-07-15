@@ -1,71 +1,60 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { getMachines, getMoldingLogs, getMaintenanceLogs, getProducts } from '../services/storageService';
-import { Machine, MoldingLogEntry, Product, MaintenanceLog } from '../types';
-import { FactoryIcon, WrenchIcon, RefreshCwIcon, LoaderIcon, UserIcon, ClockIcon, PackageIcon, MilestoneIcon } from './icons/Icons';
+import { getMachines, getMoldingLogs, getProducts, getProductionQueue, saveProductionQueue } from '../services/storageService';
+import { Machine, MoldingLogEntry, Product, ProductionQueueItem } from '../types';
+import { FactoryIcon, RefreshCwIcon, LoaderIcon, UserIcon, ClockIcon, PackageIcon, PlusCircleIcon, ListOrderedIcon } from './icons/Icons';
+import { AssignJobModal } from './AssignJobModal';
 
 interface MachineData {
     machine: Machine;
-    currentLog: MoldingLogEntry | null;
-    dailyTotalProduced: number;
-    estimatedRunHours: number;
+    currentJob: (ProductionQueueItem & { progressPercent: number, operator: string }) | null;
+    queue: ProductionQueueItem[];
 }
-
-const calculateDailyData = (
-    machine: Machine,
-    allMoldingLogs: MoldingLogEntry[],
-    productMap: Map<string, Product>
-): { dailyTotalProduced: number, estimatedRunHours: number, latestLog: MoldingLogEntry | null } => {
-    const todayStr = new Date().toISOString().split('T')[0];
-
-    const machineLogsToday = allMoldingLogs.filter(log => {
-        return log.machine === machine.name && log.date === todayStr;
-    });
-
-    if (machineLogsToday.length === 0) {
-        return { dailyTotalProduced: 0, estimatedRunHours: 0, latestLog: null };
-    }
-
-    const dailyTotalProduced = machineLogsToday.reduce((sum, log) => sum + log.quantityProduced, 0);
-
-    const totalCycleTimeSeconds = machineLogsToday.reduce((sum, log) => {
-        // Find product by full name first, then by base name if needed
-        let product = productMap.get(log.productName);
-        if(!product) {
-            const baseName = log.productName.split(' (')[0];
-            product = productMap.get(baseName);
-        }
-        const cycleTime = product?.cycleTimeSeconds || 15; // Default cycle time
-        return sum + (log.quantityProduced * cycleTime);
-    }, 0);
-
-    const estimatedRunHours = totalCycleTimeSeconds / 3600;
-
-    const latestLog = machineLogsToday.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-
-    return { dailyTotalProduced, estimatedRunHours, latestLog };
-};
-
 
 export const FactoryFloorTab: React.FC = () => {
     const [machineData, setMachineData] = useState<MachineData[]>([]);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null);
 
     const fetchData = useCallback(() => {
         setIsLoading(true);
         const machines = getMachines().sort((a,b) => a.name.localeCompare(b.name));
         const allMoldingLogs = getMoldingLogs();
-        const allProducts = getProducts();
-        // Create a map that includes both full name `Product (Color)` and base name `Product`
-        const productMap = new Map<string, Product>();
-        allProducts.forEach(p => {
-             productMap.set(`${p.name} (${p.color})`, p);
-             productMap.set(p.name, p);
-        });
+        const productionQueue = getProductionQueue();
+        const todayStr = new Date().toISOString().split('T')[0];
 
         const data: MachineData[] = machines.map(machine => {
-            const { dailyTotalProduced, estimatedRunHours, latestLog } = calculateDailyData(machine, allMoldingLogs, productMap);
-            return { machine, currentLog: latestLog, dailyTotalProduced, estimatedRunHours };
+            const machineQueue = productionQueue
+                .filter(job => job.machineId === machine.id && job.status !== 'Completed')
+                .sort((a, b) => a.priority - b.priority || new Date(a.addedDate).getTime() - new Date(b.addedDate).getTime());
+
+            let currentJob = machineQueue.length > 0 ? machineQueue[0] : null;
+            let jobWithProgress = null;
+
+            if (currentJob) {
+                const relevantLogs = allMoldingLogs.filter(log => 
+                    log.machine === machine.name &&
+                    log.date === todayStr &&
+                    log.productName === currentJob!.productName
+                );
+                const quantityProduced = relevantLogs.reduce((sum, log) => sum + log.quantityProduced, 0);
+                
+                // This is a view-only update. The actual status update should happen elsewhere.
+                currentJob.quantityProduced = quantityProduced;
+
+                const progressPercent = currentJob.quantityGoal > 0 ? (quantityProduced / currentJob.quantityGoal) * 100 : 0;
+                const operator = relevantLogs.length > 0 ? relevantLogs[relevantLogs.length - 1].operatorName : '-';
+                
+                jobWithProgress = { ...currentJob, progressPercent, operator };
+            }
+
+            return {
+                machine,
+                currentJob: jobWithProgress,
+                queue: machineQueue.slice(1),
+            };
         });
 
         setMachineData(data);
@@ -75,7 +64,7 @@ export const FactoryFloorTab: React.FC = () => {
 
     useEffect(() => {
         fetchData();
-        const interval = setInterval(fetchData, 60000); // Auto-refresh every minute
+        const interval = setInterval(fetchData, 30000); // Auto-refresh every 30s
         
         window.addEventListener('storage', fetchData);
         
@@ -84,6 +73,21 @@ export const FactoryFloorTab: React.FC = () => {
             window.removeEventListener('storage', fetchData);
         };
     }, [fetchData]);
+
+    const handleOpenModal = (machine: Machine) => {
+        setSelectedMachine(machine);
+        setIsModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setSelectedMachine(null);
+    };
+    
+    const handleSaveJob = () => {
+        fetchData(); // Re-fetch all data to show the new job
+        handleCloseModal();
+    };
 
     const StatusIndicator: React.FC<{ status: Machine['status'] }> = ({ status }) => {
         const styles = {
@@ -94,24 +98,17 @@ export const FactoryFloorTab: React.FC = () => {
         const current = styles[status];
         return (
             <div className="flex items-center gap-2">
-                <span className={`w-3 h-3 rounded-full ${current.bg} animate-pulse`}></span>
+                <span className={`w-3 h-3 rounded-full ${current.bg} ${status === 'Running' ? 'animate-pulse' : ''}`}></span>
                 <span className="font-semibold text-sm">{current.text}</span>
             </div>
         );
     };
-    
-    const DataRow: React.FC<{icon: React.ReactNode, label: string, value: React.ReactNode}> = ({icon, label, value}) => (
-        <div className="flex items-start gap-3 text-sm">
-            <div className="flex-shrink-0 w-5 h-5 text-gray-500 mt-0.5">{icon}</div>
-            <div className="flex-1">
-                <span className="text-gray-600">{label}:</span>
-                <span className="ml-2 font-semibold text-gray-800">{value}</span>
-            </div>
-        </div>
-    );
 
     return (
         <div>
+            {isModalOpen && selectedMachine && (
+                <AssignJobModal machine={selectedMachine} onClose={handleCloseModal} onSave={handleSaveJob} />
+            )}
             <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
                 <div>
                     <h2 className="text-2xl font-bold">สถานะเครื่องฉีด (Real-time)</h2>
@@ -129,20 +126,54 @@ export const FactoryFloorTab: React.FC = () => {
                 </div>
             ) : machineData.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {machineData.map(({ machine, currentLog, dailyTotalProduced, estimatedRunHours }) => (
-                        <div key={machine.id} className="bg-white p-4 rounded-xl shadow-lg border-t-4" style={{borderColor: machine.status === 'Running' ? '#22c55e' : machine.status === 'Down' ? '#ef4444' : '#f59e0b'}}>
-                            <div className="flex justify-between items-start mb-4">
-                                <h3 className="text-lg font-bold text-gray-800">{machine.name}</h3>
-                                <StatusIndicator status={machine.status} />
+                    {machineData.map(({ machine, currentJob, queue }) => (
+                        <div key={machine.id} onClick={() => handleOpenModal(machine)} className="bg-white rounded-xl shadow-lg border-t-4 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer" style={{borderColor: machine.status === 'Running' ? '#22c55e' : machine.status === 'Down' ? '#ef4444' : '#f59e0b'}}>
+                            <div className="p-4">
+                                <div className="flex justify-between items-start mb-4">
+                                    <h3 className="text-lg font-bold text-gray-800">{machine.name}</h3>
+                                    <StatusIndicator status={machine.status} />
+                                </div>
+                                {currentJob ? (
+                                    <div className="space-y-3">
+                                        <div>
+                                            <p className="text-xs text-gray-500">งานปัจจุบัน</p>
+                                            <p className="font-bold text-lg text-blue-700 truncate" title={currentJob.productName}>{currentJob.productName}</p>
+                                        </div>
+                                        <div>
+                                            <div className="flex justify-between text-sm mb-1">
+                                                <span className="font-semibold">{currentJob.quantityProduced.toLocaleString()} / {currentJob.quantityGoal.toLocaleString()}</span>
+                                                <span className="font-bold">{currentJob.progressPercent.toFixed(1)}%</span>
+                                            </div>
+                                            <div className="w-full bg-gray-200 rounded-full h-2.5">
+                                                <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${Math.min(currentJob.progressPercent, 100)}%` }}></div>
+                                            </div>
+                                        </div>
+                                        <div className="text-sm text-gray-600 flex items-center gap-2">
+                                            <UserIcon className="w-4 h-4"/>
+                                            <span>ผู้ควบคุม: <span className="font-semibold">{currentJob.operator}</span></span>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-8 text-gray-500">
+                                        <PlusCircleIcon className="w-12 h-12 mx-auto text-gray-300"/>
+                                        <p className="mt-2 font-semibold">เครื่องว่าง</p>
+                                        <p className="text-sm">คลิกเพื่อมอบหมายงาน</p>
+                                    </div>
+                                )}
                             </div>
-
-                            <div className="bg-gray-50 p-4 rounded-lg space-y-3">
-                                <DataRow icon={<PackageIcon className="w-5 h-5" />} label="สินค้าที่ผลิต" value={currentLog?.productName || '-'} />
-                                <DataRow icon={<MilestoneIcon className="w-5 h-5" />} label="ยอดผลิตวันนี้" value={`${dailyTotalProduced.toLocaleString()} ชิ้น`} />
-                                <DataRow icon={<ClockIcon className="w-5 h-5" />} label="ชม. ทำงาน" value={`${estimatedRunHours.toFixed(1)} ชม. (โดยประมาณ)`} />
-                                <DataRow icon={<UserIcon className="w-5 h-5" />} label="ผู้ควบคุม" value={currentLog?.operatorName || '-'} />
-                                <DataRow icon={<WrenchIcon className="w-5 h-5" />} label="กะ" value={currentLog?.shift || '-'} />
-                            </div>
+                            {queue.length > 0 && (
+                                <div className="border-t bg-gray-50 p-4 rounded-b-xl">
+                                    <h4 className="text-xs font-bold text-gray-500 uppercase mb-2 flex items-center gap-1.5"><ListOrderedIcon className="w-4 h-4"/> คิวถัดไป</h4>
+                                    <ul className="space-y-1 text-sm">
+                                        {queue.slice(0, 2).map(job => (
+                                            <li key={job.id} className="text-gray-700 truncate">
+                                                <span className="font-medium">{job.productName}</span> ({job.quantityGoal.toLocaleString()} ชิ้น)
+                                            </li>
+                                        ))}
+                                        {queue.length > 2 && <li className="text-xs text-gray-500">และอีก {queue.length - 2} งาน...</li>}
+                                    </ul>
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>
