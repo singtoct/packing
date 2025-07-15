@@ -1,13 +1,22 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { getSettings, saveSettings } from '../services/storageService';
 import { AppSettings, AppRole } from '../types';
-import { SaveIcon, UploadIcon, UsersIcon } from './icons/Icons';
+import { SaveIcon, UploadIcon, UsersIcon, DownloadIcon } from './icons/Icons';
 import { EditableList } from './EditableList';
+
+const DATA_KEYS = [
+    'packing_orders', 'packing_logs', 'molding_logs', 'packing_inventory', 
+    'packing_employees', 'packing_qc_entries', 'packing_raw_materials', 
+    'packing_boms', 'factory_machines', 'maintenance_logs', 'factory_suppliers', 
+    'factory_purchase_orders', 'factory_shipments', 'factory_products', 
+    'factory_settings', 'read_notifications', 'factory_customers', 'factory_complaints'
+];
+
 
 export const SettingsTab: React.FC = () => {
     const [settings, setSettings] = useState<AppSettings>(getSettings());
     const logoInputRef = useRef<HTMLInputElement>(null);
+    const importInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         // This ensures that if settings are updated elsewhere, this component reflects it.
@@ -100,6 +109,67 @@ export const SettingsTab: React.FC = () => {
         // Force a reload of the window to ensure all components get the new settings
         window.location.reload();
     };
+    
+    const handleExportData = () => {
+        const data: { [key: string]: any } = {};
+        DATA_KEYS.forEach(key => {
+            const item = localStorage.getItem(key);
+            if (item) {
+                try {
+                    data[key] = JSON.parse(item);
+                } catch(e) {
+                    console.warn(`Could not parse localStorage item ${key}:`, e);
+                }
+            }
+        });
+
+        const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
+        const link = document.createElement("a");
+        link.href = jsonString;
+        const date = new Date().toISOString().split('T')[0];
+        link.download = `CT_ELECTRIC_backup_${date}.json`;
+        link.click();
+    };
+
+    const handleImportData = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        if (!window.confirm("คำเตือน: การนำเข้าข้อมูลจะเขียนทับข้อมูลที่มีอยู่ทั้งหมดในแอปพลิเคชันนี้ คุณแน่ใจหรือไม่ว่าต้องการดำเนินการต่อ?")) {
+            if (importInputRef.current) importInputRef.current.value = '';
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const text = e.target?.result;
+                if (typeof text !== 'string') throw new Error("File is not a text file");
+                
+                const data = JSON.parse(text);
+
+                // Basic validation
+                if (typeof data !== 'object' || data === null || !data.factory_settings) {
+                    throw new Error("Invalid backup file format.");
+                }
+
+                Object.keys(data).forEach(key => {
+                    if (DATA_KEYS.includes(key)) {
+                        localStorage.setItem(key, JSON.stringify(data[key]));
+                    }
+                });
+
+                alert("นำเข้าข้อมูลสำเร็จ! แอปพลิเคชันจะรีโหลดใหม่");
+                window.location.reload();
+
+            } catch (error) {
+                alert(`เกิดข้อผิดพลาดในการนำเข้าข้อมูล: ${error instanceof Error ? error.message : String(error)}`);
+            } finally {
+                if (importInputRef.current) importInputRef.current.value = '';
+            }
+        };
+        reader.readAsText(file);
+    };
 
     return (
         <div>
@@ -130,8 +200,45 @@ export const SettingsTab: React.FC = () => {
                             </div>
                         </div>
                     </div>
+                     <div className="p-6 bg-white rounded-xl shadow-lg border border-gray-200">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-4">การสำรองและกู้คืนข้อมูล</h3>
+                        <p className="text-sm text-gray-600 mb-4">
+                            ส่งออกข้อมูลทั้งหมดเป็นไฟล์ JSON เพื่อสำรองข้อมูลไว้ใน Google Drive หรือคอมพิวเตอร์ของคุณ
+                            และสามารถนำเข้าไฟล์นั้นเพื่อกู้คืนข้อมูลได้
+                        </p>
+                        <div className="flex gap-4">
+                            <button
+                                onClick={handleExportData}
+                                className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+                            >
+                                <DownloadIcon className="w-5 h-5"/>
+                                ส่งออกข้อมูลทั้งหมด
+                            </button>
+                             <input
+                                type="file"
+                                accept=".json"
+                                ref={importInputRef}
+                                onChange={handleImportData}
+                                className="hidden"
+                            />
+                            <button
+                                onClick={() => importInputRef.current?.click()}
+                                className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50"
+                            >
+                                <UploadIcon className="w-5 h-5"/>
+                                นำเข้าข้อมูล
+                            </button>
+                        </div>
+                    </div>
 
-                    <div className="p-6 bg-white rounded-xl shadow-lg border border-gray-200">
+                    <EditableList
+                        title="เหตุผลที่ QC ไม่ผ่าน"
+                        items={settings.qcFailureReasons}
+                        onUpdate={(newItems) => handleListUpdate('qcFailureReasons', newItems)}
+                    />
+                </div>
+                <div className="space-y-8">
+                     <div className="p-6 bg-white rounded-xl shadow-lg border border-gray-200">
                         <h3 className="text-lg font-semibold text-gray-800 mb-4">โลโก้บริษัท</h3>
                         <div className="flex items-center gap-6">
                             <div className="w-32 h-32 flex-shrink-0 bg-gray-100 rounded-md flex items-center justify-center border p-2">
@@ -162,14 +269,6 @@ export const SettingsTab: React.FC = () => {
                             </div>
                         </div>
                     </div>
-
-                    <EditableList
-                        title="เหตุผลที่ QC ไม่ผ่าน"
-                        items={settings.qcFailureReasons}
-                        onUpdate={(newItems) => handleListUpdate('qcFailureReasons', newItems)}
-                    />
-                </div>
-                <div className="space-y-8">
                      <div className="p-6 bg-white rounded-xl shadow-lg border border-gray-200">
                         <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2"><UsersIcon className="w-5 h-5" /> การจัดการบทบาท</h3>
                         <p className="text-sm text-gray-500 mb-4">กำหนดบทบาทผู้ใช้เพื่อปรับแต่งแดชบอร์ดให้เหมาะสมกับแต่ละตำแหน่ง</p>
