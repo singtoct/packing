@@ -32,7 +32,7 @@ export const TraceabilityModal: React.FC<Props> = ({ result, onClose }) => {
                     <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
                         <h3 className="font-bold text-lg text-blue-800">ออเดอร์: #{result.order.id}</h3>
                         <p><strong>สินค้า:</strong> {result.order.name} ({result.order.color})</p>
-                        <p><strong>จำนวน:</strong> {result.order.quantity} ลัง</p>
+                        <p><strong>จำนวน:</strong> {result.order.quantity.toLocaleString()} ชิ้น</p>
                         <p><strong>วันส่ง:</strong> {new Date(result.order.dueDate).toLocaleDateString('th-TH')}</p>
                     </div>
 
@@ -55,7 +55,7 @@ export const TraceabilityModal: React.FC<Props> = ({ result, onClose }) => {
                             <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
                                 {result.packingLogs.map(log => (
                                     <li key={log.id}>
-                                        {new Date(log.date).toLocaleDateString('th-TH')}: แพ็ค {log.quantity} ลัง โดย {log.packerName}
+                                        {new Date(log.date).toLocaleDateString('th-TH')}: แพ็ค {log.quantity.toLocaleString()} ชิ้น โดย {log.packerName}
                                     </li>
                                 ))}
                             </ul>
@@ -78,4 +78,3 @@ export const TraceabilityModal: React.FC<Props> = ({ result, onClose }) => {
             </div>
         </div>
     );
-};

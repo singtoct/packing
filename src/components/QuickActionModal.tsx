@@ -53,7 +53,7 @@ const QuickAddOrderForm: React.FC<{ onSave: () => void }> = ({ onSave }) => {
                 <SearchableInput options={productOptions} value={selectedProductId} onChange={setSelectedProductId} displayKey="displayName" valueKey="id" placeholder="ค้นหาสินค้า..." className="mt-1" />
             </div>
             <div>
-                <label className={commonLabelClass}>จำนวน (ลัง)</label>
+                <label className={commonLabelClass}>จำนวน (ชิ้น)</label>
                 <input type="number" min="1" value={quantity} onChange={e => setQuantity(Number(e.target.value))} className={commonInputClass} required />
             </div>
             <div>
@@ -133,7 +133,7 @@ const QuickAddPackingLogForm: React.FC<{ onSave: () => void }> = ({ onSave }) =>
                 </select>
             </div>
              <div>
-                <label className={commonLabelClass}>จำนวน (ลัง)</label>
+                <label className={commonLabelClass}>จำนวน (ชิ้น)</label>
                 <input type="number" min="1" value={quantity} onChange={e => setQuantity(Number(e.target.value))} className={commonInputClass} required />
             </div>
             <div>

@@ -92,7 +92,7 @@ export const InventoryTab: React.FC<{ setLowStockCheck: () => void; }> = ({ setL
                                         {item.name}
                                     </td>
                                     <td className={`px-6 py-4 whitespace-nowrap text-center text-lg font-bold ${isLowStock ? 'text-red-600' : 'text-blue-600'}`}>
-                                        {item.quantity}
+                                        {item.quantity.toLocaleString()}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="flex items-center gap-2">
@@ -135,4 +135,3 @@ export const InventoryTab: React.FC<{ setLowStockCheck: () => void; }> = ({ setL
             </div>
         </div>
     );
-};

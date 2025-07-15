@@ -488,7 +488,7 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{new Date(log.date).toLocaleDateString('th-TH')}</td>
                                     <td className="px-6 py-4 whitespace-normal text-sm text-gray-500">{log.name}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.quantity}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.quantity.toLocaleString()}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-semibold">{log.packerName}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <button onClick={() => handleDeleteLog(log.id)} className="text-red-600 hover:text-red-900" aria-label={`Delete log for ${log.name}`}><Trash2Icon className="w-4 h-4" /></button>
@@ -503,4 +503,3 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
             </div>
         </div>
     );
-};

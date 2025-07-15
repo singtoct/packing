@@ -30,7 +30,7 @@ const StatCard: React.FC<{ title: string; icon: React.ReactNode; children: React
 
 // --- Individual Card Components ---
 
-const AIInventoryForecastCard: React.FC = () => {
+const AIInventoryForecastCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = () => {
     const [forecast, setForecast] = useState<AIInventoryForecastItem[] | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -101,7 +101,7 @@ const AIInventoryForecastCard: React.FC = () => {
     );
 };
 
-const AIPlannerCard: React.FC = () => {
+const AIPlannerCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = () => {
     const [plan, setPlan] = useState<AIProductionPlanItem[] | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -182,7 +182,7 @@ const UpcomingOrdersCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ se
                         <li key={order.id} className="text-sm border-b border-gray-100 pb-2">
                             <p className="font-semibold text-gray-800 truncate">{order.name} ({order.color})</p>
                             <div className="flex justify-between items-center text-gray-500">
-                                <span>จำนวน: {order.quantity} ชิ้น</span>
+                                <span>จำนวน: {order.quantity.toLocaleString()} ชิ้น</span>
                                 <span className="font-bold text-red-500">{new Date(order.dueDate).toLocaleDateString('th-TH')}</span>
                             </div>
                         </li>
@@ -228,7 +228,7 @@ const PendingQcCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ setActi
     );
 };
 
-const ProductionSummaryCard: React.FC = () => {
+const ProductionSummaryCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = () => {
     const [data, setData] = useState<{ name: string; Produced: number; Rejected: number }[]>([]);
     useEffect(() => {
         const logs = getMoldingLogs();
@@ -336,146 +336,94 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
         pendingQc: { id: 'pendingQc', title: 'Pending QC', Component: PendingQcCard, gridSpan: 1 },
         lowStock: { id: 'lowStock', title: 'Low Stock', Component: LowStockCard, gridSpan: 1 },
         productionSummary: { id: 'productionSummary', title: 'Production Summary', Component: ProductionSummaryCard, gridSpan: 2 },
-        topPackers: { id: 'topPackers', title: 'Top Packers (Last 7 Days)', Component: TopPackersCard, gridSpan: 1 },
-        rawMaterialNeeds: { id: 'rawMaterialNeeds', title: 'Raw Material Needs', Component: RawMaterialNeedsCard, gridSpan: 3 },
+        topPackers: { id: 'topPackers', title: 'Top Packers', Component: TopPackersCard, gridSpan: 1 },
+        rawMaterialNeeds: { id: 'rawMaterialNeeds', title: 'Raw Material Needs', Component: RawMaterialNeedsCard, gridSpan: 1 },
     };
     
     const [settings, setSettings] = useState<AppSettings>(getSettings());
-    const [layout, setLayout] = useState<string[]>([]);
-    const [isCustomizeMode, setIsCustomizeMode] = useState(false);
-    
+    const [draggableWidgets, setDraggableWidgets] = useState<DashboardWidget[]>([]);
+    const dragItem = useRef<string | null>(null);
+    const dragOverItem = useRef<string | null>(null);
+
+    // Initialize widgets based on user role
     useEffect(() => {
-        const handleStorageChange = () => setSettings(getSettings());
-        window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
+        const currentSettings = getSettings();
+        setSettings(currentSettings);
+        
+        const userRoleLayout = currentSettings.dashboardLayouts[currentSettings.companyInfo.currentUserRoleId] || Object.keys(WIDGETS);
+        const initialWidgets = userRoleLayout
+            .map(id => WIDGETS[id])
+            .filter(Boolean); // Filter out any undefined widgets if config is stale
+        setDraggableWidgets(initialWidgets);
     }, []);
 
-    useEffect(() => {
-        const currentRole = settings.roles.find(r => r.id === settings.companyInfo.currentUserRoleId);
-        if (currentRole) {
-            const roleLayout = settings.dashboardLayouts[currentRole.id] || [];
-            setLayout(roleLayout);
-        } else {
-            // Fallback to manager role if current role not found
-            const managerRole = settings.roles[0];
-            const managerLayout = settings.dashboardLayouts[managerRole.id] || [];
-            setLayout(managerLayout);
-        }
-    }, [settings]);
-    
-    const dragItem = useRef<number | null>(null);
-    const dragOverItem = useRef<number | null>(null);
-    
-    const handleDragStart = (e: React.DragEvent<HTMLDivElement>, position: number) => {
-        dragItem.current = position;
+    const handleDragStart = (e: React.DragEvent<HTMLDivElement>, id: string) => {
+        dragItem.current = id;
     };
     
-    const handleDragEnter = (e: React.DragEvent<HTMLDivElement>, position: number) => {
-        dragOverItem.current = position;
-    };
-    
-    const handleDrop = () => {
-        if (dragItem.current === null || dragOverItem.current === null) return;
-        const newLayout = [...layout];
-        const dragItemContent = newLayout[dragItem.current];
-        newLayout.splice(dragItem.current, 1);
-        newLayout.splice(dragOverItem.current, 0, dragItemContent);
+    const handleDrop = (e: React.DragEvent<HTMLDivElement>, id: string) => {
+        dragOverItem.current = id;
+        
+        const dragItemIndex = draggableWidgets.findIndex(w => w.id === dragItem.current);
+        const dragOverItemIndex = draggableWidgets.findIndex(w => w.id === dragOverItem.current);
+        
+        if (dragItemIndex === -1 || dragOverItemIndex === -1) return;
+
+        const newWidgets = [...draggableWidgets];
+        const [reorderedItem] = newWidgets.splice(dragItemIndex, 1);
+        newWidgets.splice(dragOverItemIndex, 0, reorderedItem);
+        
+        setDraggableWidgets(newWidgets);
         dragItem.current = null;
         dragOverItem.current = null;
-        setLayout(newLayout);
-    };
-
-    const handleSaveLayout = () => {
-        const roleId = settings.companyInfo.currentUserRoleId;
-        const updatedSettings = {
+        
+        // Save new layout to settings
+        const newLayoutOrder = newWidgets.map(w => w.id);
+        const newSettings = {
             ...settings,
             dashboardLayouts: {
                 ...settings.dashboardLayouts,
-                [roleId]: layout,
-            },
+                [settings.companyInfo.currentUserRoleId]: newLayoutOrder,
+            }
         };
-        saveSettings(updatedSettings);
-        setSettings(updatedSettings);
-        setIsCustomizeMode(false);
-    };
-
-    const handleResetLayout = () => {
-        const defaultLayouts = getSettings().dashboardLayouts; // Re-fetch defaults
-        const roleId = settings.companyInfo.currentUserRoleId;
-        const roleDefault = defaultLayouts[roleId] || [];
-        setLayout(roleDefault);
-        const updatedSettings = {
-            ...settings,
-            dashboardLayouts: {
-                ...settings.dashboardLayouts,
-                [roleId]: roleDefault,
-            },
-        };
-        saveSettings(updatedSettings);
-        setSettings(updatedSettings);
+        saveSettings(newSettings);
     };
 
     return (
         <div>
             <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-800">ภาพรวมระบบ</h2>
-                <div>
-                    {isCustomizeMode ? (
-                        <div className="flex gap-2">
-                             <button onClick={handleResetLayout} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-                                รีเซ็ต
-                            </button>
-                            <button onClick={handleSaveLayout} className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700">
-                                บันทึก Layout
-                            </button>
-                        </div>
-                    ) : (
-                         <button onClick={() => setIsCustomizeMode(true)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2">
-                            <SettingsIcon className="w-5 h-5"/>
-                            ปรับแต่ง
-                        </button>
-                    )}
-                </div>
+                <h2 className="text-3xl font-bold text-gray-800">ภาพรวมระบบ</h2>
+                <button
+                    onClick={() => {}}
+                    className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200"
+                >
+                    <SettingsIcon className="w-5 h-5"/>
+                    ปรับแต่งแดชบอร์ด
+                </button>
             </div>
-            {isCustomizeMode && (
-                <div className="p-4 mb-6 bg-blue-50 border-l-4 border-blue-500 text-blue-700 rounded-md">
-                    <h3 className="font-bold">โหมดปรับแต่ง</h3>
-                    <p className="text-sm">ลากและวางการ์ดเพื่อจัดเรียงตามที่คุณต้องการ จากนั้นกดบันทึก</p>
-                </div>
-            )}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" onDrop={handleDrop} onDragOver={e => e.preventDefault()}>
-                {layout.map((widgetId, index) => {
-                    const widget = WIDGETS[widgetId];
-                    if (!widget) return null;
-                    const gridSpanClass = {
-                        1: 'lg:col-span-1',
-                        2: 'lg:col-span-2',
-                        3: 'lg:col-span-3',
-                    }[widget.gridSpan || 1] || 'lg:col-span-1';
-                    
-                    const mdGridSpanClass = widget.gridSpan === 3 ? 'md:col-span-2' : 'md:col-span-1';
-
-                    return (
-                        <div
-                            key={widget.id}
-                            className={`${gridSpanClass} ${mdGridSpanClass} ${isCustomizeMode ? 'cursor-move' : ''}`}
-                            draggable={isCustomizeMode}
-                            onDragStart={(e) => handleDragStart(e, index)}
-                            onDragEnter={(e) => handleDragEnter(e, index)}
-                            onDragEnd={handleDrop}
+            {draggableWidgets.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {draggableWidgets.map(widget => (
+                        <div 
+                            key={widget.id} 
+                            draggable
+                            onDragStart={e => handleDragStart(e, widget.id)}
+                            onDragOver={e => e.preventDefault()}
+                            onDrop={e => handleDrop(e, widget.id)}
+                            className={`relative group ${widget.gridSpan === 2 ? 'xl:col-span-2' : ''}`}
                         >
-                            <div className="h-full relative">
-                                {isCustomizeMode && (
-                                     <div className="absolute top-2 left-2 z-10 p-2 bg-gray-800 text-white rounded-full cursor-grab">
-                                        <GripVerticalIcon className="w-5 h-5" />
-                                     </div>
-                                )}
-                                <widget.Component setActiveTab={setActiveTab} />
-                            </div>
+                             <div className="absolute -top-2 -left-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onMouseDown={e => e.stopPropagation()} className="cursor-grab p-1 bg-gray-200 rounded-full text-gray-500 hover:bg-gray-300">
+                                    <GripVerticalIcon className="w-4 h-4"/>
+                                </button>
+                             </div>
+                            <widget.Component setActiveTab={setActiveTab} />
                         </div>
-                    );
-                })}
-            </div>
+                    ))}
+                </div>
+            ) : (
+                <p>No widgets configured for this role.</p>
+            )}
         </div>
     );
 };

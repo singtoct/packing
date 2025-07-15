@@ -539,7 +539,7 @@ export const OrderManagementTab: React.FC = () => {
                             </th>
                             <SortableHeader label="สินค้า" sortConfig={sortConfig} requestSort={requestSort} sortKey="name" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"/>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อพม่า</th>
-                            <SortableHeader label="จำนวน" sortConfig={sortConfig} requestSort={requestSort} sortKey="quantity" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"/>
+                            <SortableHeader label="จำนวน (ชิ้น)" sortConfig={sortConfig} requestSort={requestSort} sortKey="quantity" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"/>
                             <SortableHeader label="สต็อก" sortConfig={sortConfig} requestSort={requestSort} sortKey="stock" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"/>
                             <SortableHeader label="วันส่ง" sortConfig={sortConfig} requestSort={requestSort} sortKey="dueDate" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"/>
                             <th scope="col" className="relative px-6 py-3">
@@ -562,9 +562,9 @@ export const OrderManagementTab: React.FC = () => {
                                             {order.customerId && <p className="text-xs text-blue-600 font-semibold">{customerMap.get(order.customerId)}</p>}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{translations[order.name] || '-'}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.quantity}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.quantity.toLocaleString()}</td>
                                         <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${isLowStock ? 'text-red-600' : 'text-green-600'}`}>
-                                            {order.stock}
+                                            {order.stock.toLocaleString()}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(order.dueDate).toLocaleDateString('th-TH')}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -584,4 +584,3 @@ export const OrderManagementTab: React.FC = () => {
             </div>
         </div>
     );
-};

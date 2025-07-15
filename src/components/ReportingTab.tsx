@@ -103,7 +103,7 @@ const LotTraceability: React.FC = () => {
                     <div className="p-4 rounded-lg bg-gray-50 border">
                         <h4 className="font-bold flex items-center gap-2 text-gray-700"><BoxIcon className="w-5 h-5 text-blue-500"/>ข้อมูลการแพ็ค</h4>
                         <p><strong>สินค้า:</strong> {result.packingLog.name}</p>
-                        <p><strong>จำนวน:</strong> {result.packingLog.quantity} ลัง</p>
+                        <p><strong>จำนวน:</strong> {result.packingLog.quantity.toLocaleString()} ชิ้น</p>
                         <p><strong>ผู้แพ็ค:</strong> {result.packingLog.packerName}</p>
                         <p><strong>วันที่แพ็ค:</strong> {new Date(result.packingLog.date).toLocaleDateString('th-TH')}</p>
                     </div>
@@ -253,7 +253,7 @@ export const ReportingTab: React.FC = () => {
                         { header: 'วันที่', key: 'date', wch: 15 },
                         { header: 'ผู้บันทึก', key: 'packerName', wch: 20 },
                         { header: 'สินค้า', key: 'name', wch: 50 },
-                        { header: 'จำนวน (ลัง)', key: 'quantity', wch: 15 }
+                        { header: 'จำนวน (ชิ้น)', key: 'quantity', wch: 15 }
                     ])}
                 >
                     <p className="text-gray-700">
@@ -269,8 +269,8 @@ export const ReportingTab: React.FC = () => {
                         const inventory = getInventory();
                         const dataToExport = inventory.map(item => ({
                             'ชื่อสินค้า': item.name,
-                            'สต็อกปัจจุบัน (ลัง)': item.quantity,
-                            'สต็อกขั้นต่ำ (ลัง)': item.minStock ?? 'ไม่ได้ตั้งค่า',
+                            'สต็อกปัจจุบัน (ชิ้น)': item.quantity,
+                            'สต็อกขั้นต่ำ (ชิ้น)': item.minStock ?? 'ไม่ได้ตั้งค่า',
                             'สถานะ': item.minStock !== undefined && item.quantity < item.minStock ? 'ต่ำกว่ากำหนด' : 'ปกติ'
                         }));
 
@@ -289,4 +289,3 @@ export const ReportingTab: React.FC = () => {
             </div>
         </div>
     );
-};

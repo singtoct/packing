@@ -478,7 +478,7 @@ export const getAnalysisShortfall = (): { id: string; name: string; unit: string
             bom.components.forEach(comp => {
                 const material = rawMaterialMap.get(comp.rawMaterialId);
                 if (material) {
-                    const totalRequired = comp.quantity * order.quantity; // Assuming order.quantity is number of cases and BOM is per case
+                    const totalRequired = comp.quantity * order.quantity; // Assuming order.quantity is number of pieces and BOM is per piece
                     const existing = requiredMaterials.get(material.id) || { required: 0, name: material.name, unit: material.unit };
                     existing.required += totalRequired;
                     requiredMaterials.set(material.id, existing);
