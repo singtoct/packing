@@ -254,6 +254,11 @@ export const OrderManagementTab: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
+    // Form state for adding a new order
+    const [newItemProductId, setNewItemProductId] = useState('');
+    const [newItemQuantity, setNewItemQuantity] = useState(1);
+    const [newItemDueDate, setNewItemDueDate] = useState('');
+
     useEffect(() => {
         const fetchAndSetData = () => {
             setOrders(getOrders());
@@ -262,6 +267,7 @@ export const OrderManagementTab: React.FC = () => {
             setCustomers(getCustomers());
         };
         fetchAndSetData();
+        setNewItemDueDate(new Date().toISOString().split('T')[0]);
         window.addEventListener('storage', fetchAndSetData);
         return () => window.removeEventListener('storage', fetchAndSetData);
     }, []);
@@ -269,6 +275,13 @@ export const OrderManagementTab: React.FC = () => {
     const inventoryMap = useMemo(() => new Map(inventory.map(item => [item.name, item.quantity])), [inventory]);
     const productMap = useMemo(() => new Map(products.map(item => [`${item.name} (${item.color})`, item])), [products]);
     const customerMap = useMemo(() => new Map(customers.map(c => [c.id, c.name])), [customers]);
+
+    const productOptions = useMemo(() => {
+        return products.map(p => ({
+            id: p.id,
+            name: `${p.name} (${p.color})`,
+        })).sort((a, b) => a.name.localeCompare(b.name));
+    }, [products]);
 
     const sortedOrders = useMemo(() => {
         let sortableItems = orders.map(order => {
@@ -304,6 +317,30 @@ export const OrderManagementTab: React.FC = () => {
             direction = 'desc';
         }
         setSortConfig({ key, direction });
+    };
+
+    const handleAddOrder = (e: React.FormEvent) => {
+        e.preventDefault();
+        const selectedProduct = products.find(p => p.id === newItemProductId);
+        if (!selectedProduct) {
+            alert("กรุณาเลือกสินค้า");
+            return;
+        }
+        const newOrder: OrderItem = {
+            id: crypto.randomUUID(),
+            name: selectedProduct.name,
+            color: selectedProduct.color,
+            quantity: newItemQuantity,
+            dueDate: newItemDueDate,
+            salePrice: selectedProduct.salePrice,
+        };
+        const updatedOrders = [newOrder, ...orders];
+        saveOrders(updatedOrders);
+        setOrders(updatedOrders);
+
+        // Reset form
+        setNewItemProductId('');
+        setNewItemQuantity(1);
     };
 
     const handleSelectOrder = (id: string, checked: boolean) => {
@@ -430,6 +467,50 @@ export const OrderManagementTab: React.FC = () => {
                     </button>
                 </div>
             </div>
+
+            <form onSubmit={handleAddOrder} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end bg-gray-50 p-4 rounded-lg border mb-10">
+                <div className="md:col-span-2">
+                    <label htmlFor="newOrderItemName" className="block text-sm font-medium text-gray-700">สินค้า</label>
+                    <SearchableInput
+                        options={productOptions}
+                        value={newItemProductId}
+                        onChange={setNewItemProductId}
+                        displayKey="name"
+                        valueKey="id"
+                        placeholder="ค้นหาสินค้า..."
+                        className="mt-1"
+                    />
+                </div>
+                <div>
+                    <label htmlFor="newItemQuantity" className="block text-sm font-medium text-gray-700">จำนวน (ลัง)</label>
+                    <input
+                        id="newItemQuantity"
+                        type="number"
+                        value={newItemQuantity}
+                        onChange={(e) => setNewItemQuantity(Number(e.target.value))}
+                        min="1"
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                        required
+                    />
+                </div>
+                <div>
+                    <label htmlFor="newItemDueDate" className="block text-sm font-medium text-gray-700">วันส่ง</label>
+                    <input
+                        id="newItemDueDate"
+                        type="date"
+                        value={newItemDueDate}
+                        onChange={(e) => setNewItemDueDate(e.target.value)}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                        required
+                    />
+                </div>
+                <div>
+                    <button type="submit" className="w-full h-10 inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                        <PlusCircleIcon className="w-5 h-5" />
+                        เพิ่มออเดอร์
+                    </button>
+                </div>
+            </form>
 
             <div className="mb-4 flex justify-between">
                 <input

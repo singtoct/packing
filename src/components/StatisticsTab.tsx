@@ -268,7 +268,7 @@ const PurchasingStats: React.FC = () => {
         return {
             totalValue,
             topSuppliers: Object.entries(bySupplier).map(([name, value]) => ({name, value})).sort((a,b) => b.value - a.value).slice(0,5),
-        }
+        };
     }, [POs, supplierMap]);
     
     return (
