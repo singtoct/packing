@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { getMachines, getProductionQueue, saveMachines, getProducts, saveProductionQueue } from '../services/storageService';
 import { Machine, ProductionQueueItem, Product } from '../types';
-import { FactoryIcon, RefreshCwIcon, LoaderIcon, UserIcon, PlusCircleIcon, ListOrderedIcon } from './icons/Icons';
+import { FactoryIcon, RefreshCwIcon, LoaderIcon, UserIcon, PlusCircleIcon, ListOrderedIcon, ClockIcon } from './icons/Icons';
 import { AssignJobModal } from './AssignJobModal';
 import { EditJobModal } from './EditJobModal';
 
@@ -19,9 +19,21 @@ const STATUS_OPTIONS: { value: Machine['status']; label: string }[] = [
     { value: 'Down', label: 'เสีย' },
 ];
 
+const formatDuration = (seconds: number) => {
+    if (seconds < 0) seconds = 0;
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    return [
+        h > 0 ? `${h}h` : '',
+        m > 0 ? `${m}m` : '',
+        s > 0 ? `${s}s` : (h === 0 && m === 0 ? '0s' : '')
+    ].filter(Boolean).join(' ');
+};
+
 export const FactoryFloorTab: React.FC = () => {
     const [machineData, setMachineData] = useState<MachineData[]>([]);
-    const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+    const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
     const [isLoading, setIsLoading] = useState(true);
     
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
@@ -105,6 +117,7 @@ export const FactoryFloorTab: React.FC = () => {
                         const machineToUpdate = allMachines.find(m => m.id === job.machineId);
                         if (machineToUpdate) {
                             machineToUpdate.status = 'Idle';
+                            delete machineToUpdate.lastStartedAt;
                             machinesChanged = true;
                         }
                         const completedJob: ProductionQueueItem = { ...job, quantityProduced: newQuantityProduced, status: 'Completed', lastCycleTimestamp: undefined };
@@ -140,7 +153,18 @@ export const FactoryFloorTab: React.FC = () => {
 
     const handleStatusChange = (machineId: string, newStatus: Machine['status']) => {
         const allMachines = getMachines();
-        const updatedMachines = allMachines.map(m => m.id === machineId ? { ...m, status: newStatus } : m);
+        const updatedMachines = allMachines.map(m => {
+            if (m.id === machineId) {
+                const updatedMachine = { ...m, status: newStatus };
+                if (newStatus === 'Running' && !m.lastStartedAt) {
+                    updatedMachine.lastStartedAt = new Date().toISOString();
+                } else if (newStatus !== 'Running') {
+                    delete updatedMachine.lastStartedAt;
+                }
+                return updatedMachine;
+            }
+            return m;
+        });
         saveMachines(updatedMachines);
         fetchData(false);
         setOpenStatusMenuFor(null);
@@ -224,7 +248,7 @@ export const FactoryFloorTab: React.FC = () => {
             <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
                 <div>
                     <h2 className="text-2xl font-bold">สถานะเครื่องฉีด (Real-time)</h2>
-                    {lastUpdated && <p className="text-sm text-gray-500">สถานะล่าสุด: {lastUpdated.toLocaleTimeString('th-TH')}</p>}
+                    {lastUpdated && <p className="text-sm text-gray-500">อัปเดตล่าสุด: {lastUpdated.toLocaleTimeString('th-TH')}</p>}
                 </div>
                 <button onClick={() => fetchData(true)} disabled={isLoading} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400">
                     <RefreshCwIcon className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
@@ -238,88 +262,102 @@ export const FactoryFloorTab: React.FC = () => {
                 </div>
             ) : machineData.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {machineData.map(({ machine, currentJob, queue }) => (
-                        <div key={machine.id} onClick={() => handleCardClick(machine)} className="bg-white rounded-xl shadow-lg border-t-4 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer" style={{borderColor: getStatusColor(machine.status)}}>
-                            <div className="p-4">
-                                <div className="flex justify-between items-start mb-4">
-                                    <h3 className="text-lg font-bold text-gray-800">{machine.name}</h3>
-                                     <div className="relative">
-                                        <div
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setOpenStatusMenuFor(openStatusMenuFor === machine.id ? null : machine.id);
-                                            }}
-                                            className="cursor-pointer p-1 -m-1"
-                                            role="button"
-                                            aria-haspopup="true"
-                                            aria-expanded={openStatusMenuFor === machine.id}
-                                        >
-                                            <StatusIndicator status={machine.status} />
-                                        </div>
-                                        {openStatusMenuFor === machine.id && (
-                                            <div ref={menuRef} className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded-md shadow-lg z-20">
-                                                <ul className="py-1" role="menu">
-                                                    {STATUS_OPTIONS.map((option) => (
-                                                        <li
-                                                            key={option.value}
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleStatusChange(machine.id, option.value);
-                                                            }}
-                                                            className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                                                            role="menuitem"
-                                                        >
-                                                            {option.label}
-                                                        </li>
-                                                    ))}
-                                                </ul>
+                    {machineData.map(({ machine, currentJob, queue }) => {
+                        const startTime = machine.lastStartedAt ? new Date(machine.lastStartedAt) : null;
+                        const durationSeconds = startTime ? (lastUpdated.getTime() - startTime.getTime()) / 1000 : 0;
+                        
+                        return (
+                            <div key={machine.id} onClick={() => handleCardClick(machine)} className="bg-white rounded-xl shadow-lg border-t-4 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer" style={{borderColor: getStatusColor(machine.status)}}>
+                                <div className="p-4">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <h3 className="text-lg font-bold text-gray-800">{machine.name}</h3>
+                                        <div className="relative">
+                                            <div
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setOpenStatusMenuFor(openStatusMenuFor === machine.id ? null : machine.id);
+                                                }}
+                                                className="cursor-pointer p-1 -m-1"
+                                                role="button"
+                                                aria-haspopup="true"
+                                                aria-expanded={openStatusMenuFor === machine.id}
+                                            >
+                                                <StatusIndicator status={machine.status} />
                                             </div>
-                                        )}
+                                            {openStatusMenuFor === machine.id && (
+                                                <div ref={menuRef} className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded-md shadow-lg z-20">
+                                                    <ul className="py-1" role="menu">
+                                                        {STATUS_OPTIONS.map((option) => (
+                                                            <li
+                                                                key={option.value}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleStatusChange(machine.id, option.value);
+                                                                }}
+                                                                className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                                                                role="menuitem"
+                                                            >
+                                                                {option.label}
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
+                                    {currentJob ? (
+                                        <div className="space-y-3">
+                                            <div>
+                                                <p className="text-xs text-gray-500">งานปัจจุบัน</p>
+                                                <p className="font-bold text-lg text-blue-700 truncate" title={currentJob.productName}>{currentJob.productName}</p>
+                                            </div>
+                                            <div>
+                                                <div className="flex justify-between text-sm mb-1">
+                                                    <span className="font-semibold">{currentJob.quantityProduced.toLocaleString()} / {currentJob.quantityGoal.toLocaleString()}</span>
+                                                    <span className="font-bold">{currentJob.progressPercent.toFixed(1)}%</span>
+                                                </div>
+                                                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                                                    <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${Math.min(currentJob.progressPercent, 100)}%` }}></div>
+                                                </div>
+                                            </div>
+                                            <div className="text-sm text-gray-600 flex items-center gap-2">
+                                                <UserIcon className="w-4 h-4"/>
+                                                <span>ผู้ควบคุม: <span className="font-semibold">{currentJob.operator}</span></span>
+                                            </div>
+                                             {machine.status === 'Running' && startTime && (
+                                                <div className="text-sm text-gray-600 flex items-start gap-2 mt-2 pt-2 border-t">
+                                                    <ClockIcon className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0"/>
+                                                    <div>
+                                                        <p>เริ่ม: <span className="font-semibold">{startTime.toLocaleTimeString('th-TH')}</span></p>
+                                                        <p>ระยะเวลา: <span className="font-semibold">{formatDuration(durationSeconds)}</span></p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-8 text-gray-500">
+                                            <PlusCircleIcon className="w-12 h-12 mx-auto text-gray-300"/>
+                                            <p className="mt-2 font-semibold">เครื่องว่าง</p>
+                                            <p className="text-sm">คลิกเพื่อมอบหมายงาน</p>
+                                        </div>
+                                    )}
                                 </div>
-                                {currentJob ? (
-                                    <div className="space-y-3">
-                                        <div>
-                                            <p className="text-xs text-gray-500">งานปัจจุบัน</p>
-                                            <p className="font-bold text-lg text-blue-700 truncate" title={currentJob.productName}>{currentJob.productName}</p>
-                                        </div>
-                                        <div>
-                                            <div className="flex justify-between text-sm mb-1">
-                                                <span className="font-semibold">{currentJob.quantityProduced.toLocaleString()} / {currentJob.quantityGoal.toLocaleString()}</span>
-                                                <span className="font-bold">{currentJob.progressPercent.toFixed(1)}%</span>
-                                            </div>
-                                            <div className="w-full bg-gray-200 rounded-full h-2.5">
-                                                <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${Math.min(currentJob.progressPercent, 100)}%` }}></div>
-                                            </div>
-                                        </div>
-                                        <div className="text-sm text-gray-600 flex items-center gap-2">
-                                            <UserIcon className="w-4 h-4"/>
-                                            <span>ผู้ควบคุม: <span className="font-semibold">{currentJob.operator}</span></span>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="text-center py-8 text-gray-500">
-                                        <PlusCircleIcon className="w-12 h-12 mx-auto text-gray-300"/>
-                                        <p className="mt-2 font-semibold">เครื่องว่าง</p>
-                                        <p className="text-sm">คลิกเพื่อมอบหมายงาน</p>
+                                {queue.length > 0 && (
+                                    <div className="border-t bg-gray-50 p-4 rounded-b-xl">
+                                        <h4 className="text-xs font-bold text-gray-500 uppercase mb-2 flex items-center gap-1.5"><ListOrderedIcon className="w-4 h-4"/> คิวถัดไป</h4>
+                                        <ul className="space-y-1 text-sm">
+                                            {queue.slice(0, 2).map(job => (
+                                                <li key={job.id} className="text-gray-700 truncate">
+                                                    <span className="font-medium">{job.productName}</span> ({job.quantityGoal.toLocaleString()} ชิ้น)
+                                                </li>
+                                            ))}
+                                            {queue.length > 2 && <li className="text-xs text-gray-500">และอีก {queue.length - 2} งาน...</li>}
+                                        </ul>
                                     </div>
                                 )}
                             </div>
-                            {queue.length > 0 && (
-                                <div className="border-t bg-gray-50 p-4 rounded-b-xl">
-                                    <h4 className="text-xs font-bold text-gray-500 uppercase mb-2 flex items-center gap-1.5"><ListOrderedIcon className="w-4 h-4"/> คิวถัดไป</h4>
-                                    <ul className="space-y-1 text-sm">
-                                        {queue.slice(0, 2).map(job => (
-                                            <li key={job.id} className="text-gray-700 truncate">
-                                                <span className="font-medium">{job.productName}</span> ({job.quantityGoal.toLocaleString()} ชิ้น)
-                                            </li>
-                                        ))}
-                                        {queue.length > 2 && <li className="text-xs text-gray-500">และอีก {queue.length - 2} งาน...</li>}
-                                    </ul>
-                                </div>
-                            )}
-                        </div>
-                    ))}
+                        )
+                    })}
                 </div>
             ) : (
                  <div className="flex flex-col items-center justify-center h-96 bg-gray-50 rounded-lg">

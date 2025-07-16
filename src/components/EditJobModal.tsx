@@ -39,6 +39,7 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({ job, machine, onClos
             case 'start':
                 if (machineToUpdate) {
                     machineToUpdate.status = 'Running';
+                    machineToUpdate.lastStartedAt = new Date().toISOString();
                     saveMachines(machines);
                 }
                 const startedQueue = queue.map(j => {
@@ -53,6 +54,7 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({ job, machine, onClos
             case 'pause':
                  if (machineToUpdate) {
                     machineToUpdate.status = 'Idle';
+                    delete machineToUpdate.lastStartedAt;
                     saveMachines(machines);
                 }
                 const pausedQueue = queue.map(j => {
@@ -67,6 +69,7 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({ job, machine, onClos
             case 'complete':
                  if (machineToUpdate) {
                     machineToUpdate.status = 'Idle';
+                    delete machineToUpdate.lastStartedAt;
                     saveMachines(machines);
                 }
                 const completedQueue = queue.filter(j => j.id !== job.id);
@@ -74,8 +77,15 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({ job, machine, onClos
                 break;
             case 'cancel':
                 if(window.confirm('คุณแน่ใจหรือไม่ว่าต้องการยกเลิกงานนี้ออกจากคิว?')) {
+                    if (machineToUpdate && job.status === 'In Progress') {
+                         machineToUpdate.status = 'Idle';
+                         delete machineToUpdate.lastStartedAt;
+                         saveMachines(machines);
+                    }
                     const cancelledQueue = queue.filter(j => j.id !== job.id);
                     saveProductionQueue(cancelledQueue);
+                } else {
+                    return;
                 }
                 break;
         }
@@ -121,16 +131,29 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({ job, machine, onClos
                             {employees.map(emp => <option key={emp.id} value={emp.name}>{emp.name}</option>)}
                         </select>
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">จำนวนเป้าหมาย (ชิ้น)</label>
-                        <input
-                            type="number"
-                            min="1"
-                            value={formData.quantityGoal}
-                            onChange={e => handleChange('quantityGoal', Number(e.target.value))}
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                            required
-                        />
+                     <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">จำนวนที่ผลิตแล้ว</label>
+                            <input
+                                type="number"
+                                min="0"
+                                value={formData.quantityProduced}
+                                onChange={e => handleChange('quantityProduced', Number(e.target.value))}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">จำนวนเป้าหมาย (ชิ้น)</label>
+                            <input
+                                type="number"
+                                min="1"
+                                value={formData.quantityGoal}
+                                onChange={e => handleChange('quantityGoal', Number(e.target.value))}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                                required
+                            />
+                        </div>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700">ลำดับความสำคัญ (Priority)</label>
