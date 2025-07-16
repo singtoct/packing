@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { getMachines, getProductionQueue, saveMachines, getProducts, saveProductionQueue } from '../services/storageService';
 import { Machine, ProductionQueueItem, Product } from '../types';
