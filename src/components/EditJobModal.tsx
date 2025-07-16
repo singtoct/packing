@@ -133,23 +133,23 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({ job, machine, onClos
                     </div>
                      <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">จำนวนที่ผลิตแล้ว</label>
-                            <input
-                                type="number"
-                                min="0"
-                                value={formData.quantityProduced}
-                                onChange={e => handleChange('quantityProduced', Number(e.target.value))}
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                                required
-                            />
-                        </div>
-                        <div>
                             <label className="block text-sm font-medium text-gray-700">จำนวนเป้าหมาย (ชิ้น)</label>
                             <input
                                 type="number"
                                 min="1"
                                 value={formData.quantityGoal}
                                 onChange={e => handleChange('quantityGoal', Number(e.target.value))}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">จำนวนที่ผลิตแล้ว</label>
+                            <input
+                                type="number"
+                                min="0"
+                                value={formData.quantityProduced}
+                                onChange={e => handleChange('quantityProduced', Number(e.target.value))}
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
                                 required
                             />
