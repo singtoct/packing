@@ -31,7 +31,7 @@ const formatDuration = (seconds: number) => {
     ].filter(Boolean).join(' ') || '0s';
 };
 
-const RunningStatus: React.FC<{ machine: Machine; onStartTimeChange: (machineId: string, newStartTime: string) => void }> = ({ machine, onStartTimeChange }) => {
+const RunningStatus: React.FC<{ machine: Machine }> = ({ machine }) => {
     const [durationSeconds, setDurationSeconds] = useState(0);
 
     useEffect(() => {
@@ -54,38 +54,12 @@ const RunningStatus: React.FC<{ machine: Machine; onStartTimeChange: (machineId:
     if (machine.status !== 'Running' || !machine.lastStartedAt) {
         return null;
     }
-    
-    const formatForInput = (isoString: string) => {
-        const date = new Date(isoString);
-        const pad = (num: number) => ('0' + num).slice(-2);
-        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-    };
-
-    const handleLocalTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.value) {
-            const newDate = new Date(e.target.value);
-            onStartTimeChange(machine.id, newDate.toISOString());
-        }
-    };
 
     return (
         <div className="text-sm text-gray-600 flex flex-col gap-2 mt-2 mb-3 pt-2 border-t">
             <div className="flex justify-between items-center">
                 <span className="font-semibold">ระยะเวลาเดินเครื่อง:</span>
                 <span className="font-bold text-lg text-gray-800">{formatDuration(durationSeconds)}</span>
-            </div>
-            <div className="flex flex-col">
-                <label htmlFor={`start-time-${machine.id}`} className="text-xs font-medium text-gray-500">
-                    กำหนดเวลาเริ่ม:
-                </label>
-                <input
-                    id={`start-time-${machine.id}`}
-                    type="datetime-local"
-                    value={formatForInput(machine.lastStartedAt)}
-                    onChange={handleLocalTimeChange}
-                    onClick={(e) => e.stopPropagation()} 
-                    className="mt-1 block w-full px-2 py-1 border border-gray-200 rounded-md text-xs"
-                />
             </div>
         </div>
     );
@@ -206,15 +180,6 @@ export const FactoryFloorTab: React.FC = () => {
             window.removeEventListener('storage', handleStorageChange);
         };
     }, [fetchData]);
-
-    const handleStartTimeChange = (machineId: string, newStartTime: string) => {
-        const allMachines = getMachines();
-        const updatedMachines = allMachines.map(m => 
-            m.id === machineId ? { ...m, lastStartedAt: newStartTime } : m
-        );
-        saveMachines(updatedMachines);
-        fetchData(false);
-    };
 
     const handleStatusChange = (machineId: string, newStatus: Machine['status']) => {
         const allMachines = getMachines();
@@ -367,7 +332,7 @@ export const FactoryFloorTab: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    <RunningStatus machine={machine} onStartTimeChange={handleStartTimeChange} />
+                                    <RunningStatus machine={machine} />
                                     
                                     {currentJob ? (
                                         <div className="space-y-3 mt-4">

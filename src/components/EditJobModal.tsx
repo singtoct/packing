@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Machine, ProductionQueueItem, Employee } from '../types';
 import { getEmployees, getProductionQueue, saveProductionQueue, saveMachines, getMachines } from '../services/storageService';
@@ -14,10 +13,17 @@ interface EditJobModalProps {
 export const EditJobModal: React.FC<EditJobModalProps> = ({ job, machine, onClose, onSave }) => {
     const [formData, setFormData] = useState<ProductionQueueItem>(job);
     const [employees, setEmployees] = useState<Employee[]>([]);
+    const [startTime, setStartTime] = useState('');
 
     useEffect(() => {
         setEmployees(getEmployees());
-    }, []);
+        if (machine.status === 'Running' && machine.lastStartedAt) {
+            const date = new Date(machine.lastStartedAt);
+            const pad = (num: number) => ('0' + num).slice(-2);
+            const formatted = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+            setStartTime(formatted);
+        }
+    }, [machine]);
 
     const handleChange = (field: keyof ProductionQueueItem, value: any) => {
         setFormData(prev => ({...prev, [field]: value}));
@@ -25,9 +31,25 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({ job, machine, onClos
 
     const handleSaveChanges = (e: React.FormEvent) => {
         e.preventDefault();
+        
+        // Save machine start time first if changed
+        if (machine.status === 'Running' && startTime) {
+            const allMachines = getMachines();
+            const newStartTimeIso = new Date(startTime).toISOString();
+            const machineInDb = allMachines.find(m => m.id === machine.id);
+            if (machineInDb && machineInDb.lastStartedAt !== newStartTimeIso) {
+                const updatedMachines = allMachines.map(m => 
+                    m.id === machine.id ? { ...m, lastStartedAt: newStartTimeIso } : m
+                );
+                saveMachines(updatedMachines);
+            }
+        }
+    
+        // Then save job data
         const queue = getProductionQueue();
         const updatedQueue = queue.map(j => (j.id === formData.id ? formData : j));
         saveProductionQueue(updatedQueue);
+        
         onSave();
     };
 
@@ -156,6 +178,17 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({ job, machine, onClos
                             />
                         </div>
                     </div>
+                    {machine.status === 'Running' && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">เวลาเริ่มเดินเครื่อง</label>
+                            <input
+                                type="datetime-local"
+                                value={startTime}
+                                onChange={e => setStartTime(e.target.value)}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                            />
+                        </div>
+                    )}
                     <div>
                         <label className="block text-sm font-medium text-gray-700">ลำดับความสำคัญ (Priority)</label>
                         <input
