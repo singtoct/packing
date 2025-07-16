@@ -1,5 +1,6 @@
 
 
+
 export type Tab = 'dashboard' | 'factory_floor' | 'orders' | 'analysis' | 'procurement' | 'molding' | 'production_status' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'profit_analysis' | 'stats' | 'reports' | 'products' | 'settings' | 'customers' | 'complaints';
 
 
@@ -90,7 +91,7 @@ export interface Machine {
   id: string;
   name: string;
   location: string;
-  status: 'Running' | 'Down' | 'Maintenance';
+  status: 'Running' | 'Down' | 'Maintenance' | 'Idle' | 'Mold Change';
   nextPmDate?: string;
 }
 

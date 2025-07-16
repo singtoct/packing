@@ -93,13 +93,26 @@ export const FactoryFloorTab: React.FC = () => {
         handleCloseModal();
     };
 
+    const getStatusColor = (status: Machine['status']): string => {
+        switch (status) {
+            case 'Running': return '#22c55e'; // green-500
+            case 'Down': return '#ef4444'; // red-500
+            case 'Maintenance': return '#f59e0b'; // amber-500
+            case 'Idle': return '#6b7280'; // gray-500
+            case 'Mold Change': return '#8b5cf6'; // purple-500
+            default: return '#6b7280';
+        }
+    };
+
     const StatusIndicator: React.FC<{ status: Machine['status'] }> = ({ status }) => {
-        const styles = {
+        const styles: Record<Machine['status'], { bg: string; text: string }> = {
             Running: { bg: 'bg-green-500', text: 'ทำงาน' },
-            Down: { bg: 'bg-red-500', text: 'หยุด' },
-            Maintenance: { bg: 'bg-yellow-500', text: 'ซ่อมบำรุง' },
+            Down: { bg: 'bg-red-500', text: 'เสีย' },
+            Maintenance: { bg: 'bg-yellow-500', text: 'กำลังซ่อม' },
+            Idle: { bg: 'bg-gray-500', text: 'ว่าง' },
+            'Mold Change': { bg: 'bg-purple-500', text: 'รอเปลี่ยนโมล' },
         };
-        const current = styles[status];
+        const current = styles[status] || styles.Idle;
         return (
             <div className="flex items-center gap-2">
                 <span className={`w-3 h-3 rounded-full ${current.bg} ${status === 'Running' ? 'animate-pulse' : ''}`}></span>
@@ -134,7 +147,7 @@ export const FactoryFloorTab: React.FC = () => {
             ) : machineData.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {machineData.map(({ machine, currentJob, queue }) => (
-                        <div key={machine.id} onClick={() => handleCardClick(machine, currentJob)} className="bg-white rounded-xl shadow-lg border-t-4 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer" style={{borderColor: machine.status === 'Running' ? '#22c55e' : machine.status === 'Down' ? '#ef4444' : '#f59e0b'}}>
+                        <div key={machine.id} onClick={() => handleCardClick(machine, currentJob)} className="bg-white rounded-xl shadow-lg border-t-4 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer" style={{borderColor: getStatusColor(machine.status)}}>
                             <div className="p-4">
                                 <div className="flex justify-between items-start mb-4">
                                     <h3 className="text-lg font-bold text-gray-800">{machine.name}</h3>

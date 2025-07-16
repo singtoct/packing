@@ -197,7 +197,7 @@ export const MaintenanceTab: React.FC = () => {
             id: crypto.randomUUID(),
             name: newMachineName,
             location: newMachineLocation,
-            status: 'Running'
+            status: 'Idle'
         };
         const updated = [...machines, newMachine];
         setMachines(updated);
@@ -251,10 +251,12 @@ export const MaintenanceTab: React.FC = () => {
     };
     
     const StatusBadge: React.FC<{status: Machine['status']}> = ({status}) => {
-        const styles = {
+        const styles: Record<Machine['status'], string> = {
             Running: 'bg-green-100 text-green-800',
             Down: 'bg-red-100 text-red-800',
             Maintenance: 'bg-yellow-100 text-yellow-800',
+            Idle: 'bg-gray-100 text-gray-800',
+            'Mold Change': 'bg-purple-100 text-purple-800',
         };
         return <span className={`px-2 py-1 text-xs font-semibold rounded-full ${styles[status]}`}>{status}</span>;
     };
@@ -326,8 +328,10 @@ export const MaintenanceTab: React.FC = () => {
                                     <span className="font-medium">Status:</span>
                                     <select value={machine.status} onChange={e => handleUpdateMachineField(machine.id, 'status', e.target.value as any)} className="text-sm border-gray-200 rounded p-1">
                                         <option value="Running">Running</option>
+                                        <option value="Idle">Idle</option>
                                         <option value="Down">Down</option>
                                         <option value="Maintenance">Maintenance</option>
+                                        <option value="Mold Change">Mold Change</option>
                                     </select>
                                 </div>
                                 <div className="flex gap-2">
