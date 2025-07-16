@@ -1,7 +1,8 @@
 
+
 import React, { useState, useEffect, useMemo } from 'react';
-import { Machine, Product, ProductionQueueItem } from '../types';
-import { getProducts, getProductionQueue, saveProductionQueue } from '../services/storageService';
+import { Machine, Product, ProductionQueueItem, Employee } from '../types';
+import { getProducts, getProductionQueue, saveProductionQueue, getEmployees } from '../services/storageService';
 import { SearchableInput } from './SearchableInput';
 import { PlusCircleIcon, XCircleIcon } from './icons/Icons';
 
@@ -13,12 +14,19 @@ interface AssignJobModalProps {
 
 export const AssignJobModal: React.FC<AssignJobModalProps> = ({ machine, onClose, onSave }) => {
     const [products, setProducts] = useState<Product[]>([]);
+    const [employees, setEmployees] = useState<Employee[]>([]);
     const [selectedProductId, setSelectedProductId] = useState('');
+    const [operatorName, setOperatorName] = useState('');
     const [quantity, setQuantity] = useState(1000);
     const [priority, setPriority] = useState(10);
     
     useEffect(() => {
         setProducts(getProducts());
+        const emps = getEmployees();
+        setEmployees(emps);
+        if (emps.length > 0) {
+            setOperatorName(emps[0].name);
+        }
     }, []);
 
     const productOptions = useMemo(() => {
@@ -44,6 +52,7 @@ export const AssignJobModal: React.FC<AssignJobModalProps> = ({ machine, onClose
             status: 'Queued',
             priority,
             addedDate: new Date().toISOString(),
+            operatorName,
         };
 
         const queue = getProductionQueue();
@@ -72,6 +81,13 @@ export const AssignJobModal: React.FC<AssignJobModalProps> = ({ machine, onClose
                             placeholder="ค้นหาสินค้า..."
                             className="mt-1"
                         />
+                    </div>
+                     <div>
+                        <label className="block text-sm font-medium text-gray-700">ผู้ควบคุมเครื่อง</label>
+                        <select value={operatorName} onChange={e => setOperatorName(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required>
+                            <option value="" disabled>-- เลือกผู้ควบคุม --</option>
+                            {employees.map(emp => <option key={emp.id} value={emp.name}>{emp.name}</option>)}
+                        </select>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700">จำนวนเป้าหมาย (ชิ้น)</label>

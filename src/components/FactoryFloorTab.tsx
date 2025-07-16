@@ -1,9 +1,11 @@
 
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getMachines, getMoldingLogs, getProducts, getProductionQueue, saveProductionQueue } from '../services/storageService';
 import { Machine, MoldingLogEntry, Product, ProductionQueueItem } from '../types';
 import { FactoryIcon, RefreshCwIcon, LoaderIcon, UserIcon, ClockIcon, PackageIcon, PlusCircleIcon, ListOrderedIcon } from './icons/Icons';
 import { AssignJobModal } from './AssignJobModal';
+import { EditJobModal } from './EditJobModal';
 
 interface MachineData {
     machine: Machine;
@@ -15,8 +17,12 @@ export const FactoryFloorTab: React.FC = () => {
     const [machineData, setMachineData] = useState<MachineData[]>([]);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    
+    const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    
     const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null);
+    const [selectedJob, setSelectedJob] = useState<ProductionQueueItem | null>(null);
 
     const fetchData = useCallback(() => {
         setIsLoading(true);
@@ -30,7 +36,7 @@ export const FactoryFloorTab: React.FC = () => {
                 .filter(job => job.machineId === machine.id && job.status !== 'Completed')
                 .sort((a, b) => a.priority - b.priority || new Date(a.addedDate).getTime() - new Date(b.addedDate).getTime());
 
-            let currentJob = machineQueue.length > 0 ? machineQueue[0] : null;
+            let currentJob = machineQueue.find(j => j.status === 'In Progress') || machineQueue[0] || null;
             let jobWithProgress = null;
 
             if (currentJob) {
@@ -45,7 +51,7 @@ export const FactoryFloorTab: React.FC = () => {
                 currentJob.quantityProduced = quantityProduced;
 
                 const progressPercent = currentJob.quantityGoal > 0 ? (quantityProduced / currentJob.quantityGoal) * 100 : 0;
-                const operator = relevantLogs.length > 0 ? relevantLogs[relevantLogs.length - 1].operatorName : '-';
+                const operator = currentJob.operatorName || (relevantLogs.length > 0 ? relevantLogs[relevantLogs.length - 1].operatorName : '-');
                 
                 jobWithProgress = { ...currentJob, progressPercent, operator };
             }
@@ -53,7 +59,7 @@ export const FactoryFloorTab: React.FC = () => {
             return {
                 machine,
                 currentJob: jobWithProgress,
-                queue: machineQueue.slice(1),
+                queue: machineQueue.filter(j => j.id !== currentJob?.id),
             };
         });
 
@@ -74,18 +80,25 @@ export const FactoryFloorTab: React.FC = () => {
         };
     }, [fetchData]);
 
-    const handleOpenModal = (machine: Machine) => {
+    const handleCardClick = (machine: Machine, job: (ProductionQueueItem & {progressPercent: number, operator: string}) | null) => {
         setSelectedMachine(machine);
-        setIsModalOpen(true);
+        if (job) {
+            setSelectedJob(job);
+            setIsEditModalOpen(true);
+        } else {
+            setIsAssignModalOpen(true);
+        }
     };
-
+    
     const handleCloseModal = () => {
-        setIsModalOpen(false);
+        setIsAssignModalOpen(false);
+        setIsEditModalOpen(false);
         setSelectedMachine(null);
+        setSelectedJob(null);
     };
     
     const handleSaveJob = () => {
-        fetchData(); // Re-fetch all data to show the new job
+        fetchData();
         handleCloseModal();
     };
 
@@ -106,8 +119,11 @@ export const FactoryFloorTab: React.FC = () => {
 
     return (
         <div>
-            {isModalOpen && selectedMachine && (
+            {isAssignModalOpen && selectedMachine && (
                 <AssignJobModal machine={selectedMachine} onClose={handleCloseModal} onSave={handleSaveJob} />
+            )}
+            {isEditModalOpen && selectedMachine && selectedJob && (
+                <EditJobModal job={selectedJob} machine={selectedMachine} onClose={handleCloseModal} onSave={handleSaveJob} />
             )}
             <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
                 <div>
@@ -127,7 +143,7 @@ export const FactoryFloorTab: React.FC = () => {
             ) : machineData.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {machineData.map(({ machine, currentJob, queue }) => (
-                        <div key={machine.id} onClick={() => handleOpenModal(machine)} className="bg-white rounded-xl shadow-lg border-t-4 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer" style={{borderColor: machine.status === 'Running' ? '#22c55e' : machine.status === 'Down' ? '#ef4444' : '#f59e0b'}}>
+                        <div key={machine.id} onClick={() => handleCardClick(machine, currentJob)} className="bg-white rounded-xl shadow-lg border-t-4 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer" style={{borderColor: machine.status === 'Running' ? '#22c55e' : machine.status === 'Down' ? '#ef4444' : '#f59e0b'}}>
                             <div className="p-4">
                                 <div className="flex justify-between items-start mb-4">
                                     <h3 className="text-lg font-bold text-gray-800">{machine.name}</h3>

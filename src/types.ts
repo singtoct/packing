@@ -1,4 +1,5 @@
 
+
 export type Tab = 'dashboard' | 'factory_floor' | 'orders' | 'analysis' | 'procurement' | 'molding' | 'production_status' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'profit_analysis' | 'stats' | 'reports' | 'products' | 'settings' | 'customers' | 'complaints';
 
 
@@ -232,4 +233,5 @@ export interface ProductionQueueItem {
   priority: number; // e.g., 1 = highest
   addedDate: string;
   orderId?: string; // Optional link to sales order
+  operatorName?: string;
 }

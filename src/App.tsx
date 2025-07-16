@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { OrderManagementTab } from './components/OrderManagementTab';
@@ -33,7 +34,7 @@ export type Tab = 'dashboard' | 'factory_floor' | 'orders' | 'analysis' | 'procu
 export type QuickActionType = 'order' | 'packing' | 'molding';
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  const [activeTab, setActiveTab] = useState<Tab>('factory_floor');
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [readNotifications, setReadNotifications] = useState<Set<string>>(new Set());
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
