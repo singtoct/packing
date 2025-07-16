@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { getMachines, getProductionQueue, saveMachines } from '../services/storageService';
-import { Machine, ProductionQueueItem } from '../types';
+import { getMachines, getProductionQueue, saveMachines, getProducts, saveProductionQueue } from '../services/storageService';
+import { Machine, ProductionQueueItem, Product } from '../types';
 import { FactoryIcon, RefreshCwIcon, LoaderIcon, UserIcon, PlusCircleIcon, ListOrderedIcon } from './icons/Icons';
 import { AssignJobModal } from './AssignJobModal';
 import { EditJobModal } from './EditJobModal';
@@ -32,20 +32,22 @@ export const FactoryFloorTab: React.FC = () => {
 
     const [openStatusMenuFor, setOpenStatusMenuFor] = useState<string | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
+    const productsRef = useRef<Product[]>([]);
 
-    const fetchData = useCallback(() => {
-        setIsLoading(true);
+    const fetchData = useCallback((isInitial = false) => {
+        if(isInitial) setIsLoading(true);
         const machines = getMachines().sort((a,b) => a.name.localeCompare(b.name));
         const productionQueue = getProductionQueue();
+        productsRef.current = getProducts();
 
         const data: MachineData[] = machines.map(machine => {
             const machineQueue = productionQueue
                 .filter(job => job.machineId === machine.id && job.status !== 'Completed')
                 .sort((a, b) => a.priority - b.priority || new Date(a.addedDate).getTime() - new Date(b.addedDate).getTime());
 
-            const currentJob = machineQueue.find(j => j.status === 'In Progress') || machineQueue[0] || null;
+            const currentJob = machineQueue.find(j => j.status === 'In Progress') || null;
+            
             let jobWithProgress = null;
-
             if (currentJob) {
                 const progressPercent = currentJob.quantityGoal > 0 ? (currentJob.quantityProduced / currentJob.quantityGoal) * 100 : 0;
                 const operator = currentJob.operatorName || '-';
@@ -62,50 +64,117 @@ export const FactoryFloorTab: React.FC = () => {
 
         setMachineData(data);
         setLastUpdated(new Date());
-        setIsLoading(false);
+        if(isInitial) setIsLoading(false);
     }, []);
+    
+    useEffect(() => {
+        fetchData(true);
+        
+        // This interval drives the real-time simulation
+        const simulationInterval = setInterval(() => {
+            const queue = getProductionQueue();
+            let queueChanged = false;
+            let machinesChanged = false;
+            const allMachines = getMachines();
+
+            const updatedQueue: ProductionQueueItem[] = queue.map(job => {
+                const machine = allMachines.find(m => m.id === job.machineId);
+                if (job.status !== 'In Progress' || machine?.status !== 'Running') {
+                    return job;
+                }
+
+                const product = productsRef.current.find(p => p.id === job.productId);
+                const cycleTime = product?.cycleTimeSeconds;
+
+                if (!cycleTime || cycleTime <= 0) {
+                    return job; // Cannot simulate without cycle time
+                }
+
+                const now = Date.now();
+                const lastTimestamp = job.lastCycleTimestamp || now;
+                const elapsedSeconds = (now - lastTimestamp) / 1000;
+                const piecesProduced = Math.floor(elapsedSeconds / cycleTime);
+
+                if (piecesProduced > 0) {
+                    const newQuantityProduced = Math.min(job.quantityGoal, job.quantityProduced + piecesProduced);
+                    const remainderTime = (elapsedSeconds % cycleTime) * 1000;
+                    queueChanged = true;
+                    
+                    if (newQuantityProduced >= job.quantityGoal) {
+                        // Job completed
+                        const machineToUpdate = allMachines.find(m => m.id === job.machineId);
+                        if (machineToUpdate) {
+                            machineToUpdate.status = 'Idle';
+                            machinesChanged = true;
+                        }
+                        const completedJob: ProductionQueueItem = { ...job, quantityProduced: newQuantityProduced, status: 'Completed', lastCycleTimestamp: undefined };
+                        return completedJob;
+                    }
+                    
+                    const updatedJob: ProductionQueueItem = { ...job, quantityProduced: newQuantityProduced, lastCycleTimestamp: now - remainderTime };
+                    return updatedJob;
+                }
+                return job;
+            });
+
+            if (queueChanged) {
+                const activeJobs = updatedQueue.filter(j => j.status !== 'Completed');
+                saveProductionQueue(activeJobs);
+                if (machinesChanged) {
+                    saveMachines(allMachines);
+                }
+                fetchData(false); // Re-fetch data to update UI
+            }
+            setLastUpdated(new Date());
+
+        }, 1000); // Run simulation every second
+
+        const handleStorageChange = () => fetchData(false);
+        window.addEventListener('storage', handleStorageChange);
+        
+        return () => {
+            clearInterval(simulationInterval);
+            window.removeEventListener('storage', handleStorageChange);
+        };
+    }, [fetchData]);
 
     const handleStatusChange = (machineId: string, newStatus: Machine['status']) => {
         const allMachines = getMachines();
         const updatedMachines = allMachines.map(m => m.id === machineId ? { ...m, status: newStatus } : m);
         saveMachines(updatedMachines);
+        fetchData(false);
         setOpenStatusMenuFor(null);
     };
 
     useEffect(() => {
-        fetchData();
-        const interval = setInterval(fetchData, 30000); // Auto-refresh every 30s
-        
-        const handleStorageChange = () => {
-            fetchData();
-        };
-
         const handleClickOutside = (event: MouseEvent) => {
             if (openStatusMenuFor && menuRef.current && !menuRef.current.contains(event.target as Node)) {
                 setOpenStatusMenuFor(null);
             }
         };
-
-        window.addEventListener('storage', handleStorageChange);
         document.addEventListener("mousedown", handleClickOutside);
-        
-        return () => {
-            clearInterval(interval);
-            window.removeEventListener('storage', handleStorageChange);
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
-    }, [fetchData, openStatusMenuFor]);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [openStatusMenuFor]);
 
-    const handleCardClick = (machine: Machine, job: (ProductionQueueItem & {progressPercent: number, operator: string}) | null) => {
+    const handleCardClick = (machine: Machine) => {
+        const machineJob = machineData.find(md => md.machine.id === machine.id)?.currentJob;
         setSelectedMachine(machine);
-        if (job) {
-            const completeJobData = getProductionQueue().find(j => j.id === job.id);
+        if (machineJob) {
+            const completeJobData = getProductionQueue().find(j => j.id === machineJob.id);
             if (completeJobData) {
               setSelectedJob(completeJobData);
               setIsEditModalOpen(true);
             }
         } else {
-            setIsAssignModalOpen(true);
+             // Find next queued job for this machine
+            const queue = getProductionQueue();
+            const nextJob = queue.find(job => job.machineId === machine.id && job.status === 'Queued');
+            if(nextJob){
+                setSelectedJob(nextJob);
+                setIsEditModalOpen(true);
+            } else {
+                setIsAssignModalOpen(true);
+            }
         }
     };
     
@@ -117,7 +186,7 @@ export const FactoryFloorTab: React.FC = () => {
     };
     
     const handleSaveJob = () => {
-        fetchData();
+        fetchData(false);
         handleCloseModal();
     };
 
@@ -133,7 +202,7 @@ export const FactoryFloorTab: React.FC = () => {
     };
 
     const StatusIndicator: React.FC<{ status: Machine['status'] }> = ({ status }) => {
-        const current = STATUS_OPTIONS.find(opt => opt.value === status) || { bg: 'bg-gray-500', label: 'ไม่ทราบสถานะ' };
+        const current = STATUS_OPTIONS.find(opt => opt.value === status) || { label: 'ไม่ทราบสถานะ' };
         const bgColor = getStatusColor(status);
         
         return (
@@ -155,9 +224,9 @@ export const FactoryFloorTab: React.FC = () => {
             <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
                 <div>
                     <h2 className="text-2xl font-bold">สถานะเครื่องฉีด (Real-time)</h2>
-                    {lastUpdated && <p className="text-sm text-gray-500">อัปเดตล่าสุด: {lastUpdated.toLocaleTimeString('th-TH')}</p>}
+                    {lastUpdated && <p className="text-sm text-gray-500">สถานะล่าสุด: {lastUpdated.toLocaleTimeString('th-TH')}</p>}
                 </div>
-                <button onClick={fetchData} disabled={isLoading} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400">
+                <button onClick={() => fetchData(true)} disabled={isLoading} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400">
                     <RefreshCwIcon className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
                     รีเฟรช
                 </button>
@@ -170,7 +239,7 @@ export const FactoryFloorTab: React.FC = () => {
             ) : machineData.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {machineData.map(({ machine, currentJob, queue }) => (
-                        <div key={machine.id} onClick={() => handleCardClick(machine, currentJob)} className="bg-white rounded-xl shadow-lg border-t-4 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer" style={{borderColor: getStatusColor(machine.status)}}>
+                        <div key={machine.id} onClick={() => handleCardClick(machine)} className="bg-white rounded-xl shadow-lg border-t-4 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer" style={{borderColor: getStatusColor(machine.status)}}>
                             <div className="p-4">
                                 <div className="flex justify-between items-start mb-4">
                                     <h3 className="text-lg font-bold text-gray-800">{machine.name}</h3>
@@ -220,7 +289,7 @@ export const FactoryFloorTab: React.FC = () => {
                                                 <span className="font-bold">{currentJob.progressPercent.toFixed(1)}%</span>
                                             </div>
                                             <div className="w-full bg-gray-200 rounded-full h-2.5">
-                                                <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${Math.min(currentJob.progressPercent, 100)}%` }}></div>
+                                                <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${Math.min(currentJob.progressPercent, 100)}%` }}></div>
                                             </div>
                                         </div>
                                         <div className="text-sm text-gray-600 flex items-center gap-2">

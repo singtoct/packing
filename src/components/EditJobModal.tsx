@@ -1,8 +1,6 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { Machine, ProductionQueueItem, Employee } from '../types';
-import { getEmployees, getProductionQueue, saveProductionQueue } from '../services/storageService';
+import { getEmployees, getProductionQueue, saveProductionQueue, saveMachines, getMachines } from '../services/storageService';
 import { XCircleIcon } from './icons/Icons';
 
 interface EditJobModalProps {
@@ -24,7 +22,7 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({ job, machine, onClos
         setFormData(prev => ({...prev, [field]: value}));
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSaveChanges = (e: React.FormEvent) => {
         e.preventDefault();
         const queue = getProductionQueue();
         const updatedQueue = queue.map(j => (j.id === formData.id ? formData : j));
@@ -32,37 +30,86 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({ job, machine, onClos
         onSave();
     };
 
-    const handleJobAction = (status: 'In Progress' | 'Completed' | 'Queued') => {
-         const queue = getProductionQueue();
-         // When marking as completed, filter it out instead of just changing status
-         const updatedQueue = status === 'Completed'
-            ? queue.filter(j => j.id !== job.id)
-            : queue.map(j => (j.id === job.id ? { ...formData, status } : j));
-         
-         saveProductionQueue(updatedQueue);
-         onSave();
+    const handleJobAction = (action: 'start' | 'pause' | 'complete' | 'cancel') => {
+        const queue = getProductionQueue();
+        const machines = getMachines();
+        const machineToUpdate = machines.find(m => m.id === machine.id);
+
+        switch (action) {
+            case 'start':
+                if (machineToUpdate) {
+                    machineToUpdate.status = 'Running';
+                    saveMachines(machines);
+                }
+                const startedQueue = queue.map(j => {
+                    if (j.id === job.id) {
+                        const newJob: ProductionQueueItem = { ...formData, status: 'In Progress', lastCycleTimestamp: Date.now() };
+                        return newJob;
+                    }
+                    return j;
+                });
+                saveProductionQueue(startedQueue);
+                break;
+            case 'pause':
+                 if (machineToUpdate) {
+                    machineToUpdate.status = 'Idle';
+                    saveMachines(machines);
+                }
+                const pausedQueue = queue.map(j => {
+                    if (j.id === job.id) {
+                        const newJob: ProductionQueueItem = { ...formData, status: 'Queued', lastCycleTimestamp: undefined };
+                        return newJob;
+                    }
+                    return j;
+                });
+                saveProductionQueue(pausedQueue);
+                break;
+            case 'complete':
+                 if (machineToUpdate) {
+                    machineToUpdate.status = 'Idle';
+                    saveMachines(machines);
+                }
+                const completedQueue = queue.filter(j => j.id !== job.id);
+                saveProductionQueue(completedQueue);
+                break;
+            case 'cancel':
+                if(window.confirm('คุณแน่ใจหรือไม่ว่าต้องการยกเลิกงานนี้ออกจากคิว?')) {
+                    const cancelledQueue = queue.filter(j => j.id !== job.id);
+                    saveProductionQueue(cancelledQueue);
+                }
+                break;
+        }
+        onSave();
     };
     
-    const handleCancelJob = () => {
-        if(window.confirm('คุณแน่ใจหรือไม่ว่าต้องการยกเลิกงานนี้ออกจากคิว?')) {
-            const queue = getProductionQueue();
-            const updatedQueue = queue.filter(j => j.id !== job.id);
-            saveProductionQueue(updatedQueue);
-            onSave();
-        }
-    }
-
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
             <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-lg">
                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-2xl font-bold text-gray-800">แก้ไขงานสำหรับ {machine.name}</h2>
+                    <h2 className="text-2xl font-bold text-gray-800">จัดการงานสำหรับ {machine.name}</h2>
                     <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-200">
                         <XCircleIcon className="w-7 h-7 text-gray-500" />
                     </button>
                 </div>
                  <p className="font-semibold text-lg text-blue-700 mb-4">{job.productName}</p>
-                <form onSubmit={handleSubmit} className="space-y-4">
+                 <div className="mb-4">
+                    <div className="flex justify-between text-sm mb-1">
+                        <span className="font-semibold">
+                            {formData.quantityProduced.toLocaleString()} / {formData.quantityGoal.toLocaleString()}
+                        </span>
+                        <span className="font-bold">
+                            {(formData.quantityGoal > 0 ? (formData.quantityProduced / formData.quantityGoal) * 100 : 0).toFixed(1)}%
+                        </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-4">
+                        <div 
+                            className="bg-blue-600 h-4 rounded-full text-white text-xs flex items-center justify-center" 
+                            style={{ width: `${Math.min((formData.quantityGoal > 0 ? (formData.quantityProduced / formData.quantityGoal) * 100 : 0), 100)}%` }}>
+                        </div>
+                    </div>
+                </div>
+
+                <form onSubmit={handleSaveChanges} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700">ผู้ควบคุมเครื่อง</label>
                         <select
@@ -74,30 +121,16 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({ job, machine, onClos
                             {employees.map(emp => <option key={emp.id} value={emp.name}>{emp.name}</option>)}
                         </select>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">จำนวนเป้าหมาย (ชิ้น)</label>
-                            <input
-                                type="number"
-                                min="1"
-                                value={formData.quantityGoal}
-                                onChange={e => handleChange('quantityGoal', Number(e.target.value))}
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">จำนวนที่ผลิตแล้ว</label>
-                            <input
-                                type="number"
-                                min="0"
-                                max={formData.quantityGoal}
-                                value={formData.quantityProduced}
-                                onChange={e => handleChange('quantityProduced', Number(e.target.value))}
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                                required
-                            />
-                        </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">จำนวนเป้าหมาย (ชิ้น)</label>
+                        <input
+                            type="number"
+                            min="1"
+                            value={formData.quantityGoal}
+                            onChange={e => handleChange('quantityGoal', Number(e.target.value))}
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                            required
+                        />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700">ลำดับความสำคัญ (Priority)</label>
@@ -115,14 +148,14 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({ job, machine, onClos
                     <div className="pt-4 border-t">
                         <h4 className="font-semibold mb-2">Actions</h4>
                         <div className="flex flex-wrap gap-2">
-                            {formData.status === 'Queued' && (
-                                <button type="button" onClick={() => handleJobAction('In Progress')} className="px-4 py-2 bg-blue-500 text-white rounded-md text-sm">เริ่มงาน</button>
+                             {formData.status === 'Queued' && machine.status === 'Idle' && (
+                                <button type="button" onClick={() => handleJobAction('start')} className="px-4 py-2 bg-blue-500 text-white rounded-md text-sm">เริ่มงาน</button>
                             )}
                              {formData.status === 'In Progress' && (
-                                <button type="button" onClick={() => handleJobAction('Queued')} className="px-4 py-2 bg-yellow-500 text-white rounded-md text-sm">กลับไปที่คิว</button>
+                                <button type="button" onClick={() => handleJobAction('pause')} className="px-4 py-2 bg-yellow-500 text-white rounded-md text-sm">พักงาน</button>
                             )}
-                            <button type="button" onClick={() => handleJobAction('Completed')} className="px-4 py-2 bg-green-500 text-white rounded-md text-sm">จบงาน</button>
-                            <button type="button" onClick={handleCancelJob} className="px-4 py-2 bg-red-500 text-white rounded-md text-sm">ลบออกจากคิว</button>
+                            <button type="button" onClick={() => handleJobAction('complete')} className="px-4 py-2 bg-green-500 text-white rounded-md text-sm">จบงานนี้</button>
+                            <button type="button" onClick={() => handleJobAction('cancel')} className="px-4 py-2 bg-red-500 text-white rounded-md text-sm">ลบออกจากคิว</button>
                         </div>
                     </div>
 

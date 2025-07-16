@@ -235,4 +235,5 @@ export interface ProductionQueueItem {
   addedDate: string;
   orderId?: string; // Optional link to sales order
   operatorName?: string;
+  lastCycleTimestamp?: number; // Used for cycle time production simulation
 }
