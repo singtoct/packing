@@ -29,7 +29,7 @@ const formatDuration = (seconds: number) => {
         h > 0 ? `${h}h` : '',
         m > 0 ? `${m}m` : '',
         s > 0 ? `${s}s` : (h === 0 && m === 0 ? '0s' : '')
-    ].filter(Boolean).join(' ');
+    ].filter(Boolean).join(' ') || '0s';
 };
 
 const RunningStatus: React.FC<{ machine: Machine; onStartTimeChange: (machineId: string, newStartTime: string) => void }> = ({ machine, onStartTimeChange }) => {
@@ -385,9 +385,35 @@ export const FactoryFloorTab: React.FC = () => {
                                                     <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${Math.min(currentJob.progressPercent, 100)}%` }}></div>
                                                 </div>
                                             </div>
-                                            <div className="text-sm text-gray-600 flex items-center gap-2">
-                                                <UserIcon className="w-4 h-4"/>
-                                                <span>ผู้ควบคุม: <span className="font-semibold">{currentJob.operator}</span></span>
+                                            <div className="pt-2 border-t border-gray-100 space-y-2">
+                                                <div className="text-sm text-gray-600 flex items-center gap-2">
+                                                    <UserIcon className="w-4 h-4"/>
+                                                    <span>ผู้ควบคุม: <span className="font-semibold">{currentJob.operator}</span></span>
+                                                </div>
+                                                {(() => {
+                                                    const product = productsRef.current.find(p => p.id === currentJob.productId);
+                                                    const cycleTime = product?.cycleTimeSeconds;
+                                                    let remainingTimeSeconds: number | null = null;
+                                                    if (cycleTime && cycleTime > 0) {
+                                                        const remainingQuantity = currentJob.quantityGoal - currentJob.quantityProduced;
+                                                        if (remainingQuantity > 0) {
+                                                            remainingTimeSeconds = remainingQuantity * cycleTime;
+                                                        } else {
+                                                            remainingTimeSeconds = 0;
+                                                        }
+                                                    }
+                                                    
+                                                    return (
+                                                        <div className="text-sm text-gray-600 flex items-center gap-2">
+                                                            <ClockIcon className="w-4 h-4"/>
+                                                            <span>เวลาโดยประมาณ: 
+                                                                <span className="font-semibold ml-1">
+                                                                    {remainingTimeSeconds !== null ? formatDuration(remainingTimeSeconds) : <span className="text-xs text-gray-400">(ไม่มีข้อมูล Cycle Time)</span>}
+                                                                </span>
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
                                     ) : (
