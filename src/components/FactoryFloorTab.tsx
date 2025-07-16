@@ -1,7 +1,5 @@
-
-
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { getMachines, getProductionQueue } from '../services/storageService';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { getMachines, getProductionQueue, saveMachines } from '../services/storageService';
 import { Machine, ProductionQueueItem } from '../types';
 import { FactoryIcon, RefreshCwIcon, LoaderIcon, UserIcon, PlusCircleIcon, ListOrderedIcon } from './icons/Icons';
 import { AssignJobModal } from './AssignJobModal';
@@ -13,6 +11,14 @@ interface MachineData {
     queue: ProductionQueueItem[];
 }
 
+const STATUS_OPTIONS: { value: Machine['status']; label: string }[] = [
+    { value: 'Running', label: 'ทำงาน' },
+    { value: 'Idle', label: 'ว่าง' },
+    { value: 'Mold Change', label: 'รอเปลี่ยนโมล' },
+    { value: 'Maintenance', label: 'กำลังซ่อม' },
+    { value: 'Down', label: 'เสีย' },
+];
+
 export const FactoryFloorTab: React.FC = () => {
     const [machineData, setMachineData] = useState<MachineData[]>([]);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -23,6 +29,9 @@ export const FactoryFloorTab: React.FC = () => {
     
     const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null);
     const [selectedJob, setSelectedJob] = useState<ProductionQueueItem | null>(null);
+
+    const [openStatusMenuFor, setOpenStatusMenuFor] = useState<string | null>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
 
     const fetchData = useCallback(() => {
         setIsLoading(true);
@@ -56,17 +65,36 @@ export const FactoryFloorTab: React.FC = () => {
         setIsLoading(false);
     }, []);
 
+    const handleStatusChange = (machineId: string, newStatus: Machine['status']) => {
+        const allMachines = getMachines();
+        const updatedMachines = allMachines.map(m => m.id === machineId ? { ...m, status: newStatus } : m);
+        saveMachines(updatedMachines);
+        setOpenStatusMenuFor(null);
+    };
+
     useEffect(() => {
         fetchData();
         const interval = setInterval(fetchData, 30000); // Auto-refresh every 30s
         
-        window.addEventListener('storage', fetchData);
+        const handleStorageChange = () => {
+            fetchData();
+        };
+
+        const handleClickOutside = (event: MouseEvent) => {
+            if (openStatusMenuFor && menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setOpenStatusMenuFor(null);
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        document.addEventListener("mousedown", handleClickOutside);
         
         return () => {
             clearInterval(interval);
-            window.removeEventListener('storage', fetchData);
+            window.removeEventListener('storage', handleStorageChange);
+            document.removeEventListener("mousedown", handleClickOutside);
         };
-    }, [fetchData]);
+    }, [fetchData, openStatusMenuFor]);
 
     const handleCardClick = (machine: Machine, job: (ProductionQueueItem & {progressPercent: number, operator: string}) | null) => {
         setSelectedMachine(machine);
@@ -105,18 +133,13 @@ export const FactoryFloorTab: React.FC = () => {
     };
 
     const StatusIndicator: React.FC<{ status: Machine['status'] }> = ({ status }) => {
-        const styles: Record<Machine['status'], { bg: string; text: string }> = {
-            Running: { bg: 'bg-green-500', text: 'ทำงาน' },
-            Down: { bg: 'bg-red-500', text: 'เสีย' },
-            Maintenance: { bg: 'bg-yellow-500', text: 'กำลังซ่อม' },
-            Idle: { bg: 'bg-gray-500', text: 'ว่าง' },
-            'Mold Change': { bg: 'bg-purple-500', text: 'รอเปลี่ยนโมล' },
-        };
-        const current = styles[status] || styles.Idle;
+        const current = STATUS_OPTIONS.find(opt => opt.value === status) || { bg: 'bg-gray-500', label: 'ไม่ทราบสถานะ' };
+        const bgColor = getStatusColor(status);
+        
         return (
             <div className="flex items-center gap-2">
-                <span className={`w-3 h-3 rounded-full ${current.bg} ${status === 'Running' ? 'animate-pulse' : ''}`}></span>
-                <span className="font-semibold text-sm">{current.text}</span>
+                <span className="w-3 h-3 rounded-full" style={{backgroundColor: bgColor, animation: status === 'Running' ? 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' : 'none'}}></span>
+                <span className="font-semibold text-sm">{current.label}</span>
             </div>
         );
     };
@@ -151,7 +174,39 @@ export const FactoryFloorTab: React.FC = () => {
                             <div className="p-4">
                                 <div className="flex justify-between items-start mb-4">
                                     <h3 className="text-lg font-bold text-gray-800">{machine.name}</h3>
-                                    <StatusIndicator status={machine.status} />
+                                     <div className="relative">
+                                        <div
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setOpenStatusMenuFor(openStatusMenuFor === machine.id ? null : machine.id);
+                                            }}
+                                            className="cursor-pointer p-1 -m-1"
+                                            role="button"
+                                            aria-haspopup="true"
+                                            aria-expanded={openStatusMenuFor === machine.id}
+                                        >
+                                            <StatusIndicator status={machine.status} />
+                                        </div>
+                                        {openStatusMenuFor === machine.id && (
+                                            <div ref={menuRef} className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded-md shadow-lg z-20">
+                                                <ul className="py-1" role="menu">
+                                                    {STATUS_OPTIONS.map((option) => (
+                                                        <li
+                                                            key={option.value}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleStatusChange(machine.id, option.value);
+                                                            }}
+                                                            className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                                                            role="menuitem"
+                                                        >
+                                                            {option.label}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                                 {currentJob ? (
                                     <div className="space-y-3">

@@ -107,6 +107,13 @@ const MaintenanceModal: React.FC<{
     );
 };
 
+const STATUS_OPTIONS: { value: Machine['status']; label: string }[] = [
+    { value: 'Running', label: 'ทำงาน' },
+    { value: 'Idle', label: 'ว่าง' },
+    { value: 'Down', label: 'เสีย' },
+    { value: 'Maintenance', label: 'กำลังซ่อม' },
+    { value: 'Mold Change', label: 'รอเปลี่ยนโมล' },
+];
 
 export const MaintenanceTab: React.FC = () => {
     const [machines, setMachines] = useState<Machine[]>([]);
@@ -258,7 +265,8 @@ export const MaintenanceTab: React.FC = () => {
             Idle: 'bg-gray-100 text-gray-800',
             'Mold Change': 'bg-purple-100 text-purple-800',
         };
-        return <span className={`px-2 py-1 text-xs font-semibold rounded-full ${styles[status]}`}>{status}</span>;
+        const label = STATUS_OPTIONS.find(opt => opt.value === status)?.label || status;
+        return <span className={`px-2 py-1 text-xs font-semibold rounded-full ${styles[status]}`}>{label}</span>;
     };
     
     return (
@@ -327,11 +335,9 @@ export const MaintenanceTab: React.FC = () => {
                                 <div className="flex items-center gap-2 text-sm">
                                     <span className="font-medium">Status:</span>
                                     <select value={machine.status} onChange={e => handleUpdateMachineField(machine.id, 'status', e.target.value as any)} className="text-sm border-gray-200 rounded p-1">
-                                        <option value="Running">Running</option>
-                                        <option value="Idle">Idle</option>
-                                        <option value="Down">Down</option>
-                                        <option value="Maintenance">Maintenance</option>
-                                        <option value="Mold Change">Mold Change</option>
+                                        {STATUS_OPTIONS.map(opt => (
+                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                        ))}
                                     </select>
                                 </div>
                                 <div className="flex gap-2">
