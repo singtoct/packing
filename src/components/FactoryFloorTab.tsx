@@ -1,8 +1,8 @@
 
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { getMachines, getMoldingLogs, getProductionQueue, saveProductionQueue } from '../services/storageService';
-import { Machine, MoldingLogEntry, ProductionQueueItem } from '../types';
+import { getMachines, getProductionQueue } from '../services/storageService';
+import { Machine, ProductionQueueItem } from '../types';
 import { FactoryIcon, RefreshCwIcon, LoaderIcon, UserIcon, PlusCircleIcon, ListOrderedIcon } from './icons/Icons';
 import { AssignJobModal } from './AssignJobModal';
 import { EditJobModal } from './EditJobModal';
@@ -27,30 +27,21 @@ export const FactoryFloorTab: React.FC = () => {
     const fetchData = useCallback(() => {
         setIsLoading(true);
         const machines = getMachines().sort((a,b) => a.name.localeCompare(b.name));
-        const allMoldingLogs = getMoldingLogs();
         const productionQueue = getProductionQueue();
-        const todayStr = new Date().toISOString().split('T')[0];
 
         const data: MachineData[] = machines.map(machine => {
             const machineQueue = productionQueue
                 .filter(job => job.machineId === machine.id && job.status !== 'Completed')
                 .sort((a, b) => a.priority - b.priority || new Date(a.addedDate).getTime() - new Date(b.addedDate).getTime());
 
-            let currentJob = machineQueue.find(j => j.status === 'In Progress') || machineQueue[0] || null;
+            const currentJob = machineQueue.find(j => j.status === 'In Progress') || machineQueue[0] || null;
             let jobWithProgress = null;
 
             if (currentJob) {
-                const relevantLogs = allMoldingLogs.filter(log => 
-                    log.machine === machine.name &&
-                    log.date === todayStr &&
-                    log.productName === currentJob!.productName
-                );
-                const quantityProducedToday = relevantLogs.reduce((sum, log) => sum + log.quantityProduced, 0);
+                const progressPercent = currentJob.quantityGoal > 0 ? (currentJob.quantityProduced / currentJob.quantityGoal) * 100 : 0;
+                const operator = currentJob.operatorName || '-';
                 
-                const progressPercent = currentJob.quantityGoal > 0 ? ((currentJob.quantityProduced + quantityProducedToday) / currentJob.quantityGoal) * 100 : 0;
-                const operator = currentJob.operatorName || (relevantLogs.length > 0 ? relevantLogs[relevantLogs.length - 1].operatorName : '-');
-                
-                jobWithProgress = { ...currentJob, quantityProduced: (currentJob.quantityProduced + quantityProducedToday), progressPercent, operator };
+                jobWithProgress = { ...currentJob, progressPercent, operator };
             }
 
             return {
