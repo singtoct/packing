@@ -9,7 +9,8 @@ const DATA_KEYS = [
     'packing_employees', 'packing_qc_entries', 'packing_raw_materials', 
     'packing_boms', 'factory_machines', 'maintenance_logs', 'factory_suppliers', 
     'factory_purchase_orders', 'factory_shipments', 'factory_products', 
-    'factory_settings', 'read_notifications', 'factory_customers', 'factory_complaints'
+    'factory_settings', 'read_notifications', 'factory_customers', 'factory_complaints',
+    'production_queue'
 ];
 
 
