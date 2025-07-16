@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo } from 'react';
 import { PurchaseOrder, Supplier, RawMaterial } from '../types';
 import { SearchableInput } from './SearchableInput';
@@ -122,9 +123,9 @@ export const POFormModal: React.FC<POFormModalProps> = ({ suppliers, rawMaterial
                                     valueKey="id"
                                     placeholder="ค้นหาวัตถุดิบ..."
                                 />
-                                <input type="number" placeholder="จำนวน" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', e.target.value)} className={`${commonInputStyle} mt-0`} />
+                                <input type="number" placeholder="จำนวน" step="any" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', e.target.value)} className={`${commonInputStyle} mt-0`} />
                                 <span className="text-sm text-gray-500">{rawMaterialMap.get(item.rawMaterialId)?.unit || ''}</span>
-                                <input type="number" placeholder="ราคา/หน่วย" step="0.01" value={item.unitPrice} onChange={e => handleItemChange(index, 'unitPrice', e.target.value)} className={`${commonInputStyle} mt-0`} />
+                                <input type="number" placeholder="ราคา/หน่วย" step="any" value={item.unitPrice} onChange={e => handleItemChange(index, 'unitPrice', e.target.value)} className={`${commonInputStyle} mt-0`} />
                                 <button type="button" onClick={() => handleRemoveItem(index)} className="p-2 text-red-500 hover:bg-red-100 rounded-full"><Trash2Icon className="w-5 h-5"/></button>
                             </div>
                         ))}

@@ -120,7 +120,7 @@ export const IntelligentOrderImportModal: React.FC<Props> = ({ onClose, onSave }
                                             <input type="text" value={item.name || ''} onChange={e => handleItemChange(item._tempId, 'name', e.target.value)} className={commonInputStyle} />
                                             <input type="text" value={item.color || ''} onChange={e => handleItemChange(item._tempId, 'color', e.target.value)} className={commonInputStyle} />
                                             <input type="number" value={item.quantity || ''} onChange={e => handleItemChange(item._tempId, 'quantity', Number(e.target.value))} className={commonInputStyle} />
-                                            <input type="number" value={item.salePrice || ''} onChange={e => handleItemChange(item._tempId, 'salePrice', Number(e.target.value))} className={commonInputStyle} />
+                                            <input type="number" step="any" value={item.salePrice || ''} onChange={e => handleItemChange(item._tempId, 'salePrice', Number(e.target.value))} className={commonInputStyle} />
                                             <input type="date" value={item.dueDate || ''} onChange={e => handleItemChange(item._tempId, 'dueDate', e.target.value)} className={commonInputStyle} />
                                             <button onClick={() => handleRemoveItem(item._tempId)} className="p-1 text-red-500 hover:text-red-700"><Trash2Icon className="w-4 h-4" /></button>
                                         </div>

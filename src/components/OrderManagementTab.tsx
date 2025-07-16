@@ -159,7 +159,7 @@ const EditOrderModal: React.FC<{
                     </div>
                      <div>
                         <label htmlFor="editSalePrice" className="block text-sm font-medium text-gray-700">ราคาขาย (ต่อชิ้น)</label>
-                        <input type="number" id="editSalePrice" name="salePrice" min="0" value={editedOrder.salePrice || ''} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" placeholder="Optional" />
+                        <input type="number" id="editSalePrice" name="salePrice" min="0" step="any" value={editedOrder.salePrice || ''} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" placeholder="Optional" />
                     </div>
                     <div>
                         <label htmlFor="editDueDate" className="block text-sm font-medium text-gray-700">วันครบกำหนด</label>

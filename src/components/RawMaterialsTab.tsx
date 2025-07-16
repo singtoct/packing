@@ -447,7 +447,7 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-gray-700">จำนวน</label>
-                    <input type="number" value={quantity} onChange={e => setQuantity(Number(e.target.value))} className={`mt-1 block w-full ${commonInputStyle}`} />
+                    <input type="number" step="any" value={quantity} onChange={e => setQuantity(Number(e.target.value))} className={`mt-1 block w-full ${commonInputStyle}`} />
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-gray-700">หน่วย</label>
@@ -455,7 +455,7 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
                 </div>
                  <div>
                     <label className="block text-sm font-medium text-gray-700">ต้นทุน/หน่วย</label>
-                    <input type="number" step="0.01" value={costPerUnit} onChange={e => setCostPerUnit(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Optional" className={`mt-1 block w-full ${commonInputStyle}`} />
+                    <input type="number" step="any" value={costPerUnit} onChange={e => setCostPerUnit(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Optional" className={`mt-1 block w-full ${commonInputStyle}`} />
                 </div>
                 <button type="submit" className={`${buttonPrimaryStyle} self-end h-10 col-span-full md:col-span-1`}>
                     <PlusCircleIcon className="w-5 h-5" /> เพิ่ม
@@ -522,6 +522,7 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                         <input 
                                             type="number" 
+                                            step="any"
                                             value={mat.quantity} 
                                             onChange={e => handleUpdateField(mat.id, 'quantity', Number(e.target.value))}
                                             className={`w-24 text-right ${commonInputStyle}`}
@@ -541,7 +542,7 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                          <input 
                                             type="number"
-                                            step="0.01" 
+                                            step="any" 
                                             value={mat.costPerUnit ?? ''} 
                                             onChange={e => handleUpdateField(mat.id, 'costPerUnit', Number(e.target.value))}
                                             className={`w-24 text-right ${commonInputStyle}`}

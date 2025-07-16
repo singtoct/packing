@@ -89,7 +89,7 @@ const MaintenanceModal: React.FC<{
                     </div>
                      <div>
                         <label className="block text-sm font-medium text-gray-700">ชั่วโมงที่เครื่องหยุดทำงาน (Downtime)</label>
-                        <input type="number" min="0" value={downtimeHours} onChange={e => setDowntimeHours(Number(e.target.value))} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
+                        <input type="number" min="0" step="any" value={downtimeHours} onChange={e => setDowntimeHours(Number(e.target.value))} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700">ผู้ดำเนินการ</label>

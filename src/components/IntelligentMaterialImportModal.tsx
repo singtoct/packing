@@ -116,9 +116,9 @@ export const IntelligentMaterialImportModal: React.FC<Props> = ({ onClose, onSav
                                     {stagedMaterials.map(item => (
                                         <div key={item._tempId} className="grid grid-cols-[4fr,2fr,2fr,2fr,auto] gap-2 items-center bg-white p-2 rounded shadow-sm">
                                             <input type="text" value={item.name || ''} onChange={e => handleItemChange(item._tempId, 'name', e.target.value)} className={commonInputStyle} />
-                                            <input type="number" value={item.quantity === undefined ? '' : item.quantity} onChange={e => handleItemChange(item._tempId, 'quantity', Number(e.target.value))} className={commonInputStyle} />
+                                            <input type="number" step="any" value={item.quantity === undefined ? '' : item.quantity} onChange={e => handleItemChange(item._tempId, 'quantity', Number(e.target.value))} className={commonInputStyle} />
                                             <input type="text" value={item.unit || ''} onChange={e => handleItemChange(item._tempId, 'unit', e.target.value)} className={commonInputStyle} />
-                                            <input type="number" value={item.costPerUnit === undefined ? '' : item.costPerUnit} onChange={e => handleItemChange(item._tempId, 'costPerUnit', Number(e.target.value))} className={commonInputStyle} />
+                                            <input type="number" step="any" value={item.costPerUnit === undefined ? '' : item.costPerUnit} onChange={e => handleItemChange(item._tempId, 'costPerUnit', Number(e.target.value))} className={commonInputStyle} />
                                             <button onClick={() => handleRemoveItem(item._tempId)} className="p-1 text-red-500 hover:text-red-700"><Trash2Icon className="w-4 h-4" /></button>
                                         </div>
                                     ))}

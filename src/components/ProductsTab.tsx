@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { Product, BillOfMaterial, RawMaterial } from '../types';
@@ -79,11 +80,11 @@ const EditProductModal: React.FC<{
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700">ราคาขาย (ต่อชิ้น)</label>
-                        <input type="number" name="salePrice" min="0" step="0.01" value={editedProduct.salePrice} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required />
+                        <input type="number" name="salePrice" min="0" step="any" value={editedProduct.salePrice} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Cycle Time (วินาที)</label>
-                        <input type="number" name="cycleTimeSeconds" min="0" step="0.1" value={editedProduct.cycleTimeSeconds ?? ''} onChange={handleChange} placeholder="Optional for OEE" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                        <input type="number" name="cycleTimeSeconds" min="0" step="any" value={editedProduct.cycleTimeSeconds ?? ''} onChange={handleChange} placeholder="Optional for OEE" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
                     </div>
                     <div className="flex justify-end gap-4 pt-4">
                         <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-md">ยกเลิก</button>
@@ -450,11 +451,11 @@ export const ProductsTab: React.FC = () => {
                 </div>
                  <div>
                     <label className="block text-sm font-medium text-gray-700">ราคาขาย (ต่อชิ้น)</label>
-                    <input type="number" min="0" step="0.01" value={salePrice} onChange={e => setSalePrice(e.target.value === '' ? '' : Number(e.target.value))} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required />
+                    <input type="number" min="0" step="any" value={salePrice} onChange={e => setSalePrice(e.target.value === '' ? '' : Number(e.target.value))} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required />
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-gray-700">Cycle Time (วินาที)</label>
-                    <input type="number" min="0" step="0.1" value={cycleTime} onChange={e => setCycleTime(e.target.value === '' ? '' : Number(e.target.value))} placeholder="สำหรับ OEE" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <input type="number" min="0" step="any" value={cycleTime} onChange={e => setCycleTime(e.target.value === '' ? '' : Number(e.target.value))} placeholder="สำหรับ OEE" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
                 </div>
                 <div className="col-span-full flex justify-end">
                      <button type="submit" className="inline-flex items-center justify-center gap-2 w-full md:w-auto px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700">
