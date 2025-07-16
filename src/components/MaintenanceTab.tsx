@@ -214,7 +214,24 @@ export const MaintenanceTab: React.FC = () => {
     };
     
     const handleUpdateMachineField = (id: string, field: keyof Machine, value: any) => {
-        const updated = machines.map(m => m.id === id ? { ...m, [field]: value } : m);
+        const updated = machines.map(m => {
+            if (m.id === id) {
+                const updatedMachine = { ...m, [field]: value };
+                if (field === 'status') {
+                    if (value === 'Running' && !m.lastStartedAt) {
+                        // Changing status to 'Running' here is not recommended
+                        // as it doesn't link to a job. This might lead to inconsistent data.
+                        // The primary way to set a machine to 'Running' should be by starting a job.
+                        // However, to prevent broken states, we'll manage the timestamp.
+                        updatedMachine.lastStartedAt = new Date().toISOString();
+                    } else if (value !== 'Running') {
+                        delete updatedMachine.lastStartedAt;
+                    }
+                }
+                return updatedMachine;
+            }
+            return m;
+        });
         setMachines(updated);
         saveMachines(updated);
     };
