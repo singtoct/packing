@@ -44,8 +44,8 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({ job, machine, onClos
                 }
                 const startedQueue = queue.map(j => {
                     if (j.id === job.id) {
-                        const newJob: ProductionQueueItem = { ...formData, status: 'In Progress', lastCycleTimestamp: Date.now() };
-                        return newJob;
+                        const updatedJob: ProductionQueueItem = { ...formData, status: 'In Progress', lastCycleTimestamp: Date.now() };
+                        return updatedJob;
                     }
                     return j;
                 });
@@ -59,8 +59,8 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({ job, machine, onClos
                 }
                 const pausedQueue = queue.map(j => {
                     if (j.id === job.id) {
-                        const newJob: ProductionQueueItem = { ...formData, status: 'Queued', lastCycleTimestamp: undefined };
-                        return newJob;
+                        const updatedJob: ProductionQueueItem = { ...formData, status: 'Queued', lastCycleTimestamp: undefined };
+                        return updatedJob;
                     }
                     return j;
                 });

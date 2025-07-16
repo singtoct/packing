@@ -82,7 +82,6 @@ export const FactoryFloorTab: React.FC = () => {
     useEffect(() => {
         fetchData(true);
         
-        // This interval drives the real-time simulation
         const simulationInterval = setInterval(() => {
             const queue = getProductionQueue();
             let queueChanged = false;
@@ -99,7 +98,7 @@ export const FactoryFloorTab: React.FC = () => {
                 const cycleTime = product?.cycleTimeSeconds;
 
                 if (!cycleTime || cycleTime <= 0) {
-                    return job; // Cannot simulate without cycle time
+                    return job;
                 }
 
                 const now = Date.now();
@@ -113,19 +112,16 @@ export const FactoryFloorTab: React.FC = () => {
                     queueChanged = true;
                     
                     if (newQuantityProduced >= job.quantityGoal) {
-                        // Job completed
                         const machineToUpdate = allMachines.find(m => m.id === job.machineId);
                         if (machineToUpdate) {
                             machineToUpdate.status = 'Idle';
                             delete machineToUpdate.lastStartedAt;
                             machinesChanged = true;
                         }
-                        const completedJob: ProductionQueueItem = { ...job, quantityProduced: newQuantityProduced, status: 'Completed', lastCycleTimestamp: undefined };
-                        return completedJob;
+                        return { ...job, quantityProduced: newQuantityProduced, status: 'Completed', lastCycleTimestamp: undefined };
                     }
                     
-                    const updatedJob: ProductionQueueItem = { ...job, quantityProduced: newQuantityProduced, lastCycleTimestamp: now - remainderTime };
-                    return updatedJob;
+                    return { ...job, quantityProduced: newQuantityProduced, lastCycleTimestamp: now - remainderTime };
                 }
                 return job;
             });
@@ -136,11 +132,11 @@ export const FactoryFloorTab: React.FC = () => {
                 if (machinesChanged) {
                     saveMachines(allMachines);
                 }
-                fetchData(false); // Re-fetch data to update UI
+                fetchData(false);
             }
             setLastUpdated(new Date());
 
-        }, 1000); // Run simulation every second
+        }, 1000);
 
         const handleStorageChange = () => fetchData(false);
         window.addEventListener('storage', handleStorageChange);
@@ -190,7 +186,6 @@ export const FactoryFloorTab: React.FC = () => {
               setIsEditModalOpen(true);
             }
         } else {
-             // Find next queued job for this machine
             const queue = getProductionQueue();
             const nextJob = queue.find(job => job.machineId === machine.id && job.status === 'Queued');
             if(nextJob){
