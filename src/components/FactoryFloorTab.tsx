@@ -1,9 +1,9 @@
 
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { getMachines, getMoldingLogs, getProducts, getProductionQueue, saveProductionQueue } from '../services/storageService';
-import { Machine, MoldingLogEntry, Product, ProductionQueueItem } from '../types';
-import { FactoryIcon, RefreshCwIcon, LoaderIcon, UserIcon, ClockIcon, PackageIcon, PlusCircleIcon, ListOrderedIcon } from './icons/Icons';
+import { getMachines, getMoldingLogs, getProductionQueue, saveProductionQueue } from '../services/storageService';
+import { Machine, MoldingLogEntry, ProductionQueueItem } from '../types';
+import { FactoryIcon, RefreshCwIcon, LoaderIcon, UserIcon, PlusCircleIcon, ListOrderedIcon } from './icons/Icons';
 import { AssignJobModal } from './AssignJobModal';
 import { EditJobModal } from './EditJobModal';
 
@@ -45,15 +45,12 @@ export const FactoryFloorTab: React.FC = () => {
                     log.date === todayStr &&
                     log.productName === currentJob!.productName
                 );
-                const quantityProduced = relevantLogs.reduce((sum, log) => sum + log.quantityProduced, 0);
+                const quantityProducedToday = relevantLogs.reduce((sum, log) => sum + log.quantityProduced, 0);
                 
-                // This is a view-only update. The actual status update should happen elsewhere.
-                currentJob.quantityProduced = quantityProduced;
-
-                const progressPercent = currentJob.quantityGoal > 0 ? (quantityProduced / currentJob.quantityGoal) * 100 : 0;
+                const progressPercent = currentJob.quantityGoal > 0 ? ((currentJob.quantityProduced + quantityProducedToday) / currentJob.quantityGoal) * 100 : 0;
                 const operator = currentJob.operatorName || (relevantLogs.length > 0 ? relevantLogs[relevantLogs.length - 1].operatorName : '-');
                 
-                jobWithProgress = { ...currentJob, progressPercent, operator };
+                jobWithProgress = { ...currentJob, quantityProduced: (currentJob.quantityProduced + quantityProducedToday), progressPercent, operator };
             }
 
             return {
@@ -83,8 +80,11 @@ export const FactoryFloorTab: React.FC = () => {
     const handleCardClick = (machine: Machine, job: (ProductionQueueItem & {progressPercent: number, operator: string}) | null) => {
         setSelectedMachine(machine);
         if (job) {
-            setSelectedJob(job);
-            setIsEditModalOpen(true);
+            const completeJobData = getProductionQueue().find(j => j.id === job.id);
+            if (completeJobData) {
+              setSelectedJob(completeJobData);
+              setIsEditModalOpen(true);
+            }
         } else {
             setIsAssignModalOpen(true);
         }

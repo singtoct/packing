@@ -33,7 +33,11 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({ job, machine, onClos
 
     const handleJobAction = (status: 'In Progress' | 'Completed' | 'Queued') => {
          const queue = getProductionQueue();
-         const updatedQueue = queue.map(j => j.id === job.id ? {...formData, status } : j);
+         // When marking as completed, filter it out instead of just changing status
+         const updatedQueue = status === 'Completed'
+            ? queue.filter(j => j.id !== job.id)
+            : queue.map(j => (j.id === job.id ? { ...formData, status } : j));
+         
          saveProductionQueue(updatedQueue);
          onSave();
     };
@@ -96,10 +100,10 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({ job, machine, onClos
                     <div className="pt-4 border-t">
                         <h4 className="font-semibold mb-2">Actions</h4>
                         <div className="flex flex-wrap gap-2">
-                            {job.status === 'Queued' && (
+                            {formData.status === 'Queued' && (
                                 <button type="button" onClick={() => handleJobAction('In Progress')} className="px-4 py-2 bg-blue-500 text-white rounded-md text-sm">เริ่มงาน</button>
                             )}
-                             {job.status === 'In Progress' && (
+                             {formData.status === 'In Progress' && (
                                 <button type="button" onClick={() => handleJobAction('Queued')} className="px-4 py-2 bg-yellow-500 text-white rounded-md text-sm">กลับไปที่คิว</button>
                             )}
                             <button type="button" onClick={() => handleJobAction('Completed')} className="px-4 py-2 bg-green-500 text-white rounded-md text-sm">จบงาน</button>
