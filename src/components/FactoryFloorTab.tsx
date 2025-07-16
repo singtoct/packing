@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { getMachines, getProductionQueue, saveMachines, getProducts, saveProductionQueue } from '../services/storageService';
 import { Machine, ProductionQueueItem, Product } from '../types';
@@ -29,6 +30,66 @@ const formatDuration = (seconds: number) => {
         m > 0 ? `${m}m` : '',
         s > 0 ? `${s}s` : (h === 0 && m === 0 ? '0s' : '')
     ].filter(Boolean).join(' ');
+};
+
+const RunningStatus: React.FC<{ machine: Machine; onStartTimeChange: (machineId: string, newStartTime: string) => void }> = ({ machine, onStartTimeChange }) => {
+    const [durationSeconds, setDurationSeconds] = useState(0);
+
+    useEffect(() => {
+        if (machine.status !== 'Running' || !machine.lastStartedAt) {
+            setDurationSeconds(0);
+            return;
+        }
+
+        const calculateDuration = () => {
+            const startTime = new Date(machine.lastStartedAt!);
+            const now = new Date();
+            setDurationSeconds((now.getTime() - startTime.getTime()) / 1000);
+        };
+
+        calculateDuration();
+        const interval = setInterval(calculateDuration, 1000);
+        return () => clearInterval(interval);
+    }, [machine.lastStartedAt, machine.status]);
+
+    if (machine.status !== 'Running' || !machine.lastStartedAt) {
+        return null;
+    }
+    
+    const formatForInput = (isoString: string) => {
+        const date = new Date(isoString);
+        const pad = (num: number) => ('0' + num).slice(-2);
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    };
+
+    const handleLocalTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.value) {
+            const newDate = new Date(e.target.value);
+            onStartTimeChange(machine.id, newDate.toISOString());
+        }
+    };
+
+    return (
+        <div className="text-sm text-gray-600 flex flex-col gap-2 mt-2 mb-3 pt-2 border-t">
+            <div className="flex justify-between items-center">
+                <span className="font-semibold">ระยะเวลาเดินเครื่อง:</span>
+                <span className="font-bold text-lg text-gray-800">{formatDuration(durationSeconds)}</span>
+            </div>
+            <div className="flex flex-col">
+                <label htmlFor={`start-time-${machine.id}`} className="text-xs font-medium text-gray-500">
+                    กำหนดเวลาเริ่ม:
+                </label>
+                <input
+                    id={`start-time-${machine.id}`}
+                    type="datetime-local"
+                    value={formatForInput(machine.lastStartedAt)}
+                    onChange={handleLocalTimeChange}
+                    onClick={(e) => e.stopPropagation()} 
+                    className="mt-1 block w-full px-2 py-1 border border-gray-200 rounded-md text-xs"
+                />
+            </div>
+        </div>
+    );
 };
 
 export const FactoryFloorTab: React.FC = () => {
@@ -147,6 +208,15 @@ export const FactoryFloorTab: React.FC = () => {
         };
     }, [fetchData]);
 
+    const handleStartTimeChange = (machineId: string, newStartTime: string) => {
+        const allMachines = getMachines();
+        const updatedMachines = allMachines.map(m => 
+            m.id === machineId ? { ...m, lastStartedAt: newStartTime } : m
+        );
+        saveMachines(updatedMachines);
+        fetchData(false);
+    };
+
     const handleStatusChange = (machineId: string, newStatus: Machine['status']) => {
         const allMachines = getMachines();
         const updatedMachines = allMachines.map(m => {
@@ -258,13 +328,10 @@ export const FactoryFloorTab: React.FC = () => {
             ) : machineData.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {machineData.map(({ machine, currentJob, queue }) => {
-                        const startTime = machine.lastStartedAt ? new Date(machine.lastStartedAt) : null;
-                        const durationSeconds = startTime ? (lastUpdated.getTime() - startTime.getTime()) / 1000 : 0;
-                        
                         return (
                             <div key={machine.id} onClick={() => handleCardClick(machine)} className="bg-white rounded-xl shadow-lg border-t-4 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer" style={{borderColor: getStatusColor(machine.status)}}>
                                 <div className="p-4">
-                                    <div className="flex justify-between items-start mb-4">
+                                    <div className="flex justify-between items-start mb-2">
                                         <h3 className="text-lg font-bold text-gray-800">{machine.name}</h3>
                                         <div className="relative">
                                             <div
@@ -300,8 +367,11 @@ export const FactoryFloorTab: React.FC = () => {
                                             )}
                                         </div>
                                     </div>
+
+                                    <RunningStatus machine={machine} onStartTimeChange={handleStartTimeChange} />
+                                    
                                     {currentJob ? (
-                                        <div className="space-y-3">
+                                        <div className="space-y-3 mt-4">
                                             <div>
                                                 <p className="text-xs text-gray-500">งานปัจจุบัน</p>
                                                 <p className="font-bold text-lg text-blue-700 truncate" title={currentJob.productName}>{currentJob.productName}</p>
@@ -319,15 +389,6 @@ export const FactoryFloorTab: React.FC = () => {
                                                 <UserIcon className="w-4 h-4"/>
                                                 <span>ผู้ควบคุม: <span className="font-semibold">{currentJob.operator}</span></span>
                                             </div>
-                                             {machine.status === 'Running' && startTime && (
-                                                <div className="text-sm text-gray-600 flex items-start gap-2 mt-2 pt-2 border-t">
-                                                    <ClockIcon className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0"/>
-                                                    <div>
-                                                        <p>เริ่ม: <span className="font-semibold">{startTime.toLocaleTimeString('th-TH')}</span></p>
-                                                        <p>ระยะเวลา: <span className="font-semibold">{formatDuration(durationSeconds)}</span></p>
-                                                    </div>
-                                                </div>
-                                            )}
                                         </div>
                                     ) : (
                                         <div className="text-center py-8 text-gray-500">
