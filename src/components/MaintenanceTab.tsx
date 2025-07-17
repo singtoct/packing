@@ -122,6 +122,7 @@ export const MaintenanceTab: React.FC = () => {
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [newMachineName, setNewMachineName] = useState('');
     const [newMachineLocation, setNewMachineLocation] = useState('');
+    const [newMachineHours, setNewMachineHours] = useState('');
     
     const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -204,13 +205,15 @@ export const MaintenanceTab: React.FC = () => {
             id: crypto.randomUUID(),
             name: newMachineName,
             location: newMachineLocation,
-            status: 'Idle'
+            status: 'Idle',
+            workingHoursPerDay: newMachineHours ? Number(newMachineHours) : undefined,
         };
         const updated = [...machines, newMachine];
         setMachines(updated);
         saveMachines(updated);
         setNewMachineName('');
         setNewMachineLocation('');
+        setNewMachineHours('');
     };
     
     const handleUpdateMachineField = (id: string, field: keyof Machine, value: any) => {
@@ -221,7 +224,6 @@ export const MaintenanceTab: React.FC = () => {
                     if (value === 'Running' && !m.lastStartedAt) {
                         // Changing status to 'Running' here is not recommended
                         // as it doesn't link to a job. This might lead to inconsistent data.
-                        // The primary way to set a machine to 'Running' should be by starting a job.
                         // However, to prevent broken states, we'll manage the timestamp.
                         updatedMachine.lastStartedAt = new Date().toISOString();
                     } else if (value !== 'Running') {
@@ -300,6 +302,10 @@ export const MaintenanceTab: React.FC = () => {
                         <label className="block text-sm font-medium text-gray-700">ตำแหน่ง</label>
                         <input type="text" value={newMachineLocation} onChange={e => setNewMachineLocation(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
                     </div>
+                     <div>
+                        <label className="block text-sm font-medium text-gray-700">ชม.ทำงาน/วัน (สำหรับ OEE)</label>
+                        <input type="number" min="0" max="24" step="0.5" value={newMachineHours} onChange={e => setNewMachineHours(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="เช่น 8 หรือ 16" />
+                    </div>
                     <button type="submit" className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700">
                         <PlusCircleIcon className="w-5 h-5"/> เพิ่มเครื่องจักร
                     </button>
@@ -339,14 +345,29 @@ export const MaintenanceTab: React.FC = () => {
                                </div>
                                 <StatusBadge status={machine.status} />
                             </div>
-                            <div className="mt-3">
-                                <label className="text-xs font-medium text-gray-600">รอบซ่อมบำรุงถัดไป (PM)</label>
-                                <input
-                                    type="date"
-                                    value={machine.nextPmDate || ''}
-                                    onChange={e => handleUpdateMachineField(machine.id, 'nextPmDate', e.target.value)}
-                                    className="mt-1 block w-full px-2 py-1 border border-gray-200 rounded-md text-sm"
-                                />
+                            <div className="mt-3 grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs font-medium text-gray-600">รอบซ่อมบำรุงถัดไป (PM)</label>
+                                    <input
+                                        type="date"
+                                        value={machine.nextPmDate || ''}
+                                        onChange={e => handleUpdateMachineField(machine.id, 'nextPmDate', e.target.value)}
+                                        className="mt-1 block w-full px-2 py-1 border border-gray-200 rounded-md text-sm"
+                                    />
+                                </div>
+                                 <div>
+                                    <label className="text-xs font-medium text-gray-600" title="จำนวนชั่วโมงทำงานต่อวันสำหรับคำนวณ OEE">ชม.ทำงาน/วัน</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="24"
+                                        step="0.5"
+                                        value={machine.workingHoursPerDay ?? ''}
+                                        onChange={e => handleUpdateMachineField(machine.id, 'workingHoursPerDay', e.target.value === '' ? undefined : Number(e.target.value))}
+                                        placeholder="24"
+                                        className="mt-1 block w-full px-2 py-1 border border-gray-200 rounded-md text-sm"
+                                    />
+                                </div>
                             </div>
                             <div className="mt-4 pt-3 border-t flex justify-between items-center">
                                 <div className="flex items-center gap-2 text-sm">

@@ -42,7 +42,7 @@ const OEEAnalysis: React.FC = () => {
                 const machineMoldingLogs = filteredMoldingLogs.filter(log => log.machine === machine.name);
                 const machineMaintenanceLogs = filteredMaintenanceLogs.filter(log => log.machineId === machine.id);
 
-                const plannedProductionTime = dateRange * 24 * 3600; // in seconds
+                const plannedProductionTime = dateRange * (machine.workingHoursPerDay || 24) * 3600; // in seconds
                 const totalDowntime = machineMaintenanceLogs.reduce((sum, log) => sum + (log.downtimeHours * 3600), 0);
                 const runTime = plannedProductionTime - totalDowntime;
 
