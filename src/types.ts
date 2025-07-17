@@ -35,6 +35,7 @@ export interface MoldingLogEntry {
   status: string; // e.g., 'รอแปะกันรอย', 'รอประกบ', 'เสร็จสิ้น'
   shift: 'เช้า' | 'บ่าย' | 'ดึก';
   materialCost?: number;
+  jobId?: string;
 }
 
 export interface InventoryItem {

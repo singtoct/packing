@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getMachines, getProductionQueue, saveMachines, getProducts, saveProductionQueue, getMachineDailyLogs, saveMachineDailyLogs } from '../services/storageService';
 import { Machine, ProductionQueueItem, Product, MachineDailyLog } from '../types';
-import { FactoryIcon, RefreshCwIcon, LoaderIcon, UserIcon, ClockIcon, CalendarIcon } from './icons/Icons';
+import { FactoryIcon, RefreshCwIcon, LoaderIcon, UserIcon, ClockIcon, CalendarIcon, PlusCircleIcon } from './icons/Icons';
 import { AssignJobModal } from './AssignJobModal';
 import { EditJobModal } from './EditJobModal';
+import { LogProductionModal } from './LogProductionModal';
 
 interface MachineData {
     machine: Machine;
@@ -25,85 +25,13 @@ const formatDuration = (seconds: number) => {
     return parts.join(' ') || '0s';
 };
 
-const DailyHourLogger: React.FC<{
-    jobId: string;
-    machineId: string;
-    dailyLogs: MachineDailyLog[];
-    onUpdateHours: (date: string, hours: number) => void;
-}> = ({ jobId, machineId, dailyLogs, onUpdateHours }) => {
-    const [dates, setDates] = useState<string[]>([]);
-    const [extraDate, setExtraDate] = useState('');
-
-    useEffect(() => {
-        const today = new Date();
-        const recentDates: string[] = [];
-        for (let i = 0; i < 5; i++) {
-            const date = new Date(today);
-            date.setDate(today.getDate() - i);
-            recentDates.push(date.toISOString().split('T')[0]);
-        }
-        setDates(recentDates);
-    }, []);
-
-    const getLogForDate = (date: string) => {
-        return dailyLogs.find(log => log.date === date && log.jobId === jobId && log.machineId === machineId);
-    };
-
-    const handleQuickSet = (date: string, hours: number) => {
-        onUpdateHours(date, hours);
-    };
-
-    const handleAddExtraDate = () => {
-        if (extraDate && !dates.includes(extraDate)) {
-            setDates(prev => [extraDate, ...prev].sort((a,b) => b.localeCompare(a)));
-            setExtraDate('');
-        }
-    };
-
-    return (
-        <div className="space-y-3 p-3 bg-gray-50 rounded-b-xl border-t">
-            {dates.map(dateStr => {
-                const log = getLogForDate(dateStr);
-                return (
-                    <div key={dateStr} className="grid grid-cols-[1fr,2fr] gap-2 items-center text-xs">
-                        <label htmlFor={`hours-${dateStr}`} className="font-medium text-gray-600">
-                            {new Date(dateStr).toLocaleDateString('th-TH', { month: 'short', day: 'numeric'})}
-                        </label>
-                        <div className="flex items-center gap-1">
-                             {[8, 12, 16, 24].map(h => (
-                                <button key={h} onClick={() => handleQuickSet(dateStr, h)} className="px-1.5 py-0.5 text-xs bg-gray-200 rounded hover:bg-gray-300">{h}</button>
-                            ))}
-                            <input
-                                id={`hours-${dateStr}`}
-                                type="number"
-                                min="0" max="24" step="0.5"
-                                defaultValue={log?.hours || ''}
-                                onBlur={(e) => onUpdateHours(dateStr, parseFloat(e.target.value) || 0)}
-                                placeholder="ชม."
-                                className="w-14 text-center border-gray-300 rounded"
-                            />
-                        </div>
-                    </div>
-                );
-            })}
-             <div className="flex gap-2 items-center pt-2 border-t mt-3">
-                <input type="date" value={extraDate} onChange={e => setExtraDate(e.target.value)} className="w-full text-xs p-1 border-gray-300 rounded" />
-                <button onClick={handleAddExtraDate} className="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">เพิ่มวัน</button>
-            </div>
-        </div>
-    );
-};
-
-
 const MachineCard: React.FC<{
     machineData: MachineData;
     products: Product[];
-    dailyLogs: MachineDailyLog[];
-    onUpdateHours: (machineId: string, jobId: string, date: string, hours: number) => void;
     onCardClick: (machine: Machine) => void;
-}> = ({ machineData, products, dailyLogs, onUpdateHours, onCardClick }) => {
+    onLogProduction: (machine: Machine, job: ProductionQueueItem) => void;
+}> = ({ machineData, products, onCardClick, onLogProduction }) => {
     const { machine, currentJob } = machineData;
-    const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
     const getStatusColor = (status: Machine['status']): string => {
         switch (status) {
@@ -186,11 +114,11 @@ const MachineCard: React.FC<{
                         </div>
                         {currentJob.status === 'In Progress' && (
                             <button 
-                                onClick={() => setIsCalendarOpen(!isCalendarOpen)}
-                                className="w-full mt-2 text-sm text-center py-2 bg-gray-100 hover:bg-gray-200 rounded-lg font-semibold text-gray-700 flex items-center justify-center gap-2"
+                                onClick={() => onLogProduction(machine, currentJob)}
+                                className="w-full mt-2 text-sm text-center py-2 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
                             >
-                                <CalendarIcon className="w-4 h-4" />
-                                {isCalendarOpen ? 'ซ่อนปฏิทิน' : 'บันทึกชั่วโมงการทำงาน'}
+                                <PlusCircleIcon className="w-5 h-5" />
+                                บันทึกผลผลิต
                             </button>
                         )}
                     </div>
@@ -201,14 +129,6 @@ const MachineCard: React.FC<{
                     </div>
                 )}
             </div>
-            {isCalendarOpen && currentJob && currentJob.status === 'In Progress' && (
-                <DailyHourLogger 
-                    jobId={currentJob.id}
-                    machineId={machine.id}
-                    dailyLogs={dailyLogs}
-                    onUpdateHours={(date, hours) => onUpdateHours(machine.id, currentJob.id, date, hours)}
-                />
-            )}
         </div>
     );
 };
@@ -216,12 +136,12 @@ const MachineCard: React.FC<{
 export const FactoryFloorTab: React.FC = () => {
     const [machineData, setMachineData] = useState<MachineData[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
-    const [dailyLogs, setDailyLogs] = useState<MachineDailyLog[]>([]);
     const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
     const [isLoading, setIsLoading] = useState(true);
     
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isLogModalOpen, setIsLogModalOpen] = useState(false);
     
     const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null);
     const [selectedJob, setSelectedJob] = useState<ProductionQueueItem | null>(null);
@@ -234,7 +154,6 @@ export const FactoryFloorTab: React.FC = () => {
         const allDailyLogs = getMachineDailyLogs();
 
         setProducts(allProducts);
-        setDailyLogs(allDailyLogs);
 
         const data: MachineData[] = allMachines.map(machine => {
             const machineJobs = allQueue.filter(j => j.machineId === machine.id);
@@ -279,47 +198,6 @@ export const FactoryFloorTab: React.FC = () => {
         return () => window.removeEventListener('storage', handleStorageChange);
     }, [fetchData]);
 
-    const handleUpdateHours = (machineId: string, jobId: string, date: string, hours: number) => {
-        let logs = getMachineDailyLogs();
-        const logIndex = logs.findIndex(l => l.machineId === machineId && l.jobId === jobId && l.date === date);
-
-        if (logIndex > -1) {
-            if (hours > 0) {
-                logs[logIndex].hours = hours;
-            } else {
-                logs.splice(logIndex, 1); // Remove log if hours are 0
-            }
-        } else if (hours > 0) {
-            logs.push({ id: crypto.randomUUID(), machineId, jobId, date, hours });
-        }
-        
-        saveMachineDailyLogs(logs);
-
-        // Recalculate production quantity for the job
-        const queue = getProductionQueue();
-        const jobIndex = queue.findIndex(j => j.id === jobId);
-        if (jobIndex > -1) {
-            const product = getProducts().find(p => p.id === queue[jobIndex].productId);
-            const cycleTime = product?.cycleTimeSeconds;
-
-            if (cycleTime && cycleTime > 0) {
-                const jobTotalHours = logs
-                    .filter(l => l.jobId === jobId)
-                    .reduce((sum, l) => sum + l.hours, 0);
-                
-                const newQuantityProduced = Math.floor((jobTotalHours * 3600) / cycleTime);
-                queue[jobIndex].quantityProduced = Math.min(newQuantityProduced, queue[jobIndex].quantityGoal);
-
-                if(queue[jobIndex].quantityProduced >= queue[jobIndex].quantityGoal) {
-                    queue[jobIndex].status = 'Completed';
-                }
-            }
-            saveProductionQueue(queue.filter(j => j.status !== 'Completed'));
-        }
-        
-        fetchData();
-    };
-
     const handleCardClick = (machine: Machine) => {
         const machineJob = machineData.find(md => md.machine.id === machine.id)?.currentJob;
         setSelectedMachine(machine);
@@ -333,15 +211,22 @@ export const FactoryFloorTab: React.FC = () => {
             setIsAssignModalOpen(true);
         }
     };
+
+    const handleLogProduction = (machine: Machine, job: ProductionQueueItem) => {
+        setSelectedMachine(machine);
+        setSelectedJob(job);
+        setIsLogModalOpen(true);
+    };
     
     const handleCloseModal = () => {
         setIsAssignModalOpen(false);
         setIsEditModalOpen(false);
+        setIsLogModalOpen(false);
         setSelectedMachine(null);
         setSelectedJob(null);
     };
     
-    const handleSaveJob = () => {
+    const handleSaveAndRefresh = () => {
         fetchData();
         handleCloseModal();
     };
@@ -349,10 +234,18 @@ export const FactoryFloorTab: React.FC = () => {
     return (
         <div>
             {isAssignModalOpen && selectedMachine && (
-                <AssignJobModal machine={selectedMachine} onClose={handleCloseModal} onSave={handleSaveJob} />
+                <AssignJobModal machine={selectedMachine} onClose={handleCloseModal} onSave={handleSaveAndRefresh} />
             )}
             {isEditModalOpen && selectedMachine && selectedJob && (
-                <EditJobModal job={selectedJob} machine={selectedMachine} onClose={handleCloseModal} onSave={handleSaveJob} />
+                <EditJobModal job={selectedJob} machine={selectedMachine} onClose={handleCloseModal} onSave={handleSaveAndRefresh} />
+            )}
+             {isLogModalOpen && selectedMachine && selectedJob && (
+                <LogProductionModal 
+                    machine={selectedMachine} 
+                    job={selectedJob} 
+                    onClose={handleCloseModal} 
+                    onSave={handleSaveAndRefresh}
+                />
             )}
             <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
                 <div>
@@ -376,9 +269,8 @@ export const FactoryFloorTab: React.FC = () => {
                             key={md.machine.id}
                             machineData={md}
                             products={products}
-                            dailyLogs={dailyLogs}
-                            onUpdateHours={handleUpdateHours}
                             onCardClick={handleCardClick}
+                            onLogProduction={handleLogProduction}
                         />
                     ))}
                 </div>
