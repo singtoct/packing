@@ -200,6 +200,35 @@ export const FactoryFloorTab: React.FC = () => {
         setOpenStatusMenuFor(null);
     };
 
+    const handleWorkingHoursChange = (machineId: string, hours: string) => {
+        setMachineData(prevData =>
+            prevData.map(md =>
+                md.machine.id === machineId
+                    ? {
+                          ...md,
+                          machine: {
+                              ...md.machine,
+                              workingHoursPerDay: hours === '' ? undefined : Number(hours),
+                          },
+                      }
+                    : md
+            )
+        );
+    };
+
+    const handleWorkingHoursSave = (machineId: string) => {
+        const machineDataItem = machineData.find(md => md.machine.id === machineId);
+        if (!machineDataItem) return;
+
+        const allMachines = getMachines();
+        const updatedMachines = allMachines.map(m =>
+            m.id === machineId
+                ? { ...m, workingHoursPerDay: machineDataItem.machine.workingHoursPerDay }
+                : m
+        );
+        saveMachines(updatedMachines);
+    };
+
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (openStatusMenuFor && menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -330,6 +359,22 @@ export const FactoryFloorTab: React.FC = () => {
                                                 </div>
                                             )}
                                         </div>
+                                    </div>
+
+                                    <div className="mt-2 text-sm text-gray-600 flex justify-between items-center" onClick={e => e.stopPropagation()}>
+                                        <label htmlFor={`hours-${machine.id}`} className="font-medium" title="จำนวนชั่วโมงทำงานต่อวันสำหรับคำนวณ OEE">ชม.ทำงาน/วัน:</label>
+                                        <input
+                                            id={`hours-${machine.id}`}
+                                            type="number"
+                                            min="0"
+                                            max="24"
+                                            step="0.5"
+                                            value={machine.workingHoursPerDay ?? ''}
+                                            onChange={e => handleWorkingHoursChange(machine.id, e.target.value)}
+                                            onBlur={() => handleWorkingHoursSave(machine.id)}
+                                            placeholder="24"
+                                            className="w-24 text-right px-2 py-1 border border-gray-200 rounded-md"
+                                        />
                                     </div>
 
                                     <RunningStatus machine={machine} />
