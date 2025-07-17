@@ -228,6 +228,22 @@ export const FactoryFloorTab: React.FC = () => {
         );
         saveMachines(updatedMachines);
     };
+    
+    const handlePresetClick = (machineId: string, hours: number) => {
+        setMachineData(prevData =>
+            prevData.map(md =>
+                md.machine.id === machineId
+                    ? { ...md, machine: { ...md.machine, workingHoursPerDay: hours } }
+                    : md
+            )
+        );
+        
+        const allMachines = getMachines();
+        const updatedMachines = allMachines.map(m =>
+            m.id === machineId ? { ...m, workingHoursPerDay: hours } : m
+        );
+        saveMachines(updatedMachines);
+    };
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -361,20 +377,36 @@ export const FactoryFloorTab: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    <div className="mt-2 text-sm text-gray-600 flex justify-between items-center" onClick={e => e.stopPropagation()}>
-                                        <label htmlFor={`hours-${machine.id}`} className="font-medium" title="จำนวนชั่วโมงทำงานต่อวันสำหรับคำนวณ OEE">ชม.ทำงาน/วัน:</label>
-                                        <input
-                                            id={`hours-${machine.id}`}
-                                            type="number"
-                                            min="0"
-                                            max="24"
-                                            step="0.5"
-                                            value={machine.workingHoursPerDay ?? ''}
-                                            onChange={e => handleWorkingHoursChange(machine.id, e.target.value)}
-                                            onBlur={() => handleWorkingHoursSave(machine.id)}
-                                            placeholder="24"
-                                            className="w-24 text-right px-2 py-1 border border-gray-200 rounded-md"
-                                        />
+                                    <div className="mt-2 text-sm" onClick={e => e.stopPropagation()}>
+                                        <label htmlFor={`hours-input-${machine.id}`} className="font-medium text-xs text-gray-600">ชม.ทำงานวันนี้:</label>
+                                        <div className="flex items-stretch gap-1 mt-1">
+                                            {[8, 12, 16, 24].map(h => (
+                                                <button
+                                                    key={h}
+                                                    type="button"
+                                                    onClick={() => handlePresetClick(machine.id, h)}
+                                                    className={`px-2 py-1 text-xs rounded-md font-semibold transition-colors flex-grow ${
+                                                        machine.workingHoursPerDay === h
+                                                            ? 'bg-blue-600 text-white shadow-sm'
+                                                            : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                                                    }`}
+                                                >
+                                                    {h}ชม.
+                                                </button>
+                                            ))}
+                                            <input
+                                                id={`hours-input-${machine.id}`}
+                                                type="number"
+                                                min="0"
+                                                max="24"
+                                                step="0.5"
+                                                value={machine.workingHoursPerDay ?? ''}
+                                                onChange={e => handleWorkingHoursChange(machine.id, e.target.value)}
+                                                onBlur={() => handleWorkingHoursSave(machine.id)}
+                                                placeholder="อื่นๆ"
+                                                className="w-16 text-center text-sm px-2 py-1 border border-gray-300 rounded-md"
+                                            />
+                                        </div>
                                     </div>
 
                                     <RunningStatus machine={machine} />
