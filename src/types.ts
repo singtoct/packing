@@ -241,3 +241,11 @@ export interface ProductionQueueItem {
   operatorName?: string;
   lastCycleTimestamp?: number; // Used for cycle time production simulation
 }
+
+export interface MachineDailyLog {
+  id: string;
+  machineId: string;
+  jobId: string;
+  date: string; // YYYY-MM-DD
+  hours: number;
+}

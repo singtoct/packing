@@ -1,5 +1,5 @@
 
-import { OrderItem, PackingLogEntry, InventoryItem, Employee, QCEntry, MoldingLogEntry, RawMaterial, BillOfMaterial, Machine, MaintenanceLog, Supplier, PurchaseOrder, Shipment, Product, AppSettings, AppRole, Customer, Complaint, ProductionQueueItem } from '../types';
+import { OrderItem, PackingLogEntry, InventoryItem, Employee, QCEntry, MoldingLogEntry, RawMaterial, BillOfMaterial, Machine, MaintenanceLog, Supplier, PurchaseOrder, Shipment, Product, AppSettings, AppRole, Customer, Complaint, ProductionQueueItem, MachineDailyLog } from '../types';
 import { CTElectricLogo } from '../assets/logo';
 
 const ORDERS_KEY = 'packing_orders';
@@ -21,6 +21,7 @@ const READ_NOTIFICATIONS_KEY = 'read_notifications';
 const CUSTOMERS_KEY = 'factory_customers';
 const COMPLAINTS_KEY = 'factory_complaints';
 const PRODUCTION_QUEUE_KEY = 'production_queue';
+const MACHINE_DAILY_LOGS_KEY = 'machine_daily_logs';
 
 
 const DEFAULT_PRODUCTS: Product[] = [
@@ -392,6 +393,10 @@ export const saveComplaints = (complaints: Complaint[]): void => saveItems<Compl
 // Production Queue specific functions
 export const getProductionQueue = (): ProductionQueueItem[] => getItems<ProductionQueueItem>(PRODUCTION_QUEUE_KEY);
 export const saveProductionQueue = (queue: ProductionQueueItem[]): void => saveItems<ProductionQueueItem>(PRODUCTION_QUEUE_KEY, queue);
+
+// Machine Daily Log specific functions
+export const getMachineDailyLogs = (): MachineDailyLog[] => getItems<MachineDailyLog>(MACHINE_DAILY_LOGS_KEY);
+export const saveMachineDailyLogs = (logs: MachineDailyLog[]): void => saveItems<MachineDailyLog>(MACHINE_DAILY_LOGS_KEY, logs);
 
 
 // App Settings specific functions
