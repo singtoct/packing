@@ -149,12 +149,14 @@ const MachineCard: React.FC<{
                 
                 {currentJob ? (
                     <div className="space-y-3 pt-3 border-t border-gray-100">
-                        <div className="text-sm text-gray-500 flex justify-between items-center">
-                            <span>ระยะเวลาเดินเครื่องสะสม:</span>
-                            <span className="font-bold text-lg text-gray-800">{formatDuration(currentJob.accumulatedRunTimeSeconds)}</span>
-                        </div>
+                        {currentJob.status === 'In Progress' && (
+                            <div className="text-sm text-gray-500 flex justify-between items-center">
+                                <span>ระยะเวลาเดินเครื่องสะสม:</span>
+                                <span className="font-bold text-lg text-gray-800">{formatDuration(currentJob.accumulatedRunTimeSeconds)}</span>
+                            </div>
+                        )}
                         <div onClick={() => onCardClick(machine)} className="cursor-pointer">
-                            <p className="text-xs text-gray-500">งานปัจจุบัน</p>
+                            <p className="text-xs text-gray-500">{currentJob.status === 'In Progress' ? 'งานปัจจุบัน' : 'งานถัดไปในคิว'}</p>
                             <p className="font-bold text-base text-blue-700 truncate" title={currentJob.productName}>{currentJob.productName}</p>
                         </div>
                         <div>
@@ -171,22 +173,26 @@ const MachineCard: React.FC<{
                                 <UserIcon className="w-4 h-4 text-gray-400"/>
                                 <span>ผู้ควบคุม: <span className="font-semibold">{currentJob.operator}</span></span>
                             </div>
-                             <div className="text-sm text-gray-600 flex items-center gap-2">
-                                <ClockIcon className="w-4 h-4 text-gray-400"/>
-                                <span>เวลาโดยประมาณ: 
-                                    <span className="font-semibold ml-1">
-                                        {remainingTimeSeconds !== null ? formatDuration(remainingTimeSeconds) : <span className="text-xs text-gray-400">(ไม่มีข้อมูล)</span>}
+                            {currentJob.status === 'In Progress' && (
+                                 <div className="text-sm text-gray-600 flex items-center gap-2">
+                                    <ClockIcon className="w-4 h-4 text-gray-400"/>
+                                    <span>เวลาโดยประมาณ: 
+                                        <span className="font-semibold ml-1">
+                                            {remainingTimeSeconds !== null ? formatDuration(remainingTimeSeconds) : <span className="text-xs text-gray-400">(ไม่มีข้อมูล)</span>}
+                                        </span>
                                     </span>
-                                </span>
-                            </div>
+                                </div>
+                            )}
                         </div>
-                        <button 
-                            onClick={() => setIsCalendarOpen(!isCalendarOpen)}
-                            className="w-full mt-2 text-sm text-center py-2 bg-gray-100 hover:bg-gray-200 rounded-lg font-semibold text-gray-700 flex items-center justify-center gap-2"
-                        >
-                            <CalendarIcon className="w-4 h-4" />
-                            {isCalendarOpen ? 'ซ่อนปฏิทิน' : 'บันทึกชั่วโมงการทำงาน'}
-                        </button>
+                        {currentJob.status === 'In Progress' && (
+                            <button 
+                                onClick={() => setIsCalendarOpen(!isCalendarOpen)}
+                                className="w-full mt-2 text-sm text-center py-2 bg-gray-100 hover:bg-gray-200 rounded-lg font-semibold text-gray-700 flex items-center justify-center gap-2"
+                            >
+                                <CalendarIcon className="w-4 h-4" />
+                                {isCalendarOpen ? 'ซ่อนปฏิทิน' : 'บันทึกชั่วโมงการทำงาน'}
+                            </button>
+                        )}
                     </div>
                 ) : (
                     <div onClick={() => onCardClick(machine)} className="text-center py-8 text-gray-400 border-t border-gray-100 mt-3 pt-3 cursor-pointer">
@@ -195,7 +201,7 @@ const MachineCard: React.FC<{
                     </div>
                 )}
             </div>
-            {isCalendarOpen && currentJob && (
+            {isCalendarOpen && currentJob && currentJob.status === 'In Progress' && (
                 <DailyHourLogger 
                     jobId={currentJob.id}
                     machineId={machine.id}
@@ -231,22 +237,33 @@ export const FactoryFloorTab: React.FC = () => {
         setDailyLogs(allDailyLogs);
 
         const data: MachineData[] = allMachines.map(machine => {
-            const currentJob = allQueue.find(j => j.machineId === machine.id && j.status === 'In Progress') || null;
+            const machineJobs = allQueue.filter(j => j.machineId === machine.id);
+            let jobToShow = machineJobs.find(j => j.status === 'In Progress') || null;
+    
+        
+            if (!jobToShow) {
+                const queuedJobs = machineJobs
+                    .filter(j => j.status === 'Queued')
+                    .sort((a, b) => a.priority - b.priority);
+                if (queuedJobs.length > 0) {
+                    jobToShow = queuedJobs[0];
+                }
+            }
             
-            let jobWithProgress: MachineData['currentJob'] = null;
-            if (currentJob) {
-                const jobLogs = allDailyLogs.filter(log => log.jobId === currentJob.id);
+            let currentJob: MachineData['currentJob'] = null;
+            if (jobToShow) {
+                const jobLogs = allDailyLogs.filter(log => log.jobId === jobToShow!.id);
                 const accumulatedRunTimeSeconds = jobLogs.reduce((sum, log) => sum + log.hours, 0) * 3600;
                 
-                const progressPercent = currentJob.quantityGoal > 0 ? (currentJob.quantityProduced / currentJob.quantityGoal) * 100 : 0;
-                const operator = currentJob.operatorName || '-';
+                const progressPercent = jobToShow.quantityGoal > 0 ? (jobToShow.quantityProduced / jobToShow.quantityGoal) * 100 : 0;
+                const operator = jobToShow.operatorName || '-';
                 
-                jobWithProgress = { ...currentJob, progressPercent, operator, accumulatedRunTimeSeconds };
+                currentJob = { ...jobToShow, progressPercent, operator, accumulatedRunTimeSeconds };
             }
 
             return {
                 machine,
-                currentJob: jobWithProgress,
+                currentJob,
             };
         });
 

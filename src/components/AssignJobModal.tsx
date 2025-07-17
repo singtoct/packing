@@ -1,8 +1,7 @@
 
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Machine, Product, ProductionQueueItem, Employee } from '../types';
-import { getProducts, getProductionQueue, saveProductionQueue, getEmployees } from '../services/storageService';
+import { getProducts, getProductionQueue, saveProductionQueue, getEmployees, getMachines, saveMachines } from '../services/storageService';
 import { SearchableInput } from './SearchableInput';
 import { PlusCircleIcon, XCircleIcon } from './icons/Icons';
 
@@ -57,6 +56,17 @@ export const AssignJobModal: React.FC<AssignJobModalProps> = ({ machine, onClose
 
         const queue = getProductionQueue();
         saveProductionQueue([...queue, newJob]);
+
+        // When a job is assigned, the machine is no longer in 'Mold Change' or other non-productive states. It's now 'Idle' and ready.
+        const machines = getMachines();
+        const updatedMachines = machines.map((m): Machine => {
+            if (m.id === machine.id && m.status !== 'Running') {
+                return { ...m, status: 'Idle' };
+            }
+            return m;
+        });
+        saveMachines(updatedMachines);
+
         onSave();
     };
 
