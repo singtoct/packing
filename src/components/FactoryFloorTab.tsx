@@ -7,7 +7,7 @@ import { EditJobModal } from './EditJobModal';
 
 interface MachineData {
     machine: Machine;
-    currentJob: (ProductionQueueItem & { progressPercent: number, operator: string }) | null;
+    currentJob: (ProductionQueueItem & { progressPercent: number, operator: string, totalRunTimeSeconds: number }) | null;
     queue: ProductionQueueItem[];
 }
 
@@ -29,40 +29,6 @@ const formatDuration = (seconds: number) => {
         m > 0 ? `${m}m` : '',
         s > 0 ? `${s}s` : (h === 0 && m === 0 ? '0s' : '')
     ].filter(Boolean).join(' ') || '0s';
-};
-
-const RunningStatus: React.FC<{ machine: Machine }> = ({ machine }) => {
-    const [durationSeconds, setDurationSeconds] = useState(0);
-
-    useEffect(() => {
-        if (machine.status !== 'Running' || !machine.lastStartedAt) {
-            setDurationSeconds(0);
-            return;
-        }
-
-        const calculateDuration = () => {
-            const startTime = new Date(machine.lastStartedAt!);
-            const now = new Date();
-            setDurationSeconds((now.getTime() - startTime.getTime()) / 1000);
-        };
-
-        calculateDuration();
-        const interval = setInterval(calculateDuration, 1000);
-        return () => clearInterval(interval);
-    }, [machine.lastStartedAt, machine.status]);
-
-    if (machine.status !== 'Running' || !machine.lastStartedAt) {
-        return null;
-    }
-
-    return (
-        <div className="text-sm text-gray-600 flex flex-col gap-2 mt-2 mb-3 pt-2 border-t">
-            <div className="flex justify-between items-center">
-                <span className="font-semibold">ระยะเวลาเดินเครื่อง:</span>
-                <span className="font-bold text-lg text-gray-800">{formatDuration(durationSeconds)}</span>
-            </div>
-        </div>
-    );
 };
 
 export const FactoryFloorTab: React.FC = () => {
@@ -93,12 +59,15 @@ export const FactoryFloorTab: React.FC = () => {
 
             const currentJob = machineQueue.find(j => j.status === 'In Progress') || null;
             
-            let jobWithProgress = null;
+            let jobWithProgress: MachineData['currentJob'] = null;
             if (currentJob) {
+                const product = productsRef.current.find(p => p.id === currentJob.productId);
+                const cycleTime = product?.cycleTimeSeconds || 0;
                 const progressPercent = currentJob.quantityGoal > 0 ? (currentJob.quantityProduced / currentJob.quantityGoal) * 100 : 0;
                 const operator = currentJob.operatorName || '-';
+                const totalRunTimeSeconds = cycleTime > 0 ? currentJob.quantityProduced * cycleTime : 0;
                 
-                jobWithProgress = { ...currentJob, progressPercent, operator };
+                jobWithProgress = { ...currentJob, progressPercent, operator, totalRunTimeSeconds };
             }
 
             return {
@@ -339,9 +308,9 @@ export const FactoryFloorTab: React.FC = () => {
                     {machineData.map(({ machine, currentJob, queue }) => {
                         return (
                             <div key={machine.id} onClick={() => handleCardClick(machine)} className="bg-white rounded-xl shadow-lg border-t-4 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer" style={{borderColor: getStatusColor(machine.status)}}>
-                                <div className="p-4">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <h3 className="text-lg font-bold text-gray-800">{machine.name}</h3>
+                                <div className="p-4 space-y-3">
+                                    <div className="flex justify-between items-start">
+                                        <h3 className="text-xl font-bold text-gray-800">{machine.name}</h3>
                                         <div className="relative">
                                             <div
                                                 onClick={(e) => {
@@ -377,18 +346,18 @@ export const FactoryFloorTab: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    <div className="mt-2 text-sm" onClick={e => e.stopPropagation()}>
-                                        <label htmlFor={`hours-input-${machine.id}`} className="font-medium text-xs text-gray-600">ชม.ทำงานวันนี้:</label>
-                                        <div className="flex items-stretch gap-1 mt-1">
+                                    <div className="text-sm" onClick={e => e.stopPropagation()}>
+                                        <label htmlFor={`hours-input-${machine.id}`} className="font-medium text-xs text-gray-500">ชม.ทำงานวันนี้:</label>
+                                        <div className="flex items-center gap-1 mt-1">
                                             {[8, 12, 16, 24].map(h => (
                                                 <button
                                                     key={h}
                                                     type="button"
                                                     onClick={() => handlePresetClick(machine.id, h)}
-                                                    className={`px-2 py-1 text-xs rounded-md font-semibold transition-colors flex-grow ${
+                                                    className={`px-2 py-1 text-xs rounded font-semibold transition-colors flex-grow ${
                                                         machine.workingHoursPerDay === h
-                                                            ? 'bg-blue-600 text-white shadow-sm'
-                                                            : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                                                            ? 'bg-gray-700 text-white'
+                                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                                                     }`}
                                                 >
                                                     {h}ชม.
@@ -397,38 +366,38 @@ export const FactoryFloorTab: React.FC = () => {
                                             <input
                                                 id={`hours-input-${machine.id}`}
                                                 type="number"
-                                                min="0"
-                                                max="24"
-                                                step="0.5"
+                                                min="0" max="24" step="1"
                                                 value={machine.workingHoursPerDay ?? ''}
                                                 onChange={e => handleWorkingHoursChange(machine.id, e.target.value)}
                                                 onBlur={() => handleWorkingHoursSave(machine.id)}
-                                                placeholder="อื่นๆ"
-                                                className="w-16 text-center text-sm px-2 py-1 border border-gray-300 rounded-md"
+                                                placeholder="18"
+                                                className="w-12 text-center text-sm font-semibold px-1 py-1 border border-gray-300 rounded"
                                             />
                                         </div>
                                     </div>
-
-                                    <RunningStatus machine={machine} />
                                     
                                     {currentJob ? (
-                                        <div className="space-y-3 mt-4">
+                                        <div className="space-y-3 pt-3 border-t border-gray-100">
+                                            <div className="text-sm text-gray-500 flex justify-between items-center">
+                                                <span>ระยะเวลาเดินเครื่อง:</span>
+                                                <span className="font-bold text-lg text-gray-800">{formatDuration(currentJob.totalRunTimeSeconds)}</span>
+                                            </div>
                                             <div>
                                                 <p className="text-xs text-gray-500">งานปัจจุบัน</p>
-                                                <p className="font-bold text-lg text-blue-700 truncate" title={currentJob.productName}>{currentJob.productName}</p>
+                                                <p className="font-bold text-base text-blue-700 truncate" title={currentJob.productName}>{currentJob.productName}</p>
                                             </div>
                                             <div>
                                                 <div className="flex justify-between text-sm mb-1">
-                                                    <span className="font-semibold">{currentJob.quantityProduced.toLocaleString()} / {currentJob.quantityGoal.toLocaleString()}</span>
-                                                    <span className="font-bold">{currentJob.progressPercent.toFixed(1)}%</span>
+                                                    <span className="font-semibold text-gray-600">{currentJob.quantityProduced.toLocaleString()} / {currentJob.quantityGoal.toLocaleString()}</span>
+                                                    <span className="font-bold text-blue-700">{currentJob.progressPercent.toFixed(1)}%</span>
                                                 </div>
-                                                <div className="w-full bg-gray-200 rounded-full h-2.5">
-                                                    <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${Math.min(currentJob.progressPercent, 100)}%` }}></div>
+                                                <div className="w-full bg-gray-200 rounded-full h-3">
+                                                    <div className="bg-blue-600 h-3 rounded-full transition-all duration-500" style={{ width: `${Math.min(currentJob.progressPercent, 100)}%` }}></div>
                                                 </div>
                                             </div>
-                                            <div className="pt-2 border-t border-gray-100 space-y-2">
+                                            <div className="space-y-1">
                                                 <div className="text-sm text-gray-600 flex items-center gap-2">
-                                                    <UserIcon className="w-4 h-4"/>
+                                                    <UserIcon className="w-4 h-4 text-gray-400"/>
                                                     <span>ผู้ควบคุม: <span className="font-semibold">{currentJob.operator}</span></span>
                                                 </div>
                                                 {(() => {
@@ -437,19 +406,15 @@ export const FactoryFloorTab: React.FC = () => {
                                                     let remainingTimeSeconds: number | null = null;
                                                     if (cycleTime && cycleTime > 0) {
                                                         const remainingQuantity = currentJob.quantityGoal - currentJob.quantityProduced;
-                                                        if (remainingQuantity > 0) {
-                                                            remainingTimeSeconds = remainingQuantity * cycleTime;
-                                                        } else {
-                                                            remainingTimeSeconds = 0;
-                                                        }
+                                                        remainingTimeSeconds = remainingQuantity > 0 ? remainingQuantity * cycleTime : 0;
                                                     }
                                                     
                                                     return (
                                                         <div className="text-sm text-gray-600 flex items-center gap-2">
-                                                            <ClockIcon className="w-4 h-4"/>
+                                                            <ClockIcon className="w-4 h-4 text-gray-400"/>
                                                             <span>เวลาโดยประมาณ: 
                                                                 <span className="font-semibold ml-1">
-                                                                    {remainingTimeSeconds !== null ? formatDuration(remainingTimeSeconds) : <span className="text-xs text-gray-400">(ไม่มีข้อมูล Cycle Time)</span>}
+                                                                    {remainingTimeSeconds !== null ? formatDuration(remainingTimeSeconds) : <span className="text-xs text-gray-400">(ไม่มีข้อมูล)</span>}
                                                                 </span>
                                                             </span>
                                                         </div>
@@ -458,9 +423,8 @@ export const FactoryFloorTab: React.FC = () => {
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="text-center py-8 text-gray-500">
-                                            <PlusCircleIcon className="w-12 h-12 mx-auto text-gray-300"/>
-                                            <p className="mt-2 font-semibold">เครื่องว่าง</p>
+                                        <div className="text-center py-8 text-gray-400 border-t border-gray-100 mt-3 pt-3">
+                                            <p className="font-semibold">เครื่องว่าง</p>
                                             <p className="text-sm">คลิกเพื่อมอบหมายงาน</p>
                                         </div>
                                     )}
@@ -470,8 +434,8 @@ export const FactoryFloorTab: React.FC = () => {
                                         <h4 className="text-xs font-bold text-gray-500 uppercase mb-2 flex items-center gap-1.5"><ListOrderedIcon className="w-4 h-4"/> คิวถัดไป</h4>
                                         <ul className="space-y-1 text-sm">
                                             {queue.slice(0, 2).map(job => (
-                                                <li key={job.id} className="text-gray-700 truncate">
-                                                    <span className="font-medium">{job.productName}</span> ({job.quantityGoal.toLocaleString()} ชิ้น)
+                                                <li key={job.id} className="text-gray-700 truncate" title={`${job.productName} (${job.quantityGoal.toLocaleString()} pcs)`}>
+                                                    <span className="font-medium">{job.productName}</span>
                                                 </li>
                                             ))}
                                             {queue.length > 2 && <li className="text-xs text-gray-500">และอีก {queue.length - 2} งาน...</li>}
