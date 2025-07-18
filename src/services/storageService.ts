@@ -1,5 +1,5 @@
 
-import { OrderItem, PackingLogEntry, InventoryItem, Employee, QCEntry, MoldingLogEntry, RawMaterial, BillOfMaterial, Machine, MaintenanceLog, Supplier, PurchaseOrder, Shipment, Product, AppSettings, AppRole, Customer, Complaint, ProductionQueueItem, MachineDailyLog } from '../types';
+import { OrderItem, PackingLogEntry, InventoryItem, Employee, QCEntry, MoldingLogEntry, RawMaterial, BillOfMaterial, Machine, MaintenanceLog, Supplier, PurchaseOrder, Shipment, Product, AppSettings, AppRole, Customer, Complaint, ProductionQueueItem, MachineDailyLog, PackingStation, PackingQueueItem } from '../types';
 import { CTElectricLogo } from '../assets/logo';
 
 const ORDERS_KEY = 'packing_orders';
@@ -22,6 +22,8 @@ const CUSTOMERS_KEY = 'factory_customers';
 const COMPLAINTS_KEY = 'factory_complaints';
 const PRODUCTION_QUEUE_KEY = 'production_queue';
 const MACHINE_DAILY_LOGS_KEY = 'machine_daily_logs';
+const PACKING_STATIONS_KEY = 'packing_stations';
+const PACKING_QUEUE_KEY = 'packing_queue';
 
 
 const DEFAULT_PRODUCTS: Product[] = [
@@ -397,6 +399,27 @@ export const saveProductionQueue = (queue: ProductionQueueItem[]): void => saveI
 // Machine Daily Log specific functions
 export const getMachineDailyLogs = (): MachineDailyLog[] => getItems<MachineDailyLog>(MACHINE_DAILY_LOGS_KEY);
 export const saveMachineDailyLogs = (logs: MachineDailyLog[]): void => saveItems<MachineDailyLog>(MACHINE_DAILY_LOGS_KEY, logs);
+
+// Packing Station specific functions
+const DEFAULT_PACKING_STATIONS: PackingStation[] = [
+    { id: 'ps-1', name: 'โต๊ะแพ็ค 1', status: 'Idle' },
+    { id: 'ps-2', name: 'โต๊ะแพ็ค 2', status: 'Idle' },
+    { id: 'ps-3', name: 'โต๊ะแพ็ค 3', status: 'Idle' },
+];
+
+export const getPackingStations = (): PackingStation[] => {
+    const items = getItems<PackingStation>(PACKING_STATIONS_KEY);
+    if (items.length === 0) {
+        savePackingStations(DEFAULT_PACKING_STATIONS);
+        return [...DEFAULT_PACKING_STATIONS];
+    }
+    return items;
+};
+export const savePackingStations = (stations: PackingStation[]): void => saveItems<PackingStation>(PACKING_STATIONS_KEY, stations);
+
+// Packing Queue specific functions
+export const getPackingQueue = (): PackingQueueItem[] => getItems<PackingQueueItem>(PACKING_QUEUE_KEY);
+export const savePackingQueue = (queue: PackingQueueItem[]): void => saveItems<PackingQueueItem>(PACKING_QUEUE_KEY, queue);
 
 
 // App Settings specific functions

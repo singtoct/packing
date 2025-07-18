@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useMemo } from 'react';
 import { Tab } from '../App';
 import { 
@@ -76,6 +74,12 @@ const menuConfig = [
         tab: 'factory_floor' as Tab, 
         title: 'สถานะเครื่องฉีด', 
         icon: <LayoutGridIcon className="w-5 h-5"/> 
+    },
+    { 
+        isCategory: false, 
+        tab: 'packing_floor' as Tab, 
+        title: 'สถานะเครื่องแพ็ค', 
+        icon: <BoxIcon className="w-5 h-5"/> 
     },
     { 
         isCategory: false, 

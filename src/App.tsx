@@ -1,7 +1,4 @@
 
-
-
-
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { PackingLogTab } from './components/PackingLogTab';
@@ -30,8 +27,9 @@ import { BellIcon, PlusIcon, ListOrderedIcon, ClipboardCheckIcon, WrenchIcon, Fa
 import { getSettings, getInventory, getOrders, getQCEntries, getMachines, getReadNotificationIds, saveReadNotificationIds, getMoldingLogs } from './services/storageService';
 import { InventoryItem, AppNotification, AppSettings } from './types';
 import { ProductionPlanTab } from './components/ProductionPlanTab';
+import { PackingFloorTab } from './components/PackingFloorTab';
 
-export type Tab = 'dashboard' | 'factory_floor' | 'production_plan' | 'analysis' | 'procurement' | 'molding' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'profit_analysis' | 'stats' | 'reports' | 'products' | 'settings' | 'customers' | 'complaints';
+export type Tab = 'dashboard' | 'factory_floor' | 'packing_floor' | 'production_plan' | 'analysis' | 'procurement' | 'molding' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'profit_analysis' | 'stats' | 'reports' | 'products' | 'settings' | 'customers' | 'complaints';
 export type QuickActionType = 'order' | 'packing' | 'molding';
 
 const App: React.FC = () => {
@@ -219,6 +217,8 @@ const App: React.FC = () => {
         return <DashboardTab setActiveTab={setActiveTab} />;
       case 'factory_floor':
         return <FactoryFloorTab />;
+      case 'packing_floor':
+        return <PackingFloorTab />;
       case 'production_plan':
         return <ProductionPlanTab />;
       case 'analysis':

@@ -1,10 +1,5 @@
 
-
-
-
-
-
-export type Tab = 'dashboard' | 'factory_floor' | 'production_plan' | 'analysis' | 'procurement' | 'molding' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'profit_analysis' | 'stats' | 'reports' | 'products' | 'settings' | 'customers' | 'complaints';
+export type Tab = 'dashboard' | 'factory_floor' | 'packing_floor' | 'production_plan' | 'analysis' | 'procurement' | 'molding' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'profit_analysis' | 'stats' | 'reports' | 'products' | 'settings' | 'customers' | 'complaints';
 
 
 export interface OrderItem {
@@ -250,4 +245,24 @@ export interface MachineDailyLog {
   jobId: string;
   date: string; // YYYY-MM-DD
   hours: number;
+}
+
+export interface PackingStation {
+  id: string;
+  name: string;
+  status: 'Running' | 'Idle' | 'Maintenance';
+  lastStartedAt?: string;
+}
+
+export interface PackingQueueItem {
+  id: string;
+  stationId: string;
+  productName: string;
+  quantityGoal: number;
+  quantityPacked: number;
+  status: 'Queued' | 'In Progress' | 'Completed';
+  priority: number;
+  addedDate: string;
+  orderId?: string;
+  packerName?: string;
 }
