@@ -280,6 +280,7 @@ export const FactoryFloorTab: React.FC = () => {
                 <LogProductionModal 
                     machine={selectedMachine} 
                     job={selectedJob} 
+                    products={products}
                     onClose={handleCloseModal} 
                     onSave={handleSaveAndRefresh}
                 />

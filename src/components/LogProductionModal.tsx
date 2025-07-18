@@ -1,17 +1,17 @@
-
 import React, { useState, useEffect } from 'react';
-import { Machine, ProductionQueueItem, MoldingLogEntry, MachineDailyLog } from '../types';
+import { Machine, ProductionQueueItem, MoldingLogEntry, MachineDailyLog, Product } from '../types';
 import { getSettings, saveMoldingLogs, getMoldingLogs, saveProductionQueue, getProductionQueue, saveMachineDailyLogs, getMachineDailyLogs, saveMachines, getMachines } from '../services/storageService';
 import { XCircleIcon, PlusCircleIcon } from './icons/Icons';
 
 interface LogProductionModalProps {
     machine: Machine;
     job: ProductionQueueItem;
+    products: Product[];
     onClose: () => void;
     onSave: () => void;
 }
 
-export const LogProductionModal: React.FC<LogProductionModalProps> = ({ machine, job, onClose, onSave }) => {
+export const LogProductionModal: React.FC<LogProductionModalProps> = ({ machine, job, products, onClose, onSave }) => {
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [shift, setShift] = useState<'เช้า' | 'บ่าย' | 'ดึก'>('เช้า');
     const [hoursWorked, setHoursWorked] = useState(8);
@@ -27,6 +27,17 @@ export const LogProductionModal: React.FC<LogProductionModalProps> = ({ machine,
             setNextStep(settings.productionStatuses[0]);
         }
     }, []);
+
+    useEffect(() => {
+        const product = products.find(p => p.id === job.productId);
+        if (product && product.cycleTimeSeconds && hoursWorked > 0) {
+            const calculatedQuantity = Math.floor((hoursWorked * 3600) / product.cycleTimeSeconds);
+            setQuantityProduced(calculatedQuantity);
+        } else {
+            // Reset if hours are cleared or no cycle time is available
+            setQuantityProduced(0);
+        }
+    }, [hoursWorked, job.productId, products]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
