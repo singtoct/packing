@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
-import { Machine, ProductionQueueItem, Employee } from '../types';
-import { getEmployees, getProductionQueue, saveProductionQueue, saveMachines, getMachines } from '../services/storageService';
+import { Machine, ProductionQueueItem, Employee, MoldingLogEntry } from '../types';
+import { getEmployees, getProductionQueue, saveProductionQueue, saveMachines, getMachines, getSettings, getMoldingLogs, saveMoldingLogs } from '../services/storageService';
 import { XCircleIcon } from './icons/Icons';
 
 interface EditJobModalProps {
@@ -95,6 +96,30 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({ job, machine, onClos
                     delete machineToUpdate.lastStartedAt;
                     saveMachines(machines);
                 }
+
+                // If the job is completed, log any remaining quantity automatically.
+                const remainingQty = job.quantityGoal - job.quantityProduced;
+                if (remainingQty > 0) {
+                    const settings = getSettings();
+                    const defaultStatus = settings.productionStatuses[0] || 'รอแปะกันรอย';
+                    const status = defaultStatus.startsWith('รอ') ? defaultStatus : `รอ${defaultStatus}`;
+
+                    const newLog: MoldingLogEntry = {
+                        id: crypto.randomUUID(),
+                        date: new Date().toISOString().split('T')[0],
+                        productName: job.productName,
+                        quantityProduced: remainingQty,
+                        quantityRejected: 0,
+                        machine: machine.name,
+                        operatorName: job.operatorName || 'N/A',
+                        shift: 'เช้า', // Default shift on auto-complete
+                        status: status,
+                        jobId: job.id,
+                    };
+                    const allMoldingLogs = getMoldingLogs();
+                    saveMoldingLogs([newLog, ...allMoldingLogs]);
+                }
+
                 const completedQueue = queue.filter(j => j.id !== job.id);
                 saveProductionQueue(completedQueue);
                 break;
