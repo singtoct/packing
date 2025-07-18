@@ -1,7 +1,7 @@
 
-
 import React, { useState, useMemo } from 'react';
 import { PurchaseOrder, Supplier, RawMaterial } from '../types';
+import { getRawMaterials, saveRawMaterials } from '../services/storageService';
 import { SearchableInput } from './SearchableInput';
 import { PlusCircleIcon, Trash2Icon, XCircleIcon } from './icons/Icons';
 
@@ -23,6 +23,7 @@ type POItemState = {
 };
 
 export const POFormModal: React.FC<POFormModalProps> = ({ suppliers, rawMaterials, initialItems = [], onClose, onSave }) => {
+    const [localRawMaterials, setLocalRawMaterials] = useState(rawMaterials);
     const [po, setPo] = useState<Omit<PurchaseOrder, 'id'>>({
         poNumber: `PO-${Date.now()}`,
         supplierId: suppliers[0]?.id || '',
@@ -32,7 +33,7 @@ export const POFormModal: React.FC<POFormModalProps> = ({ suppliers, rawMaterial
         items: initialItems.map(item => ({...item, unitPrice: rawMaterials.find(rm => rm.id === item.rawMaterialId)?.costPerUnit || 0 }))
     });
 
-    const rawMaterialMap = useMemo(() => new Map(rawMaterials.map(rm => [rm.id, rm])), [rawMaterials]);
+    const rawMaterialMap = useMemo(() => new Map(localRawMaterials.map(rm => [rm.id, rm])), [localRawMaterials]);
 
     const handleItemChange = (index: number, field: keyof POItemState, value: string | number) => {
         const newItems = [...po.items];
@@ -45,6 +46,38 @@ export const POFormModal: React.FC<POFormModalProps> = ({ suppliers, rawMaterial
             newItems[index] = { ...currentItem, [field]: Number(value) };
         }
         setPo(prev => ({ ...prev, items: newItems }));
+    };
+
+    const handleAddNewMaterial = (itemIndex: number) => {
+        const newName = window.prompt("กรุณาใส่ชื่อวัตถุดิบใหม่:");
+        if (!newName || !newName.trim()) {
+            return;
+        }
+
+        const newUnit = window.prompt("กรุณาใส่หน่วย (เช่น kg, Pcs., ชิ้น):", "ชิ้น");
+        if (!newUnit || !newUnit.trim()) {
+            return;
+        }
+
+        if (localRawMaterials.some(m => m.name.toLowerCase() === newName.trim().toLowerCase())) {
+            alert("วัตถุดิบชื่อนี้มีอยู่แล้วในระบบ");
+            return;
+        }
+
+        const newMaterial: RawMaterial = {
+            id: crypto.randomUUID(),
+            name: newName.trim(),
+            quantity: 0,
+            unit: newUnit.trim(),
+            costPerUnit: 0,
+        };
+
+        const allMaterials = getRawMaterials();
+        const updatedAllMaterials = [...allMaterials, newMaterial];
+        saveRawMaterials(updatedAllMaterials);
+        
+        setLocalRawMaterials(updatedAllMaterials);
+        handleItemChange(itemIndex, 'rawMaterialId', newMaterial.id);
     };
 
     const handleAddItem = () => {
@@ -79,10 +112,10 @@ export const POFormModal: React.FC<POFormModalProps> = ({ suppliers, rawMaterial
 
     const totalCost = po.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
     
-    const rawMaterialOptions = useMemo(() => rawMaterials.map(rm => ({
+    const rawMaterialOptions = useMemo(() => localRawMaterials.map(rm => ({
         id: rm.id,
         name: rm.name,
-    })), [rawMaterials]);
+    })), [localRawMaterials]);
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
@@ -114,15 +147,25 @@ export const POFormModal: React.FC<POFormModalProps> = ({ suppliers, rawMaterial
                     <div className="space-y-3 mb-4">
                         <h3 className="font-semibold">รายการสินค้า</h3>
                         {po.items.map((item, index) => (
-                            <div key={index} className="grid grid-cols-[3fr,1.5fr,0.5fr,1.5fr,auto] gap-3 items-center p-2 bg-gray-50 rounded">
-                                <SearchableInput
-                                    options={rawMaterialOptions}
-                                    value={item.rawMaterialId}
-                                    onChange={(value) => handleItemChange(index, 'rawMaterialId', value)}
-                                    displayKey="name"
-                                    valueKey="id"
-                                    placeholder="ค้นหาวัตถุดิบ..."
-                                />
+                            <div key={index} className="grid grid-cols-[4fr,1.5fr,0.5fr,1.5fr,auto] gap-3 items-center p-2 bg-gray-50 rounded">
+                                <div className="flex items-center gap-2">
+                                    <SearchableInput
+                                        options={rawMaterialOptions}
+                                        value={item.rawMaterialId}
+                                        onChange={(value) => handleItemChange(index, 'rawMaterialId', value)}
+                                        displayKey="name"
+                                        valueKey="id"
+                                        placeholder="ค้นหาวัตถุดิบ..."
+                                        className="flex-grow"
+                                    />
+                                    <button 
+                                        type="button" 
+                                        onClick={() => handleAddNewMaterial(index)} 
+                                        className="text-blue-600 text-sm font-semibold hover:underline flex-shrink-0"
+                                    >
+                                        เพิ่มใหม่
+                                    </button>
+                                </div>
                                 <input type="number" placeholder="จำนวน" step="any" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', e.target.value)} className={`${commonInputStyle} mt-0`} />
                                 <span className="text-sm text-gray-500">{rawMaterialMap.get(item.rawMaterialId)?.unit || ''}</span>
                                 <input type="number" placeholder="ราคา/หน่วย" step="any" value={item.unitPrice} onChange={e => handleItemChange(index, 'unitPrice', e.target.value)} className={`${commonInputStyle} mt-0`} />
