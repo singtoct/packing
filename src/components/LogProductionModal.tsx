@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Machine, ProductionQueueItem, MoldingLogEntry, MachineDailyLog, Product } from '../types';
 import { getSettings, saveMoldingLogs, getMoldingLogs, saveProductionQueue, getProductionQueue, saveMachineDailyLogs, getMachineDailyLogs, saveMachines, getMachines } from '../services/storageService';
-import { XCircleIcon, PlusCircleIcon } from './icons/Icons';
+import { XCircleIcon, PlusCircleIcon } from 'lucide-react';
 
 interface LogProductionModalProps {
     machine: Machine;

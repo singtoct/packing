@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { PlusCircleIcon, Trash2Icon } from './icons/Icons';
+import { PlusCircleIcon, Trash2Icon } from 'lucide-react';
 
 interface EditableListProps {
     title: string;

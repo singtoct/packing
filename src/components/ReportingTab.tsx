@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { getInventory, getPackingLogs, getEmployees, getMoldingLogs, getProducts, getBOMs, getRawMaterials } from '../services/storageService';
 import { Employee, PackingLogEntry, MoldingLogEntry, BillOfMaterial, RawMaterial } from '../types';
-import { DownloadIcon, FileTextIcon, SearchIcon, BoxIcon, FactoryIcon, BeakerIcon } from './icons/Icons';
+import { DownloadIcon, FileTextIcon, SearchIcon, BoxIcon, FactoryIcon, BeakerIcon } from 'lucide-react';
 
 const ReportCard: React.FC<{
     title: string;

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { PackingLogTab } from './PackingLogTab';
 import { MoldingTab } from './MoldingTab';
 import { FactoryFloorTab } from './FactoryFloorTab';
-import { FactoryIcon, BoxIcon, RouteIcon, LogOutIcon } from './icons/Icons';
+import { FactoryIcon, BoxIcon, RouteIcon, LogOutIcon } from 'lucide-react';
 import { getSettings, saveSettings } from '../services/storageService';
 
 interface WorkerAppProps {

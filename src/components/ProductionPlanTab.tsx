@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { getOrders, getMoldingLogs, getInventory, getProducts, getSettings } from '../services/storageService';
 import { OrderItem, MoldingLogEntry, InventoryItem, Product } from '../types';
-import { BoxIcon, FactoryIcon, AlertTriangleIcon, CheckCircle2Icon, ChevronDownIcon } from './icons/Icons';
+import { BoxIcon, FactoryIcon, AlertTriangleIcon, CheckCircle2Icon, ChevronDownIcon } from 'lucide-react';
 
 interface AggregatedProductData {
     productName: string;

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { getInventory, saveInventory } from '../services/storageService';
 import { InventoryItem } from '../types';
-import { Trash2Icon } from './icons/Icons';
+import { Trash2Icon } from 'lucide-react';
 
 export const InventoryTab: React.FC<{ setLowStockCheck: () => void; }> = ({ setLowStockCheck }) => {
     const [inventory, setInventory] = useState<InventoryItem[]>([]);

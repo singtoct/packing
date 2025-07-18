@@ -1,11 +1,8 @@
-
-
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { Product, BillOfMaterial, RawMaterial } from '../types';
 import { getProducts, saveProducts, getBOMs, getRawMaterials } from '../services/storageService';
-import { PlusCircleIcon, Trash2Icon, EditIcon, DownloadIcon, DatabaseIcon, UploadIcon, XCircleIcon } from './icons/Icons';
+import { PlusCircleIcon, Trash2Icon, EditIcon, DownloadIcon, DatabaseIcon, UploadIcon, XCircleIcon } from 'lucide-react';
 
 type SortDirection = 'asc' | 'desc';
 type ProductWithCost = Product & { cost: number, profit: number };

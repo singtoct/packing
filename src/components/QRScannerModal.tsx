@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { XCircleIcon, LoaderIcon } from './icons/Icons';
+import { XCircleIcon, LoaderIcon } from 'lucide-react';
 
 interface QRScannerModalProps {
     onScan: (data: string) => void;
@@ -87,7 +87,7 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ onScan, onClose 
                 <h2 className="text-xl font-bold mb-4 text-center">Scan QR Code</h2>
                 <div className="relative w-full aspect-square bg-gray-900 rounded-lg overflow-hidden">
                     <video ref={videoRef} className="w-full h-full object-cover" muted playsInline title="QR Code Scanner Camera View" />
-                    {isLoading && <div className="absolute inset-0 flex flex-col justify-center items-center bg-black bg-opacity-50"><LoaderIcon className="w-12 h-12 text-white" /><p className="text-white mt-2">Starting camera...</p></div>}
+                    {isLoading && <div className="absolute inset-0 flex flex-col justify-center items-center bg-black bg-opacity-50"><LoaderIcon className="w-12 h-12 text-white animate-spin" /><p className="text-white mt-2">Starting camera...</p></div>}
                     {error && <div className="absolute inset-0 flex justify-center items-center bg-black bg-opacity-50 p-4"><p className="text-white text-center">{error}</p></div>}
                     <div className="absolute inset-0 border-8 border-white border-opacity-25 rounded-lg" style={{ clipPath: 'polygon(0% 0%, 0% 25%, 25% 25%, 25% 0%, 100% 0%, 100% 25%, 75% 25%, 75% 0, 75% 0, 75% 75%, 100% 75%, 100% 100%, 75% 100%, 75% 75%, 25% 75%, 25% 100%, 0 100%)' }}></div>
                 </div>

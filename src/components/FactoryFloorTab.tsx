@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getMachines, getProductionQueue, saveMachines, getProducts, saveProductionQueue, getMachineDailyLogs, saveMachineDailyLogs } from '../services/storageService';
 import { Machine, ProductionQueueItem, Product, MachineDailyLog } from '../types';
-import { FactoryIcon, RefreshCwIcon, LoaderIcon, UserIcon, ClockIcon, PlusCircleIcon } from './icons/Icons';
+import { FactoryIcon, RefreshCwIcon, LoaderIcon, UserIcon, ClockIcon, PlusCircleIcon } from 'lucide-react';
 import { AssignJobModal } from './AssignJobModal';
 import { EditJobModal } from './EditJobModal';
 import { LogProductionModal } from './LogProductionModal';
@@ -368,7 +368,7 @@ export const FactoryFloorTab: React.FC = () => {
             
             {isLoading && machineData.length === 0 ? (
                 <div className="flex items-center justify-center h-96">
-                    <LoaderIcon className="w-12 h-12 text-blue-500" />
+                    <LoaderIcon className="w-12 h-12 text-blue-500 animate-spin" />
                 </div>
             ) : machineData.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

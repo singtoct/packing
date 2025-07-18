@@ -1,9 +1,10 @@
 
+
 import React, { useMemo, useState, useEffect } from 'react';
 import { getOrders, getBOMs, getRawMaterials, getMoldingLogs, getMachines, getMaintenanceLogs, getProducts } from '../services/storageService';
 import { analyzeProductionAnomalies } from '../services/geminiService';
 import { AnomalyFinding, OeeData } from '../types';
-import { AlertTriangleIcon, CheckCircle2Icon, SigmaIcon, SparklesIcon, LoaderIcon, ShieldAlertIcon, FactoryIcon } from './icons/Icons';
+import { AlertTriangleIcon, CheckCircle2Icon, SigmaIcon, SparklesIcon, LoaderIcon, ShieldAlertIcon, FactoryIcon } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from 'recharts';
 
 

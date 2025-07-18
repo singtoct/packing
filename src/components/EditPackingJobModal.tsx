@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { PackingStation, PackingQueueItem, Employee } from '../types';
 import { getEmployees, getPackingQueue, savePackingQueue, savePackingStations, getPackingStations } from '../services/storageService';
-import { XCircleIcon } from './icons/Icons';
+import { XCircleIcon } from 'lucide-react';
 
 interface EditPackingJobModalProps {
     job: PackingQueueItem;

@@ -1,8 +1,6 @@
-
-
 import React from 'react';
 import { OrderItem, PackingLogEntry, MoldingLogEntry, BillOfMaterial, RawMaterial } from '../types';
-import { BoxIcon, FactoryIcon, BeakerIcon, XCircleIcon } from './icons/Icons';
+import { BoxIcon, FactoryIcon, BeakerIcon, XCircleIcon } from 'lucide-react';
 
 interface TraceabilityResult {
     order: OrderItem;

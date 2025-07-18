@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { RawMaterial } from '../types';
 import { parseIntelligentRawMaterials } from '../services/geminiService';
-import { LoaderIcon, Trash2Icon, SparklesIcon, XCircleIcon } from './icons/Icons';
+import { LoaderIcon, Trash2Icon, SparklesIcon, XCircleIcon } from 'lucide-react';
 
 type StagedMaterial = Partial<RawMaterial> & { _tempId: string };
 
@@ -96,7 +96,7 @@ export const IntelligentMaterialImportModal: React.FC<Props> = ({ onClose, onSav
                             placeholder="เช่น: เม็ดพลาสติก PP 100 kg ราคา 55 บาท..."
                         />
                         <button onClick={handleParse} disabled={isLoading || !rawText.trim()} className="mt-4 inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent font-semibold rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400">
-                            {isLoading ? <LoaderIcon className="w-5 h-5"/> : <SparklesIcon className="w-5 h-5" />}
+                            {isLoading ? <LoaderIcon className="w-5 h-5 animate-spin"/> : <SparklesIcon className="w-5 h-5" />}
                             ประมวลผลข้อมูล
                         </button>
                     </div>
@@ -104,7 +104,7 @@ export const IntelligentMaterialImportModal: React.FC<Props> = ({ onClose, onSav
                     <div className="flex flex-col">
                         <h3 className="font-semibold mb-2">2. ตรวจทานและแก้ไขข้อมูล</h3>
                         <div className="flex-grow overflow-y-auto border rounded-lg bg-gray-50 p-2">
-                             {isLoading && <div className="flex items-center justify-center h-full"><LoaderIcon className="w-8 h-8"/></div>}
+                             {isLoading && <div className="flex items-center justify-center h-full"><LoaderIcon className="w-8 h-8 animate-spin"/></div>}
                              {error && <div className="text-red-600 p-4">{error}</div>}
                              {!isLoading && !error && stagedMaterials.length === 0 && <div className="text-center text-gray-500 pt-16">รอข้อมูล...</div>}
                             

@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { getPackingStations, getPackingQueue, savePackingStations, savePackingQueue } from '../services/storageService';
 import { PackingStation, PackingQueueItem } from '../types';
-import { BoxIcon, RefreshCwIcon, LoaderIcon, UserIcon, PlusCircleIcon } from './icons/Icons';
+import { BoxIcon, RefreshCwIcon, LoaderIcon, UserIcon, PlusCircleIcon } from 'lucide-react';
 import { AssignPackingJobModal } from './AssignPackingJobModal';
 import { EditPackingJobModal } from './EditPackingJobModal';
 import { LogPackingModal } from './LogPackingModal';
@@ -251,7 +250,7 @@ export const PackingFloorTab: React.FC = () => {
                 </button>
             </div>
             {isLoading && stationData.length === 0 ? (
-                <div className="flex items-center justify-center h-96"><LoaderIcon className="w-12 h-12 text-blue-500" /></div>
+                <div className="flex items-center justify-center h-96"><LoaderIcon className="w-12 h-12 text-blue-500 animate-spin" /></div>
             ) : stationData.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {stationData.map(sd => (

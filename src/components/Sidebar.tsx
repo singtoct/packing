@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo } from 'react';
 import { Tab } from '../App';
 import { 
@@ -7,7 +8,7 @@ import {
     UsersIcon, WrenchIcon, DollarSignIcon, BarChart3Icon, FileTextIcon, ChevronDownIcon,
     DatabaseIcon, SearchIcon, SettingsIcon, LayoutGridIcon, PieChartIcon, HeartHandshakeIcon, 
     MessageSquareWarningIcon, EditIcon
-} from './icons/Icons';
+} from 'lucide-react';
 
 interface MenuItemProps {
     tab: Tab;

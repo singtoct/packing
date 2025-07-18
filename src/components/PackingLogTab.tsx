@@ -1,10 +1,9 @@
 
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { PackingLogEntry, Employee, QCEntry, Product } from '../types';
 import { getPackingLogs, savePackingLogs, getOrders, getInventory, saveInventory, getEmployees, getQCEntries, saveQCEntries, getMoldingLogs, getProducts } from '../services/storageService';
-import { PlusCircleIcon, Trash2Icon, FileSpreadsheetIcon, DownloadIcon, UploadIcon, XCircleIcon } from './icons/Icons';
+import { PlusCircleIcon, Trash2Icon, FileSpreadsheetIcon, DownloadIcon, UploadIcon, XCircleIcon } from 'lucide-react';
 import { SearchableInput } from './SearchableInput';
 
 type SortDirection = 'asc' | 'desc';

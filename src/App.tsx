@@ -23,7 +23,7 @@ import { CustomersTab } from './components/CustomersTab';
 import { ComplaintsTab } from './components/ComplaintsTab';
 import { WorkerApp } from './components/WorkerApp';
 import { QuickActionModal } from './components/QuickActionModal';
-import { BellIcon, PlusIcon, ListOrderedIcon, ClipboardCheckIcon, WrenchIcon, FactoryIcon, ShieldAlertIcon } from './components/icons/Icons';
+import { BellIcon, PlusIcon, ListOrderedIcon, ClipboardCheckIcon, WrenchIcon, FactoryIcon, ShieldAlertIcon } from 'lucide-react';
 import { getSettings, getInventory, getOrders, getQCEntries, getMachines, getReadNotificationIds, saveReadNotificationIds, getMoldingLogs } from './services/storageService';
 import { InventoryItem, AppNotification, AppSettings } from './types';
 import { ProductionPlanTab } from './components/ProductionPlanTab';
@@ -33,7 +33,7 @@ export type Tab = 'dashboard' | 'factory_floor' | 'packing_floor' | 'production_
 export type QuickActionType = 'order' | 'packing' | 'molding';
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<Tab>('production_plan');
+  const [activeTab, setActiveTab] = useState<Tab>('factory_floor');
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [readNotifications, setReadNotifications] = useState<Set<string>>(new Set());
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);

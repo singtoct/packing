@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { PackingStation, Product, PackingQueueItem, Employee } from '../types';
 import { getProducts, getPackingQueue, savePackingQueue, getEmployees, savePackingStations, getPackingStations } from '../services/storageService';
 import { SearchableInput } from './SearchableInput';
-import { PlusCircleIcon, XCircleIcon } from './icons/Icons';
+import { PlusCircleIcon, XCircleIcon } from 'lucide-react';
 
 interface AssignPackingJobModalProps {
     station: PackingStation;

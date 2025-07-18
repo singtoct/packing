@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { Customer } from '../types';
 import { getCustomers, saveCustomers } from '../services/storageService';
-import { PlusCircleIcon, Trash2Icon, EditIcon } from './icons/Icons';
+import { PlusCircleIcon, Trash2Icon, EditIcon } from 'lucide-react';
 
 export const CustomersTab: React.FC = () => {
     const [customers, setCustomers] = useState<Customer[]>([]);

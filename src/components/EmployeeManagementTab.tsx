@@ -1,9 +1,7 @@
-
-
 import React, { useState, useEffect, useMemo } from 'react';
-import { Employee, PackingLogEntry } from '../types';
+import { Employee } from '../types';
 import { getEmployees, saveEmployees, getPackingLogs } from '../services/storageService';
-import { PlusCircleIcon, Trash2Icon, UsersIcon } from './icons/Icons';
+import { PlusCircleIcon, Trash2Icon, UsersIcon } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 export const EmployeeManagementTab: React.FC = () => {
@@ -50,187 +48,143 @@ export const EmployeeManagementTab: React.FC = () => {
         });
     };
 
-    const handleDeleteSelected = () => {
-        if (selectedEmployees.size === 0) return;
-         if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบพนักงาน ${selectedEmployees.size} คนที่เลือก?`)) {
-            const updatedEmployees = employees.filter(emp => !selectedEmployees.has(emp.id));
-            setEmployees(updatedEmployees);
-            saveEmployees(updatedEmployees);
-            if (selectedEmployee && selectedEmployees.has(selectedEmployee.id)) {
-                setSelectedEmployee(null);
-            }
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedEmployees(new Set(employees.map(e => e.id)));
+        } else {
             setSelectedEmployees(new Set());
         }
     };
+    
+    const handleDeleteSelected = () => {
+        if (selectedEmployees.size === 0) return;
+        if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบพนักงาน ${selectedEmployees.size} คนที่เลือก?`)) {
+            const updatedEmployees = employees.filter(emp => !selectedEmployees.has(emp.id));
+            setEmployees(updatedEmployees);
+            saveEmployees(updatedEmployees);
+            setSelectedEmployees(new Set());
+            if (selectedEmployee && selectedEmployees.has(selectedEmployee.id)) {
+                setSelectedEmployee(null);
+            }
+        }
+    };
+
+    const selectedEmployeeLogs = useMemo(() => {
+        if (!selectedEmployee) return [];
+        const packingLogs = getPackingLogs();
+        const dailyLogs = packingLogs
+            .filter(log => log.packerName === selectedEmployee.name)
+            .reduce((acc, log) => {
+                const date = log.date;
+                acc[date] = (acc[date] || 0) + log.quantity;
+                return acc;
+            }, {} as Record<string, number>);
+
+        return Object.entries(dailyLogs)
+            .sort(([dateA], [dateB]) => new Date(dateA).getTime() - new Date(dateB).getTime())
+            .slice(-30)
+            .map(([date, quantity]) => ({ date: new Date(date).toLocaleDateString('th-TH', { day: '2-digit', month: 'short' }), quantity }));
+    }, [selectedEmployee]);
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Left Column: Employee List and Add Form */}
             <div className="md:col-span-1">
                 <h2 className="text-2xl font-bold mb-6">จัดการพนักงาน</h2>
-                <form onSubmit={handleAddEmployee} className="bg-gray-50 p-4 rounded-lg border mb-6">
-                    <label htmlFor="employeeName" className="block text-sm font-medium text-gray-700">ชื่อพนักงานใหม่</label>
-                    <div className="mt-1 flex gap-2">
+                <form onSubmit={handleAddEmployee} className="bg-gray-50 p-4 rounded-lg border mb-6 space-y-3">
+                    <div>
+                        <label htmlFor="newEmployeeName" className="block text-sm font-medium text-gray-700">ชื่อพนักงานใหม่</label>
                         <input
+                            id="newEmployeeName"
                             type="text"
-                            id="employeeName"
                             value={newEmployeeName}
                             onChange={e => setNewEmployeeName(e.target.value)}
-                            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
-                            placeholder="เช่น สมใจ"
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
                             required
                         />
-                        <button type="submit" className="inline-flex items-center justify-center p-2 border border-transparent rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700">
-                            <PlusCircleIcon className="w-5 h-5" />
-                        </button>
                     </div>
+                    <button type="submit" className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700">
+                        <PlusCircleIcon className="w-5 h-5" />
+                        เพิ่มพนักงาน
+                    </button>
                 </form>
 
-                <div className="flex justify-between items-center mb-4">
+                <div className="flex justify-between items-center mb-2">
                     <h3 className="text-xl font-semibold">รายชื่อพนักงาน</h3>
-                    <button 
+                    <button
                         onClick={handleDeleteSelected}
                         disabled={selectedEmployees.size === 0}
                         className="inline-flex items-center gap-1 px-3 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 disabled:bg-gray-400"
                     >
-                        <Trash2Icon className="w-4 h-4" /> ลบที่เลือก
+                        <Trash2Icon className="w-4 h-4"/> ลบ ({selectedEmployees.size})
                     </button>
                 </div>
-                <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
-                    {employees.map(emp => (
-                        <div
-                            key={emp.id}
-                            onClick={() => setSelectedEmployee(emp)}
-                            className={`p-4 rounded-lg cursor-pointer transition-all flex justify-between items-center ${selectedEmployee?.id === emp.id ? 'bg-green-600 text-white shadow-lg' : 'bg-white hover:bg-green-50 border'}`}
-                        >
-                            <div className="flex items-center gap-3">
-                                <input
-                                    type="checkbox"
-                                    className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                                    checked={selectedEmployees.has(emp.id)}
-                                    onChange={(e) => handleSelectEmployee(emp.id, e.target.checked)}
-                                    onClick={(e) => e.stopPropagation()}
-                                />
-                                <div>
-                                    <p className="font-semibold">{emp.name}</p>
-                                    <p className={`text-xs ${selectedEmployee?.id === emp.id ? 'text-green-200' : 'text-gray-500'}`}>
-                                        เริ่มงาน: {new Date(emp.hireDate).toLocaleDateString('th-TH')}
-                                    </p>
-                                </div>
-                            </div>
-                             <button 
-                                onClick={(e) => { e.stopPropagation(); handleDeleteEmployee(emp.id); }} 
-                                className={`p-1 rounded-full ${selectedEmployee?.id === emp.id ? 'hover:bg-green-500' : 'text-gray-400 hover:bg-red-100 hover:text-red-600'}`}
-                                aria-label={`Delete ${emp.name}`}
-                            >
-                                <Trash2Icon className="w-4 h-4" />
-                            </button>
-                        </div>
-                    ))}
+
+                <div className="overflow-x-auto">
+                    <table className="min-w-full bg-white divide-y divide-gray-200 rounded-lg shadow-sm border">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="p-4">
+                                    <input
+                                        type="checkbox"
+                                        className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                        onChange={e => handleSelectAll(e.target.checked)}
+                                        checked={employees.length > 0 && selectedEmployees.size === employees.length}
+                                    />
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ชื่อ</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">วันที่เริ่มงาน</th>
+                                <th className="px-4 py-3"></th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                            {employees.map(emp => (
+                                <tr key={emp.id} onClick={() => setSelectedEmployee(emp)} className={`cursor-pointer hover:bg-green-50 ${selectedEmployee?.id === emp.id ? 'bg-green-100' : ''} ${selectedEmployees.has(emp.id) ? 'bg-green-50' : ''}`}>
+                                    <td className="p-4" onClick={e => e.stopPropagation()}>
+                                        <input
+                                            type="checkbox"
+                                            className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                            checked={selectedEmployees.has(emp.id)}
+                                            onChange={e => handleSelectEmployee(emp.id, e.target.checked)}
+                                        />
+                                    </td>
+                                    <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold">{emp.name}</td>
+                                    <td className="px-4 py-4 whitespace-nowrap text-sm">{new Date(emp.hireDate).toLocaleDateString('th-TH')}</td>
+                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-right">
+                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteEmployee(emp.id); }} className="p-1 text-red-600 hover:text-red-900" title="ลบ"><Trash2Icon className="w-4 h-4" /></button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             </div>
-
-            {/* Right Column: Employee Details */}
             <div className="md:col-span-2">
                 {selectedEmployee ? (
-                    <EmployeeDetails employee={selectedEmployee} />
+                    <div>
+                        <h3 className="text-xl font-semibold mb-4">ผลงานของ: {selectedEmployee.name}</h3>
+                        <div className="bg-white p-4 rounded-lg shadow border h-96">
+                            <h4 className="font-bold mb-4">ยอดแพ็ครายวัน (30 วันล่าสุด)</h4>
+                            {selectedEmployeeLogs.length > 0 ? (
+                                <ResponsiveContainer width="100%" height="90%">
+                                    <BarChart data={selectedEmployeeLogs} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                                        <XAxis dataKey="date" />
+                                        <YAxis />
+                                        <Tooltip />
+                                        <Bar dataKey="quantity" name="จำนวน (ชิ้น)" fill="#10b981" />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <p className="text-center text-gray-500 pt-16">ไม่พบข้อมูลการแพ็คสำหรับพนักงานคนนี้</p>
+                            )}
+                        </div>
+                    </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center h-full bg-gray-50 rounded-lg border-2 border-dashed">
                         <UsersIcon className="w-16 h-16 text-gray-400 mb-4" />
                         <h3 className="text-xl font-semibold text-gray-600">เลือกพนักงานเพื่อดูรายละเอียด</h3>
-                        <p className="text-gray-500">ข้อมูลสถิติและประวัติการแพ็คจะแสดงที่นี่</p>
+                        <p className="text-gray-500">คลิกที่ชื่อพนักงานจากรายการด้านซ้าย</p>
                     </div>
                 )}
-            </div>
-        </div>
-    );
-};
-
-// Sub-component for displaying employee details
-const EmployeeDetails: React.FC<{ employee: Employee }> = ({ employee }) => {
-    const [logs, setLogs] = useState<PackingLogEntry[]>([]);
-
-    useEffect(() => {
-        const allLogs = getPackingLogs();
-        const employeeLogs = allLogs.filter(log => log.packerName === employee.name)
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        setLogs(employeeLogs);
-    }, [employee]);
-
-    const stats = useMemo(() => {
-        const totalPacks = logs.reduce((sum, log) => sum + log.quantity, 0);
-        return { totalPacks };
-    }, [logs]);
-
-    const weeklyChartData = useMemo(() => {
-        const last7Days = new Map<string, number>();
-        for (let i = 6; i >= 0; i--) {
-            const d = new Date();
-            d.setDate(d.getDate() - i);
-            last7Days.set(d.toLocaleDateString('th-TH', { weekday: 'short' }), 0);
-        }
-        logs.forEach(log => {
-            const logDate = new Date(log.date);
-            const today = new Date();
-            const diffDays = Math.ceil((today.getTime() - logDate.getTime()) / (1000 * 3600 * 24));
-            if (diffDays <= 7) {
-                const dayName = logDate.toLocaleDateString('th-TH', { weekday: 'short' });
-                if (last7Days.has(dayName)) {
-                    last7Days.set(dayName, last7Days.get(dayName)! + log.quantity);
-                }
-            }
-        });
-        return Array.from(last7Days.entries()).map(([name, quantity]) => ({ name, quantity }));
-    }, [logs]);
-
-    return (
-        <div className="bg-white p-6 rounded-lg shadow-inner border h-full">
-            <h2 className="text-3xl font-bold mb-1 text-green-700">{employee.name}</h2>
-            <p className="text-gray-500 mb-6">เริ่มงานวันที่: {new Date(employee.hireDate).toLocaleDateString('th-TH', { dateStyle: 'long' })}</p>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                <div className="bg-green-50 p-4 rounded-lg text-center">
-                    <p className="text-sm font-medium text-green-800">ยอดแพ็ครวมทั้งหมด</p>
-                    <p className="text-4xl font-bold text-green-600">{stats.totalPacks.toLocaleString()}</p>
-                    <p className="text-sm text-green-800">ชิ้น</p>
-                </div>
-                <div className="bg-emerald-50 p-4 rounded-lg">
-                    <h4 className="text-sm font-medium text-emerald-800 text-center mb-2">ยอดแพ็ค 7 วันล่าสุด</h4>
-                    <ResponsiveContainer width="100%" height={80}>
-                        <BarChart data={weeklyChartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                             <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                             <YAxis allowDecimals={false} />
-                             <Tooltip contentStyle={{ borderRadius: '0.5rem', fontSize: '12px' }}/>
-                             <Bar dataKey="quantity" name="จำนวน" fill="#10b981" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
-            </div>
-
-            <h3 className="text-xl font-semibold mb-4">ประวัติการแพ็ค</h3>
-            <div className="overflow-auto max-h-[40vh] border rounded-lg">
-                <table className="min-w-full bg-white divide-y divide-gray-200">
-                    <thead className="bg-gray-50 sticky top-0">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">วันที่</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">สินค้า</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">จำนวน (ชิ้น)</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                        {logs.length > 0 ? (
-                            logs.map(log => (
-                                <tr key={log.id}>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm">{new Date(log.date).toLocaleDateString('th-TH')}</td>
-                                    <td className="px-6 py-4 text-sm">{log.name}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold">{log.quantity}</td>
-                                </tr>
-                            ))
-                        ) : (
-                             <tr><td colSpan={3} className="text-center text-gray-500 py-8">ไม่พบประวัติการแพ็ค</td></tr>
-                        )}
-                    </tbody>
-                </table>
             </div>
         </div>
     );

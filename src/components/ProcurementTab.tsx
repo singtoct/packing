@@ -1,11 +1,12 @@
 
 
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom/client';
 import { getSuppliers, saveSuppliers, getPurchaseOrders, savePurchaseOrders, getRawMaterials, saveRawMaterials, getAnalysisShortfall, getSettings } from '../services/storageService';
 import { Supplier, PurchaseOrder, RawMaterial } from '../types';
-import { PlusCircleIcon, Trash2Icon, ShoppingCartIcon, EditIcon, PrinterIcon } from './icons/Icons';
+import { PlusCircleIcon, Trash2Icon, ShoppingCartIcon, EditIcon, PrinterIcon } from 'lucide-react';
 import { POFormModal } from './POFormModal';
 import { POPrintView } from './POPrintView';
 

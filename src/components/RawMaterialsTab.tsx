@@ -5,7 +5,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { RawMaterial, BillOfMaterial, MoldingLogEntry, Product, PurchaseOrder, Supplier } from '../types';
 import { getRawMaterials, saveRawMaterials, getBOMs, saveBOMs, getMoldingLogs, getProducts, getPurchaseOrders, getSuppliers } from '../services/storageService';
-import { PlusCircleIcon, Trash2Icon, EditIcon, SparklesIcon, DownloadIcon, UploadIcon, XCircleIcon, SearchIcon, FileClockIcon } from './icons/Icons';
+import { PlusCircleIcon, Trash2Icon, EditIcon, SparklesIcon, DownloadIcon, UploadIcon, XCircleIcon, SearchIcon, FileClockIcon } from 'lucide-react';
 import { IntelligentMaterialImportModal } from './IntelligentMaterialImportModal';
 import { SearchableInput } from './SearchableInput';
 

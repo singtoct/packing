@@ -1,9 +1,8 @@
-
 import React, { useState, useMemo } from 'react';
 import { PurchaseOrder, Supplier, RawMaterial } from '../types';
 import { getRawMaterials, saveRawMaterials } from '../services/storageService';
 import { SearchableInput } from './SearchableInput';
-import { PlusCircleIcon, Trash2Icon, XCircleIcon } from './icons/Icons';
+import { PlusCircleIcon, Trash2Icon, XCircleIcon } from 'lucide-react';
 
 const commonInputStyle = "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm";
 const buttonPrimaryStyle = "inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400";

@@ -1,9 +1,10 @@
 
+
 import React, { useMemo, useState } from 'react';
 import { getMoldingLogs, getProducts } from '../services/storageService';
 import { MoldingLogEntry, Product } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { DollarSignIcon } from './icons/Icons';
+import { DollarSignIcon } from 'lucide-react';
 
 type ProcessedLog = MoldingLogEntry & {
     costPerPiece: number;

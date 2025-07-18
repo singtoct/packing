@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { QuickActionType } from '../App';
 import { OrderItem, PackingLogEntry, MoldingLogEntry, Employee, Product, RawMaterial, BillOfMaterial } from '../types';
 import { saveOrders, getPackingLogs, savePackingLogs, getInventory, saveInventory, saveMoldingLogs, saveRawMaterials, getEmployees, getProducts, getBOMs, getRawMaterials as getAllRawMaterials, getOrders as getAllOrders, saveQCEntries, getQCEntries } from '../services/storageService';
-import { XCircleIcon, PlusCircleIcon } from './icons/Icons';
+import { XCircleIcon, PlusCircleIcon } from 'lucide-react';
 import { SearchableInput } from './SearchableInput';
 
 interface Props {

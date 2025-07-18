@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getSettings, saveSettings } from '../services/storageService';
 import { AppSettings, AppRole } from '../types';
-import { SaveIcon, UploadIcon, UsersIcon, DownloadIcon } from './icons/Icons';
+import { SaveIcon, UploadIcon, UsersIcon, DownloadIcon } from 'lucide-react';
 import { EditableList } from './EditableList';
 
 const DATA_KEYS = [

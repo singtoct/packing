@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getMoldingLogs, getEmployees, getSettings, getPurchaseOrders, getRawMaterials } from '../services/storageService';
 import { MoldingLogEntry, Employee, PurchaseOrder, RawMaterial } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { FactoryIcon, ShoppingCartIcon, TruckIcon } from './icons/Icons';
+import { FactoryIcon, ShoppingCartIcon, TruckIcon } from 'lucide-react';
 
 type StatView = 'production' | 'shipping' | 'purchasing';
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#34d399', '#60a5fa', '#fbbf24'];

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getMachines, saveMachines, getMaintenanceLogs, saveMaintenanceLogs, getEmployees } from '../services/storageService';
 import { Machine, MaintenanceLog, Employee } from '../types';
-import { PlusCircleIcon, Trash2Icon, WrenchIcon, EditIcon } from './icons/Icons';
+import { PlusCircleIcon, Trash2Icon, WrenchIcon, EditIcon } from 'lucide-react';
 
 type SortDirection = 'asc' | 'desc';
 type MachineSortKey = keyof Machine;

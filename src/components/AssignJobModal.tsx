@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Machine, Product, ProductionQueueItem, Employee } from '../types';
 import { getProducts, getProductionQueue, saveProductionQueue, getEmployees, getMachines, saveMachines } from '../services/storageService';
 import { SearchableInput } from './SearchableInput';
-import { PlusCircleIcon, XCircleIcon } from './icons/Icons';
+import { PlusCircleIcon, XCircleIcon } from 'lucide-react';
 
 interface AssignJobModalProps {
     machine: Machine;

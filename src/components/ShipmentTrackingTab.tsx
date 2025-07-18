@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getShipments, saveShipments } from '../services/storageService';
 import { Shipment } from '../types';
-import { PlusCircleIcon, Trash2Icon, TruckIcon } from './icons/Icons';
+import { PlusCircleIcon, Trash2Icon, TruckIcon } from 'lucide-react';
 
 type SortDirection = 'asc' | 'desc';
 interface SortConfig {

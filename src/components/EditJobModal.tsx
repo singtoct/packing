@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { Machine, ProductionQueueItem, Employee, MoldingLogEntry } from '../types';
 import { getEmployees, getProductionQueue, saveProductionQueue, saveMachines, getMachines, getSettings, getMoldingLogs, saveMoldingLogs } from '../services/storageService';
-import { XCircleIcon } from './icons/Icons';
+import { XCircleIcon } from 'lucide-react';
 
 interface EditJobModalProps {
     job: ProductionQueueItem;

@@ -5,7 +5,7 @@ import { getOrders, getPackingLogs, getInventory, getQCEntries, getMoldingLogs, 
 import { generateProductionPlan, generateInventoryForecast } from '../services/geminiService';
 import { OrderItem, PackingLogEntry, InventoryItem, QCEntry, MoldingLogEntry, AIProductionPlanItem, AIInventoryForecastItem, AppSettings, Tab } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { ListOrderedIcon, AlertTriangleIcon, TrophyIcon, TrendingUpIcon, CheckCircle2Icon, ClipboardCheckIcon, FactoryIcon, RouteIcon, SettingsIcon, XCircleIcon, GripVerticalIcon, SparklesIcon, LoaderIcon, BrainCircuitIcon } from './icons/Icons';
+import { ListOrderedIcon, AlertTriangleIcon, TrophyIcon, TrendingUpIcon, CheckCircle2Icon, ClipboardCheckIcon, FactoryIcon, RouteIcon, SettingsIcon, XCircleIcon, GripVerticalIcon, SparklesIcon, LoaderIcon, BrainCircuitIcon } from 'lucide-react';
 
 interface DashboardWidget {
     id: string;

@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { getMoldingLogs, getProducts } from '../services/storageService';
 import { MoldingLogEntry, Product } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from 'recharts';
-import { DollarSignIcon, PieChartIcon } from './icons/Icons';
+import { DollarSignIcon, PieChartIcon } from 'lucide-react';
 
 interface ProfitabilityData {
     productName: string;

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { OrderItem } from '../types';
 import { parseIntelligentOrders } from '../services/geminiService';
-import { LoaderIcon, Trash2Icon, SparklesIcon, XCircleIcon } from './icons/Icons';
+import { LoaderIcon, Trash2Icon, SparklesIcon, XCircleIcon } from 'lucide-react';
 
 type StagedOrder = Partial<OrderItem> & { _tempId: string };
 
@@ -95,10 +95,10 @@ export const IntelligentOrderImportModal: React.FC<Props> = ({ onClose, onSave }
                             value={rawText}
                             onChange={e => setRawText(e.target.value)}
                             className="flex-grow p-3 border border-gray-300 rounded-md resize-none font-mono text-sm"
-                            placeholder="เช่น: ฝาหน้ากาก CT-101 สีขาว 100 ลัง ราคา 550 บาท ส่ง 25/12/2024..."
+                            placeholder="เช่น: ฝาหน้ากาก CT A-103 สีขาว 5000 ชิ้น..."
                         />
                         <button onClick={handleParse} disabled={isLoading || !rawText.trim()} className="mt-4 inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent font-semibold rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400">
-                            {isLoading ? <LoaderIcon className="w-5 h-5"/> : <SparklesIcon className="w-5 h-5" />}
+                            {isLoading ? <LoaderIcon className="w-5 h-5 animate-spin"/> : <SparklesIcon className="w-5 h-5" />}
                             ประมวลผลข้อมูล
                         </button>
                     </div>
@@ -106,21 +106,20 @@ export const IntelligentOrderImportModal: React.FC<Props> = ({ onClose, onSave }
                     <div className="flex flex-col">
                         <h3 className="font-semibold mb-2">2. ตรวจทานและแก้ไขข้อมูล</h3>
                         <div className="flex-grow overflow-y-auto border rounded-lg bg-gray-50 p-2">
-                             {isLoading && <div className="flex items-center justify-center h-full"><LoaderIcon className="w-8 h-8"/></div>}
+                             {isLoading && <div className="flex items-center justify-center h-full"><LoaderIcon className="w-8 h-8 animate-spin"/></div>}
                              {error && <div className="text-red-600 p-4">{error}</div>}
                              {!isLoading && !error && stagedOrders.length === 0 && <div className="text-center text-gray-500 pt-16">รอข้อมูล...</div>}
                             
                              {stagedOrders.length > 0 && (
                                 <div className="space-y-2">
-                                    <div className="grid grid-cols-[3fr,2fr,1fr,2fr,2fr,auto] gap-2 text-xs font-bold px-2 py-1">
-                                        <span>ชื่อสินค้า</span><span>สี</span><span>จำนวน</span><span>ราคาขาย</span><span>วันส่ง</span><span></span>
+                                    <div className="grid grid-cols-[3fr,2fr,1.5fr,1.5fr,auto] gap-2 text-xs font-bold px-2 py-1">
+                                        <span>ชื่อสินค้า</span><span>สี</span><span>จำนวน</span><span>Due Date</span><span></span>
                                     </div>
                                     {stagedOrders.map(item => (
-                                        <div key={item._tempId} className="grid grid-cols-[3fr,2fr,1fr,2fr,2fr,auto] gap-2 items-center bg-white p-2 rounded shadow-sm">
+                                        <div key={item._tempId} className="grid grid-cols-[3fr,2fr,1.5fr,1.5fr,auto] gap-2 items-center bg-white p-2 rounded shadow-sm">
                                             <input type="text" value={item.name || ''} onChange={e => handleItemChange(item._tempId, 'name', e.target.value)} className={commonInputStyle} />
                                             <input type="text" value={item.color || ''} onChange={e => handleItemChange(item._tempId, 'color', e.target.value)} className={commonInputStyle} />
-                                            <input type="number" value={item.quantity || ''} onChange={e => handleItemChange(item._tempId, 'quantity', Number(e.target.value))} className={commonInputStyle} />
-                                            <input type="number" step="any" value={item.salePrice || ''} onChange={e => handleItemChange(item._tempId, 'salePrice', Number(e.target.value))} className={commonInputStyle} />
+                                            <input type="number" value={item.quantity === undefined ? '' : item.quantity} onChange={e => handleItemChange(item._tempId, 'quantity', Number(e.target.value))} className={commonInputStyle} />
                                             <input type="date" value={item.dueDate || ''} onChange={e => handleItemChange(item._tempId, 'dueDate', e.target.value)} className={commonInputStyle} />
                                             <button onClick={() => handleRemoveItem(item._tempId)} className="p-1 text-red-500 hover:text-red-700"><Trash2Icon className="w-4 h-4" /></button>
                                         </div>
@@ -129,7 +128,7 @@ export const IntelligentOrderImportModal: React.FC<Props> = ({ onClose, onSave }
                              )}
                         </div>
                          <button onClick={handleConfirm} disabled={stagedOrders.length === 0} className="mt-4 inline-flex items-center justify-center gap-2 px-4 py-2 border border-transparent font-semibold rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400">
-                            ยืนยันและเพิ่ม {stagedOrders.length} รายการ
+                            ยืนยันและเพิ่ม {stagedOrders.length} ออเดอร์
                         </button>
                     </div>
                 </div>

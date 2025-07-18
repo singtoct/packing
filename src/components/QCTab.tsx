@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getQCEntries, saveQCEntries, getEmployees, getSettings } from '../services/storageService';
 import { QCEntry, Employee } from '../types';
-import { CheckCircle2Icon, XCircleIcon, AlertTriangleIcon, CameraIcon, SearchIcon } from './icons/Icons';
+import { CheckCircle2Icon, XCircleIcon, AlertTriangleIcon, CameraIcon, SearchIcon } from 'lucide-react';
 
 const QCInspectionModal: React.FC<{
     entry: QCEntry;

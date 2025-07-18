@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
 import { PackingStation, PackingQueueItem, PackingLogEntry, QCEntry, InventoryItem } from '../types';
 import { getPackingLogs, savePackingLogs, getPackingQueue, savePackingQueue, getPackingStations, savePackingStations, getInventory, saveInventory, getQCEntries, saveQCEntries } from '../services/storageService';
-import { XCircleIcon, PlusCircleIcon } from './icons/Icons';
+import { XCircleIcon, PlusCircleIcon } from 'lucide-react';
 
 interface LogPackingModalProps {
     station: PackingStation;

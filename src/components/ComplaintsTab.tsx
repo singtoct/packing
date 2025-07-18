@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Complaint, Customer, OrderItem, PackingLogEntry, MoldingLogEntry, BillOfMaterial, RawMaterial } from '../types';
 import { getComplaints, saveComplaints, getCustomers, getOrders, getPackingLogs, getMoldingLogs, getBOMs, getRawMaterials } from '../services/storageService';
-import { PlusCircleIcon, Trash2Icon, EditIcon, SearchIcon, MessageSquareWarningIcon } from './icons/Icons';
+import { PlusCircleIcon, Trash2Icon, EditIcon, SearchIcon, MessageSquareWarningIcon } from 'lucide-react';
 import { SearchableInput } from './SearchableInput';
 import { TraceabilityModal } from './TraceabilityModal';
 

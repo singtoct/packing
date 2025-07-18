@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { MoldingLogEntry, Employee, RawMaterial, BillOfMaterial, Product } from '../types';
 import { getMoldingLogs, saveMoldingLogs, getEmployees, getRawMaterials, saveRawMaterials, getBOMs, getProducts, getSettings } from '../services/storageService';
-import { PlusCircleIcon, Trash2Icon, AlertTriangleIcon, DownloadIcon, UploadIcon, XCircleIcon, QrCodeIcon } from './icons/Icons';
+import { PlusCircleIcon, Trash2Icon, AlertTriangleIcon, DownloadIcon, UploadIcon, XCircleIcon, QrCodeIcon } from 'lucide-react';
 import { SearchableInput } from './SearchableInput';
 
 interface StagedLog {
