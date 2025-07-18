@@ -1,8 +1,8 @@
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { getPackingStations, getPackingQueue, savePackingStations, savePackingQueue, getProducts, getEmployees } from '../services/storageService';
-import { PackingStation, PackingQueueItem, Product, Employee } from '../types';
-import { BoxIcon, RefreshCwIcon, LoaderIcon, UserIcon, ClockIcon, PlusCircleIcon } from './icons/Icons';
+import React, { useState, useEffect, useCallback } from 'react';
+import { getPackingStations, getPackingQueue, savePackingStations, savePackingQueue } from '../services/storageService';
+import { PackingStation, PackingQueueItem } from '../types';
+import { BoxIcon, RefreshCwIcon, LoaderIcon, UserIcon, PlusCircleIcon } from './icons/Icons';
 import { AssignPackingJobModal } from './AssignPackingJobModal';
 import { EditPackingJobModal } from './EditPackingJobModal';
 import { LogPackingModal } from './LogPackingModal';

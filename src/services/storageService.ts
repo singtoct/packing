@@ -440,10 +440,11 @@ const DEFAULT_SETTINGS: AppSettings = {
         'อื่นๆ',
     ],
     productionStatuses: [
-        'รอแปะกันรอย',
         'รอประกบ',
-        'ห้องประกอบ',
         'ห้องแพ็ค',
+        'รอแพค',
+        'รอส่ง',
+        'รอนับ'
     ],
     roles: DEFAULT_ROLES,
     dashboardLayouts: DEFAULT_DASHBOARD_LAYOUTS,
