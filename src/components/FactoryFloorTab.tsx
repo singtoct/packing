@@ -11,6 +11,29 @@ interface MachineData {
     currentJob: (ProductionQueueItem & { progressPercent: number; operator: string; accumulatedRunTimeSeconds: number }) | null;
 }
 
+const getStatusColor = (status: Machine['status']): string => {
+    switch (status) {
+        case 'Running': return '#22c55e'; // green-500
+        case 'Down': return '#ef4444'; // red-500
+        case 'Maintenance': return '#f59e0b'; // amber-500
+        case 'Idle': return '#6b7280'; // gray-500
+        case 'Mold Change': return '#8b5cf6'; // purple-500
+        default: return '#6b7280';
+    }
+};
+
+const statusConfig: Record<Machine['status'], string> = {
+    Running: 'ทำงาน', Down: 'เสีย', Maintenance: 'กำลังซ่อม', Idle: 'ว่าง', 'Mold Change': 'รอเปลี่ยนโมล'
+};
+
+const STATUS_OPTIONS: { value: Machine['status']; label: string }[] = [
+    { value: 'Running', label: 'ทำงาน' },
+    { value: 'Idle', label: 'ว่าง' },
+    { value: 'Down', label: 'เสีย' },
+    { value: 'Maintenance', label: 'กำลังซ่อม' },
+    { value: 'Mold Change', label: 'รอเปลี่ยนโมล' },
+];
+
 const formatDuration = (seconds: number) => {
     if (seconds < 0 || isNaN(seconds) || !isFinite(seconds)) seconds = 0;
     const h = Math.floor(seconds / 3600);
@@ -25,41 +48,46 @@ const formatDuration = (seconds: number) => {
     return parts.join(' ') || '0s';
 };
 
+const StatusControl: React.FC<{
+    machine: Machine;
+    onStatusChange: (machineId: string, newStatus: Machine['status']) => void;
+}> = ({ machine, onStatusChange }) => {
+    const { status } = machine;
+
+    const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        e.stopPropagation();
+        onStatusChange(machine.id, e.target.value as Machine['status']);
+    };
+
+    const bgColor = getStatusColor(status);
+
+    return (
+        <div className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full flex-shrink-0" style={{backgroundColor: bgColor, animation: status === 'Running' ? 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' : 'none'}}></span>
+            <select
+                value={status}
+                onChange={handleChange}
+                onClick={(e) => e.stopPropagation()}
+                className="font-semibold text-sm bg-transparent border-0 focus:ring-0 focus:outline-none p-1 -m-1 rounded cursor-pointer"
+            >
+                {STATUS_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+            </select>
+        </div>
+    );
+};
+
+
 const MachineCard: React.FC<{
     machineData: MachineData;
     products: Product[];
     onCardClick: (machine: Machine) => void;
     onLogProduction: (machine: Machine, job: ProductionQueueItem) => void;
-}> = ({ machineData, products, onCardClick, onLogProduction }) => {
+    onStatusChange: (machineId: string, newStatus: Machine['status']) => void;
+}> = ({ machineData, products, onCardClick, onLogProduction, onStatusChange }) => {
     const { machine, currentJob } = machineData;
-
-    const getStatusColor = (status: Machine['status']): string => {
-        switch (status) {
-            case 'Running': return '#22c55e'; // green-500
-            case 'Down': return '#ef4444'; // red-500
-            case 'Maintenance': return '#f59e0b'; // amber-500
-            case 'Idle': return '#6b7280'; // gray-500
-            case 'Mold Change': return '#8b5cf6'; // purple-500
-            default: return '#6b7280';
-        }
-    };
     
-    const statusConfig: Record<Machine['status'], string> = {
-        Running: 'ทำงาน', Down: 'เสีย', Maintenance: 'กำลังซ่อม', Idle: 'ว่าง', 'Mold Change': 'รอเปลี่ยนโมล'
-    };
-
-    const StatusIndicator: React.FC<{ status: Machine['status'] }> = ({ status }) => {
-        const label = statusConfig[status] || 'ไม่ทราบ';
-        const bgColor = getStatusColor(status);
-        
-        return (
-            <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full" style={{backgroundColor: bgColor, animation: status === 'Running' ? 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' : 'none'}}></span>
-                <span className="font-semibold text-sm">{label}</span>
-            </div>
-        );
-    };
-
     const product = currentJob ? products.find(p => p.id === currentJob.productId) : null;
     const cycleTime = product?.cycleTimeSeconds || 0;
     
@@ -74,7 +102,7 @@ const MachineCard: React.FC<{
             <div className="p-4 space-y-3">
                 <div className="flex justify-between items-start">
                     <h3 className="text-xl font-bold text-gray-800">{machine.name}</h3>
-                    <StatusIndicator status={machine.status} />
+                    <StatusControl machine={machine} onStatusChange={onStatusChange} />
                 </div>
                 
                 {currentJob ? (
@@ -228,6 +256,48 @@ export const FactoryFloorTab: React.FC = () => {
         setIsLoading(false);
     }, []);
 
+    const handleStatusChange = useCallback((machineId: string, newStatus: Machine['status']) => {
+        const allMachines = getMachines();
+        const allQueue = getProductionQueue();
+        const machineIndex = allMachines.findIndex(m => m.id === machineId);
+        if (machineIndex === -1) return;
+
+        const machine = allMachines[machineIndex];
+        
+        if (machine.status === newStatus) return;
+
+        if (newStatus === 'Running') {
+            const queuedJobs = allQueue
+                .filter(j => j.machineId === machineId && j.status === 'Queued')
+                .sort((a, b) => a.priority - b.priority);
+            
+            if (queuedJobs.length > 0) {
+                const jobToStart = queuedJobs[0];
+                const jobIndexInQueue = allQueue.findIndex(j => j.id === jobToStart.id);
+                if (jobIndexInQueue !== -1) {
+                    allQueue[jobIndexInQueue].status = 'In Progress';
+                }
+                machine.status = 'Running';
+                machine.lastStartedAt = new Date().toISOString();
+            } else {
+                alert(`ไม่สามารถเปลี่ยนสถานะเป็น "ทำงาน" ได้เนื่องจากไม่มีงานในคิวสำหรับเครื่อง ${machine.name}`);
+                return;
+            }
+        } else {
+            machine.status = newStatus;
+            delete machine.lastStartedAt;
+
+            const runningJobIndex = allQueue.findIndex(j => j.machineId === machineId && j.status === 'In Progress');
+            if (runningJobIndex !== -1) {
+                allQueue[runningJobIndex].status = 'Queued';
+            }
+        }
+        
+        saveMachines(allMachines);
+        saveProductionQueue(allQueue);
+        fetchData();
+    }, [fetchData]);
+
     useEffect(() => {
         fetchData();
         const handleStorageChange = () => fetchData();
@@ -309,6 +379,7 @@ export const FactoryFloorTab: React.FC = () => {
                             products={products}
                             onCardClick={handleCardClick}
                             onLogProduction={handleLogProduction}
+                            onStatusChange={handleStatusChange}
                         />
                     ))}
                 </div>
