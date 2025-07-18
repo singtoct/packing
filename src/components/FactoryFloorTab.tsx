@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getMachines, getProductionQueue, saveMachines, getProducts, saveProductionQueue, getMachineDailyLogs, saveMachineDailyLogs } from '../services/storageService';
 import { Machine, ProductionQueueItem, Product, MachineDailyLog } from '../types';
-import { FactoryIcon, RefreshCwIcon, LoaderIcon, UserIcon, ClockIcon, CalendarIcon, PlusCircleIcon } from './icons/Icons';
+import { FactoryIcon, RefreshCwIcon, LoaderIcon, UserIcon, ClockIcon, PlusCircleIcon } from './icons/Icons';
 import { AssignJobModal } from './AssignJobModal';
 import { EditJobModal } from './EditJobModal';
 import { LogProductionModal } from './LogProductionModal';
 
 interface MachineData {
     machine: Machine;
-    currentJob: (ProductionQueueItem & { progressPercent: number, operator: string, accumulatedRunTimeSeconds: number }) | null;
+    currentJob: (ProductionQueueItem & { progressPercent: number; operator: string; accumulatedRunTimeSeconds: number }) | null;
 }
 
 const formatDuration = (seconds: number) => {
-    if (seconds < 0 || isNaN(seconds)) seconds = 0;
+    if (seconds < 0 || isNaN(seconds) || !isFinite(seconds)) seconds = 0;
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     const s = Math.floor(seconds % 60);
@@ -43,17 +43,19 @@ const MachineCard: React.FC<{
             default: return '#6b7280';
         }
     };
+    
+    const statusConfig: Record<Machine['status'], string> = {
+        Running: 'ทำงาน', Down: 'เสีย', Maintenance: 'กำลังซ่อม', Idle: 'ว่าง', 'Mold Change': 'รอเปลี่ยนโมล'
+    };
 
     const StatusIndicator: React.FC<{ status: Machine['status'] }> = ({ status }) => {
-        const statusConfig = {
-            Running: 'ทำงาน', Down: 'เสีย', Maintenance: 'กำลังซ่อม', Idle: 'ว่าง', 'Mold Change': 'รอเปลี่ยนโมล'
-        };
+        const label = statusConfig[status] || 'ไม่ทราบ';
         const bgColor = getStatusColor(status);
         
         return (
             <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-full" style={{backgroundColor: bgColor, animation: status === 'Running' ? 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' : 'none'}}></span>
-                <span className="font-semibold text-sm">{statusConfig[status] || 'ไม่ทราบ'}</span>
+                <span className="font-semibold text-sm">{label}</span>
             </div>
         );
     };
@@ -62,7 +64,7 @@ const MachineCard: React.FC<{
     const cycleTime = product?.cycleTimeSeconds || 0;
     
     const remainingTimeSeconds = useMemo(() => {
-        if (!currentJob || cycleTime <= 0) return null;
+        if (!currentJob || cycleTime <= 0 || currentJob.status !== 'In Progress') return null;
         const remainingQty = currentJob.quantityGoal - currentJob.quantityProduced;
         return remainingQty > 0 ? remainingQty * cycleTime : 0;
     }, [currentJob, cycleTime]);
@@ -124,8 +126,17 @@ const MachineCard: React.FC<{
                     </div>
                 ) : (
                     <div onClick={() => onCardClick(machine)} className="text-center py-8 text-gray-400 border-t border-gray-100 mt-3 pt-3 cursor-pointer">
-                        <p className="font-semibold">เครื่องว่าง</p>
-                        <p className="text-sm">คลิกเพื่อมอบหมายงาน</p>
+                        {machine.status === 'Idle' ? (
+                             <>
+                                <p className="font-semibold">เครื่องว่าง</p>
+                                <p className="text-sm">คลิกเพื่อมอบหมายงาน</p>
+                            </>
+                        ) : (
+                             <>
+                                <p className="font-bold text-lg">{statusConfig[machine.status]}</p>
+                                <p className="text-sm">คลิกเพื่อจัดการ</p>
+                            </>
+                        )}
                     </div>
                 )}
             </div>
@@ -153,13 +164,39 @@ export const FactoryFloorTab: React.FC = () => {
         const allProducts = getProducts();
         const allDailyLogs = getMachineDailyLogs();
 
+        // --- Data Synchronization Logic ---
+        let machinesChanged = false;
+        const inProgressJobsByMachine = new Map<string, ProductionQueueItem>();
+        allQueue.forEach(job => {
+            if (job.status === 'In Progress') {
+                inProgressJobsByMachine.set(job.machineId, job);
+            }
+        });
+
+        const synchronizedMachines = allMachines.map(machine => {
+            const hasInProgressJob = inProgressJobsByMachine.has(machine.id);
+            if (machine.status === 'Running' && !hasInProgressJob) {
+                machinesChanged = true;
+                return { ...machine, status: 'Idle' as Machine['status'], lastStartedAt: undefined };
+            }
+            if (machine.status !== 'Running' && hasInProgressJob) {
+                machinesChanged = true;
+                return { ...machine, status: 'Running' as Machine['status'], lastStartedAt: new Date().toISOString() };
+            }
+            return machine;
+        });
+
+        if (machinesChanged) {
+            saveMachines(synchronizedMachines);
+        }
+        // --- End of Synchronization ---
+
         setProducts(allProducts);
 
-        const data: MachineData[] = allMachines.map(machine => {
+        const data: MachineData[] = synchronizedMachines.map(machine => {
             const machineJobs = allQueue.filter(j => j.machineId === machine.id);
             let jobToShow = machineJobs.find(j => j.status === 'In Progress') || null;
     
-        
             if (!jobToShow) {
                 const queuedJobs = machineJobs
                     .filter(j => j.status === 'Queued')
