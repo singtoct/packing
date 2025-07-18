@@ -7,7 +7,8 @@ import {
     LayoutDashboardIcon, ListOrderedIcon, TruckIcon, SigmaIcon, ShoppingCartIcon, 
     FactoryIcon, RouteIcon, BoxIcon, ClipboardCheckIcon, ArchiveIcon, BeakerIcon, 
     UsersIcon, WrenchIcon, DollarSignIcon, BarChart3Icon, FileTextIcon, ChevronDownIcon,
-    DatabaseIcon, SearchIcon, SettingsIcon, LayoutGridIcon, PieChartIcon, HeartHandshakeIcon, MessageSquareWarningIcon
+    DatabaseIcon, SearchIcon, SettingsIcon, LayoutGridIcon, PieChartIcon, HeartHandshakeIcon, 
+    MessageSquareWarningIcon, EditIcon
 } from './icons/Icons';
 
 interface MenuItemProps {
@@ -76,15 +77,30 @@ const menuConfig = [
         title: 'สถานะเครื่องฉีด', 
         icon: <LayoutGridIcon className="w-5 h-5"/> 
     },
+    { 
+        isCategory: false, 
+        tab: 'production_plan' as Tab, 
+        title: 'แผนการผลิต', 
+        icon: <ClipboardCheckIcon className="w-5 h-5"/> 
+    },
     {
         isCategory: true,
-        title: 'การผลิต',
-        icon: <FactoryIcon className="w-5 h-5"/>,
+        title: 'บันทึกข้อมูล',
+        icon: <EditIcon className="w-5 h-5"/>,
         children: [
-            { tab: 'molding', title: 'บันทึกการผลิต', icon: <FactoryIcon className="w-5 h-5"/> },
-            { tab: 'production_status', title: 'ติดตามสถานะ', icon: <RouteIcon className="w-5 h-5"/> },
+            { tab: 'molding', title: 'บันทึกการผลิต (ฉีด)', icon: <FactoryIcon className="w-5 h-5"/> },
             { tab: 'logs', title: 'บันทึกการแพ็ค', icon: <BoxIcon className="w-5 h-5"/> },
-            { tab: 'qc', title: 'ควบคุมคุณภาพ', icon: <ClipboardCheckIcon className="w-5 h-5"/> },
+            { tab: 'qc', title: 'ควบคุมคุณภาพ (QC)', icon: <ClipboardCheckIcon className="w-5 h-5"/> },
+        ],
+    },
+    {
+        isCategory: true,
+        title: 'คลังสินค้า',
+        icon: <ArchiveIcon className="w-5 h-5"/>,
+        children: [
+            { tab: 'inventory', title: 'สต็อกสินค้าสำเร็จรูป', icon: <ArchiveIcon className="w-5 h-5"/> },
+            { tab: 'raw_materials', title: 'วัตถุดิบ/BOM', icon: <BeakerIcon className="w-5 h-5"/> },
+            { tab: 'products', title: 'จัดการสินค้า', icon: <DatabaseIcon className="w-5 h-5"/> },
         ],
     },
     {
@@ -92,28 +108,10 @@ const menuConfig = [
         title: 'การขายและลูกค้า',
         icon: <TruckIcon className="w-5 h-5"/>,
         children: [
-            { tab: 'orders', title: 'จัดการออเดอร์', icon: <ListOrderedIcon className="w-5 h-5"/> },
+            { tab: 'customers', title: 'จัดการลูกค้า', icon: <UsersIcon className="w-5 h-5" /> },
             { tab: 'shipments', title: 'ติดตามการจัดส่ง', icon: <TruckIcon className="w-5 h-5"/> },
-        ],
-    },
-    {
-        isCategory: true,
-        title: 'ลูกค้าสัมพันธ์',
-        icon: <HeartHandshakeIcon className="w-5 h-5"/>,
-        children: [
-             { tab: 'customers', title: 'จัดการลูกค้า', icon: <UsersIcon className="w-5 h-5" /> },
-             { tab: 'complaints', title: 'บันทึกข้อร้องเรียน', icon: <MessageSquareWarningIcon className="w-5 h-5" /> },
+            { tab: 'complaints', title: 'ข้อร้องเรียน', icon: <MessageSquareWarningIcon className="w-5 h-5" /> },
         ]
-    },
-    {
-        isCategory: true,
-        title: 'คลังสินค้าและวัตถุดิบ',
-        icon: <ArchiveIcon className="w-5 h-5"/>,
-        children: [
-            { tab: 'products', title: 'จัดการสินค้า', icon: <DatabaseIcon className="w-5 h-5"/> },
-            { tab: 'inventory', title: 'สต็อกสินค้าสำเร็จรูป', icon: <ArchiveIcon className="w-5 h-5"/> },
-            { tab: 'raw_materials', title: 'วัตถุดิบ/BOM', icon: <BeakerIcon className="w-5 h-5"/> },
-        ],
     },
     {
         isCategory: true,
@@ -127,7 +125,7 @@ const menuConfig = [
     {
         isCategory: true,
         title: 'การจัดการ',
-        icon: <UsersIcon className="w-5 h-5"/>,
+        icon: <SettingsIcon className="w-5 h-5"/>,
         children: [
             { tab: 'employees', title: 'จัดการพนักงาน', icon: <UsersIcon className="w-5 h-5"/> },
             { tab: 'maintenance', title: 'ซ่อมบำรุงเครื่องจักร', icon: <WrenchIcon className="w-5 h-5"/> },
@@ -148,7 +146,7 @@ const menuConfig = [
 ];
 
 export const Sidebar: React.FC<{ activeTab: Tab, setActiveTab: (tab: Tab) => void, logoUrl?: string }> = ({ activeTab, setActiveTab, logoUrl }) => {
-    const [openMenus, setOpenMenus] = useState<Set<string>>(new Set(['การผลิต', 'การขายและลูกค้า', 'คลังสินค้าและวัตถุดิบ', 'วิเคราะห์และรายงาน']));
+    const [openMenus, setOpenMenus] = useState<Set<string>>(new Set(['บันทึกข้อมูล', 'คลังสินค้า', 'การขายและลูกค้า']));
     const [searchTerm, setSearchTerm] = useState('');
 
     const toggleMenu = (title: string) => {

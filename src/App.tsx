@@ -1,8 +1,9 @@
 
 
+
+
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
-import { OrderManagementTab } from './components/OrderManagementTab';
 import { PackingLogTab } from './components/PackingLogTab';
 import { StatisticsTab } from './components/StatisticsTab';
 import { InventoryTab } from './components/InventoryTab';
@@ -11,7 +12,6 @@ import { EmployeeManagementTab } from './components/EmployeeManagementTab';
 import { ReportingTab } from './components/ReportingTab';
 import { QCTab } from './components/QCTab';
 import { MoldingTab } from './components/MoldingTab';
-import { ProductionStatusTab } from './components/ProductionStatusTab';
 import { RawMaterialsTab } from './components/RawMaterialsTab';
 import { AnalysisTab } from './components/AnalysisTab';
 import { MaintenanceTab } from './components/MaintenanceTab';
@@ -29,12 +29,13 @@ import { QuickActionModal } from './components/QuickActionModal';
 import { BellIcon, PlusIcon, ListOrderedIcon, ClipboardCheckIcon, WrenchIcon, FactoryIcon, ShieldAlertIcon } from './components/icons/Icons';
 import { getSettings, getInventory, getOrders, getQCEntries, getMachines, getReadNotificationIds, saveReadNotificationIds, getMoldingLogs } from './services/storageService';
 import { InventoryItem, AppNotification, AppSettings } from './types';
+import { ProductionPlanTab } from './components/ProductionPlanTab';
 
-export type Tab = 'dashboard' | 'factory_floor' | 'orders' | 'analysis' | 'procurement' | 'molding' | 'production_status' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'profit_analysis' | 'stats' | 'reports' | 'products' | 'settings' | 'customers' | 'complaints';
+export type Tab = 'dashboard' | 'factory_floor' | 'production_plan' | 'analysis' | 'procurement' | 'molding' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'profit_analysis' | 'stats' | 'reports' | 'products' | 'settings' | 'customers' | 'complaints';
 export type QuickActionType = 'order' | 'packing' | 'molding';
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<Tab>('factory_floor');
+  const [activeTab, setActiveTab] = useState<Tab>('production_plan');
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [readNotifications, setReadNotifications] = useState<Set<string>>(new Set());
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
@@ -96,7 +97,7 @@ const App: React.FC = () => {
                 id: `order-${order.id}`,
                 type: 'orderDue',
                 message: `ออเดอร์ ${order.name} (${order.color}) ใกล้ถึงกำหนดส่ง`,
-                actionTab: 'orders',
+                actionTab: 'production_plan',
                 entityId: order.id,
                 date: today.toISOString()
             });
@@ -218,16 +219,14 @@ const App: React.FC = () => {
         return <DashboardTab setActiveTab={setActiveTab} />;
       case 'factory_floor':
         return <FactoryFloorTab />;
-      case 'orders':
-        return <OrderManagementTab />;
+      case 'production_plan':
+        return <ProductionPlanTab />;
       case 'analysis':
         return <AnalysisTab />;
        case 'procurement':
         return <ProcurementTab />;
       case 'molding':
         return <MoldingTab />;
-      case 'production_status':
-        return <ProductionStatusTab />;
       case 'logs':
         return <PackingLogTab setLowStockCheck={generateNotifications} />;
       case 'qc':

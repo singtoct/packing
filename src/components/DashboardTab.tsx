@@ -1,12 +1,11 @@
 
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { getOrders, getPackingLogs, getInventory, getQCEntries, getMoldingLogs, getBOMs, getRawMaterials, getMachines, getSettings, saveSettings } from '../services/storageService';
 import { generateProductionPlan, generateInventoryForecast } from '../services/geminiService';
-import { OrderItem, PackingLogEntry, InventoryItem, QCEntry, MoldingLogEntry, AIProductionPlanItem, AIInventoryForecastItem, AppSettings } from '../types';
+import { OrderItem, PackingLogEntry, InventoryItem, QCEntry, MoldingLogEntry, AIProductionPlanItem, AIInventoryForecastItem, AppSettings, Tab } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { ListOrderedIcon, AlertTriangleIcon, TrophyIcon, TrendingUpIcon, CheckCircle2Icon, ClipboardCheckIcon, FactoryIcon, RouteIcon, SettingsIcon, XCircleIcon, GripVerticalIcon, SparklesIcon, LoaderIcon, BrainCircuitIcon } from './icons/Icons';
-
-type Tab = 'dashboard' | 'orders' | 'logs' | 'inventory' | 'stats' | 'qc' | 'molding' | 'production_status' | 'employees' | 'reports' | 'procurement' | 'analysis' | 'raw_materials';
 
 interface DashboardWidget {
     id: string;
@@ -175,7 +174,7 @@ const UpcomingOrdersCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ se
         setOrders([...getOrders()].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()).slice(0, 5));
     }, []);
     return (
-        <StatCard title="ออเดอร์ใกล้ถึงกำหนดส่ง" icon={<ListOrderedIcon className="w-6 h-6 text-green-500" />} onClick={() => setActiveTab('orders')}>
+        <StatCard title="ออเดอร์ใกล้ถึงกำหนดส่ง" icon={<ListOrderedIcon className="w-6 h-6 text-green-500" />} onClick={() => setActiveTab('production_plan')}>
             {orders.length > 0 ? (
                 <ul className="space-y-3">
                     {orders.map(order => (

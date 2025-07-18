@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { PackingLogTab } from './PackingLogTab';
 import { MoldingTab } from './MoldingTab';
-import { ProductionStatusTab } from './ProductionStatusTab';
+import { FactoryFloorTab } from './FactoryFloorTab';
 import { FactoryIcon, BoxIcon, RouteIcon, LogOutIcon } from './icons/Icons';
 import { getSettings, saveSettings } from '../services/storageService';
 
@@ -62,7 +62,7 @@ export const WorkerApp: React.FC<WorkerAppProps> = ({ onDataUpdate }) => {
             case 'packing':
                 return <PackingLogTab setLowStockCheck={onDataUpdate} />;
             case 'status':
-                return <ProductionStatusTab />;
+                return <FactoryFloorTab />;
             default:
                 return null;
         }
