@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo } from 'react';
 import { Tab } from '../App';
 import { 
@@ -10,15 +8,20 @@ import {
     MessageSquareWarningIcon, EditIcon, ClipboardListIcon
 } from 'lucide-react';
 
+// Define a type for the Lucide icons to ensure type safety
+type IconComponent = React.ComponentType<{ className: string }>;
+
+// --- Sub-components expecting icon component references ---
+
 interface MenuItemProps {
     tab: Tab;
     title: string;
-    icon: React.ReactNode;
+    icon: IconComponent; // Icon is now a component reference
     activeTab: Tab;
     setActiveTab: (tab: Tab) => void;
 }
 
-const MenuItem: React.FC<MenuItemProps> = ({ tab, title, icon, activeTab, setActiveTab }) => (
+const MenuItem: React.FC<MenuItemProps> = ({ tab, title, icon: Icon, activeTab, setActiveTab }) => (
     <a
         href="#"
         onClick={(e) => {
@@ -31,7 +34,7 @@ const MenuItem: React.FC<MenuItemProps> = ({ tab, title, icon, activeTab, setAct
                 : 'text-gray-300 hover:bg-gray-700 hover:text-white'
         }`}
     >
-        {icon}
+        <Icon className="w-5 h-5" /> {/* Create the element here */}
         <span>{title}</span>
     </a>
 );
@@ -39,20 +42,20 @@ const MenuItem: React.FC<MenuItemProps> = ({ tab, title, icon, activeTab, setAct
 
 interface MenuCategoryProps {
     title: string;
-    icon: React.ReactNode;
+    icon: IconComponent; // Icon is now a component reference
     children: React.ReactNode;
     isOpen: boolean;
     toggle: () => void;
 }
 
-const MenuCategory: React.FC<MenuCategoryProps> = ({ title, icon, children, isOpen, toggle }) => (
+const MenuCategory: React.FC<MenuCategoryProps> = ({ title, icon: Icon, children, isOpen, toggle }) => (
     <div>
         <button 
             onClick={toggle}
             className="w-full flex items-center justify-between p-2.5 rounded-md text-sm font-semibold text-gray-200 hover:bg-gray-700 transition-colors"
         >
             <div className="flex items-center gap-3">
-                {icon}
+                <Icon className="w-5 h-5" /> {/* Create the element here */}
                 <span>{title}</span>
             </div>
             <ChevronDownIcon className={`w-5 h-5 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -63,99 +66,76 @@ const MenuCategory: React.FC<MenuCategoryProps> = ({ title, icon, children, isOp
     </div>
 );
 
+// --- Menu Configuration with Component References ---
 const menuConfig = [
-    { 
-        isCategory: false, 
-        tab: 'dashboard' as Tab, 
-        title: 'ภาพรวมระบบ', 
-        icon: <LayoutDashboardIcon className="w-5 h-5"/> 
-    },
-    { 
-        isCategory: false, 
-        tab: 'factory_floor' as Tab, 
-        title: 'สถานะเครื่องฉีด', 
-        icon: <LayoutGridIcon className="w-5 h-5"/> 
-    },
-    { 
-        isCategory: false, 
-        tab: 'packing_floor' as Tab, 
-        title: 'สถานะเครื่องแพ็ค', 
-        icon: <BoxIcon className="w-5 h-5"/> 
-    },
-    { 
-        isCategory: false, 
-        tab: 'production_plan' as Tab, 
-        title: 'แผนการผลิต', 
-        icon: <ClipboardCheckIcon className="w-5 h-5"/> 
-    },
-    { 
-        isCategory: false, 
-        tab: 'production_kanban' as Tab, 
-        title: 'สายการผลิต (Kanban)', 
-        icon: <ClipboardListIcon className="w-5 h-5"/> 
-    },
+    { isCategory: false, tab: 'dashboard' as Tab, title: 'ภาพรวมระบบ', icon: LayoutDashboardIcon },
+    { isCategory: false, tab: 'factory_floor' as Tab, title: 'สถานะเครื่องฉีด', icon: LayoutGridIcon },
+    { isCategory: false, tab: 'packing_floor' as Tab, title: 'สถานะเครื่องแพ็ค', icon: BoxIcon },
+    { isCategory: false, tab: 'production_plan' as Tab, title: 'แผนการผลิต', icon: ClipboardCheckIcon },
+    { isCategory: false, tab: 'production_kanban' as Tab, title: 'สายการผลิต (Kanban)', icon: ClipboardListIcon },
     {
         isCategory: true,
         title: 'บันทึกข้อมูล',
-        icon: <EditIcon className="w-5 h-5"/>,
+        icon: EditIcon,
         children: [
-            { tab: 'molding', title: 'บันทึกการผลิต (ฉีด)', icon: <FactoryIcon className="w-5 h-5"/> },
-            { tab: 'logs', title: 'บันทึกการแพ็ค', icon: <BoxIcon className="w-5 h-5"/> },
-            { tab: 'qc', title: 'ควบคุมคุณภาพ (QC)', icon: <ClipboardCheckIcon className="w-5 h-5"/> },
+            { tab: 'molding', title: 'บันทึกการผลิต (ฉีด)', icon: FactoryIcon },
+            { tab: 'logs', title: 'บันทึกการแพ็ค', icon: BoxIcon },
+            { tab: 'qc', title: 'ควบคุมคุณภาพ (QC)', icon: ClipboardCheckIcon },
         ],
     },
     {
         isCategory: true,
         title: 'คลังสินค้า',
-        icon: <ArchiveIcon className="w-5 h-5"/>,
+        icon: ArchiveIcon,
         children: [
-            { tab: 'inventory', title: 'สต็อกสินค้าสำเร็จรูป', icon: <ArchiveIcon className="w-5 h-5"/> },
-            { tab: 'raw_materials', title: 'วัตถุดิบ/BOM', icon: <BeakerIcon className="w-5 h-5"/> },
-            { tab: 'products', title: 'จัดการสินค้า', icon: <DatabaseIcon className="w-5 h-5"/> },
+            { tab: 'inventory', title: 'สต็อกสินค้าสำเร็จรูป', icon: ArchiveIcon },
+            { tab: 'raw_materials', title: 'วัตถุดิบ/BOM', icon: BeakerIcon },
+            { tab: 'products', title: 'จัดการสินค้า', icon: DatabaseIcon },
         ],
     },
     {
         isCategory: true,
         title: 'การขายและลูกค้า',
-        icon: <TruckIcon className="w-5 h-5"/>,
+        icon: TruckIcon,
         children: [
-            { tab: 'customers', title: 'จัดการลูกค้า', icon: <UsersIcon className="w-5 h-5" /> },
-            { tab: 'shipments', title: 'ติดตามการจัดส่ง', icon: <TruckIcon className="w-5 h-5"/> },
-            { tab: 'complaints', title: 'ข้อร้องเรียน', icon: <MessageSquareWarningIcon className="w-5 h-5" /> },
+            { tab: 'customers', title: 'จัดการลูกค้า', icon: UsersIcon },
+            { tab: 'shipments', title: 'ติดตามการจัดส่ง', icon: TruckIcon },
+            { tab: 'complaints', title: 'ข้อร้องเรียน', icon: MessageSquareWarningIcon },
         ]
     },
     {
         isCategory: true,
         title: 'การจัดซื้อ',
-        icon: <ShoppingCartIcon className="w-5 h-5"/>,
+        icon: ShoppingCartIcon,
         children: [
-            { tab: 'analysis', title: 'วิเคราะห์วัตถุดิบ', icon: <SigmaIcon className="w-5 h-5"/> },
-            { tab: 'procurement', title: 'การจัดซื้อ', icon: <ShoppingCartIcon className="w-5 h-5"/> },
+            { tab: 'analysis', title: 'วิเคราะห์วัตถุดิบ', icon: SigmaIcon },
+            { tab: 'procurement', title: 'การจัดซื้อ', icon: ShoppingCartIcon },
         ],
     },
     {
         isCategory: true,
         title: 'การจัดการ',
-        icon: <SettingsIcon className="w-5 h-5"/>,
+        icon: SettingsIcon,
         children: [
-            { tab: 'employees', title: 'จัดการพนักงาน', icon: <UsersIcon className="w-5 h-5"/> },
-            { tab: 'maintenance', title: 'ซ่อมบำรุงเครื่องจักร', icon: <WrenchIcon className="w-5 h-5"/> },
-            { tab: 'settings', title: 'ตั้งค่า', icon: <SettingsIcon className="w-5 h-5"/> },
+            { tab: 'employees', title: 'จัดการพนักงาน', icon: UsersIcon },
+            { tab: 'maintenance', title: 'ซ่อมบำรุงเครื่องจักร', icon: WrenchIcon },
+            { tab: 'settings', title: 'ตั้งค่า', icon: SettingsIcon },
         ],
     },
     {
         isCategory: true,
         title: 'วิเคราะห์และรายงาน',
-        icon: <BarChart3Icon className="w-5 h-5"/>,
+        icon: BarChart3Icon,
         children: [
-            { tab: 'profit_analysis', title: 'วิเคราะห์กำไร', icon: <PieChartIcon className="w-5 h-5"/> },
-            { tab: 'cost_analysis', title: 'วิเคราะห์ต้นทุน', icon: <DollarSignIcon className="w-5 h-5"/> },
-            { tab: 'stats', title: 'สถิติ', icon: <BarChart3Icon className="w-5 h-5"/> },
-            { tab: 'reports', title: 'รายงาน', icon: <FileTextIcon className="w-5 h-5"/> },
+            { tab: 'profit_analysis', title: 'วิเคราะห์กำไร', icon: PieChartIcon },
+            { tab: 'cost_analysis', title: 'วิเคราะห์ต้นทุน', icon: DollarSignIcon },
+            { tab: 'stats', title: 'สถิติ', icon: BarChart3Icon },
+            { tab: 'reports', title: 'รายงาน', icon: FileTextIcon },
         ],
     },
 ];
 
+// --- Main Sidebar Component ---
 export const Sidebar: React.FC<{ activeTab: Tab, setActiveTab: (tab: Tab) => void, logoUrl?: string }> = ({ activeTab, setActiveTab, logoUrl }) => {
     const [openMenus, setOpenMenus] = useState<Set<string>>(new Set(['บันทึกข้อมูล', 'คลังสินค้า', 'การขายและลูกค้า']));
     const [searchTerm, setSearchTerm] = useState('');
@@ -200,7 +180,7 @@ export const Sidebar: React.FC<{ activeTab: Tab, setActiveTab: (tab: Tab) => voi
           return null;
         });
     
-        return result.filter((item): item is typeof item & {} => !!item);
+        return result.filter((item): item is NonNullable<typeof item> => !!item);
       }, [searchTerm]);
 
     return (
@@ -222,11 +202,11 @@ export const Sidebar: React.FC<{ activeTab: Tab, setActiveTab: (tab: Tab) => voi
                         className="w-full bg-gray-700 text-white rounded-md py-2 pl-10 pr-3 text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
                     />
                 </div>
-                {filteredMenu.map((item, index) => {
+                {filteredMenu.map((item) => {
                     if (item.isCategory) {
                         return (
                             <MenuCategory 
-                                key={index}
+                                key={item.title}
                                 title={item.title} 
                                 icon={item.icon}
                                 isOpen={!!searchTerm.trim() || openMenus.has(item.title)}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getMoldingLogs, saveMoldingLogs, getSettings } from '../services/storageService';
 import { MoldingLogEntry } from '../types';
-import { ChevronRightIcon, MoveIcon, XCircleIcon, ClockIcon } from 'lucide-react';
+import { ChevronRightIcon, MoveIcon, XCircleIcon, ClockIcon, ListIcon, BarChart2Icon } from 'lucide-react';
 
 // Modal to move a log to a new status
 const MoveModal: React.FC<{
@@ -66,20 +66,18 @@ const KanbanCard: React.FC<{
     );
 };
 
-// Column for a production status
-const KanbanColumn: React.FC<{
-    title: string;
-    logs: MoldingLogEntry[];
-    onMove: (log: MoldingLogEntry) => void;
-}> = ({ title, logs, onMove }) => {
+const AggregatedKanbanCard: React.FC<{
+    data: { productName: string; totalQuantity: number; logCount: number; }
+}> = ({ data }) => {
     return (
-        <div className="bg-gray-100 rounded-xl w-72 flex-shrink-0 flex flex-col" style={{height: 'calc(100vh - 200px)'}}>
-            <h3 className="font-bold p-4 border-b text-gray-700 flex-shrink-0">{title} <span className="text-gray-400 font-medium text-sm">({logs.length})</span></h3>
-            <div className="p-2 space-y-2 overflow-y-auto flex-grow">
-                {logs.map(log => (
-                    <KanbanCard key={log.id} log={log} onMove={onMove} />
-                ))}
-            </div>
+        <div className="bg-white p-3 rounded-lg border shadow-sm">
+            <p className="font-semibold text-gray-800 text-sm">{data.productName}</p>
+            <p className="text-sm text-gray-600 mt-1">
+                จำนวนรวม: <span className="font-bold">{data.totalQuantity.toLocaleString()}</span> ชิ้น
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+                จาก {data.logCount} รายการ
+            </p>
         </div>
     );
 };
@@ -90,6 +88,7 @@ export const ProductionKanbanTab: React.FC = () => {
     const [statuses, setStatuses] = useState<string[]>([]);
     const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
     const [selectedLog, setSelectedLog] = useState<MoldingLogEntry | null>(null);
+    const [viewMode, setViewMode] = useState<'individual' | 'summary'>('individual');
 
     const fetchData = useCallback(() => {
         const settings = getSettings();
@@ -113,7 +112,7 @@ export const ProductionKanbanTab: React.FC = () => {
     const logsByStatus = useMemo(() => {
         const grouped: Record<string, MoldingLogEntry[]> = {};
         statuses.forEach(status => {
-            if (status !== 'เสร็จสิ้น') { // Don't create a column for 'เสร็จสิ้น'
+            if (status !== 'เสร็จสิ้น') {
                 grouped[status] = [];
             }
         });
@@ -121,16 +120,41 @@ export const ProductionKanbanTab: React.FC = () => {
             if (grouped[log.status]) {
                 grouped[log.status].push(log);
             }
-            // Logs with unknown status are ignored
         });
         
-        // Sort logs within each status by date
         for (const status in grouped) {
             grouped[status].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         }
         
         return grouped;
     }, [allLogs, statuses]);
+
+    const summaryLogsByStatus = useMemo(() => {
+        if (viewMode !== 'summary') return {};
+
+        const grouped: Record<string, Record<string, { totalQuantity: number; logCount: number }>> = {};
+
+        allLogs.forEach(log => {
+            if (!grouped[log.status]) {
+                grouped[log.status] = {};
+            }
+            if (!grouped[log.status][log.productName]) {
+                grouped[log.status][log.productName] = { totalQuantity: 0, logCount: 0 };
+            }
+            grouped[log.status][log.productName].totalQuantity += log.quantityProduced;
+            grouped[log.status][log.productName].logCount++;
+        });
+
+        const result: Record<string, { productName: string; totalQuantity: number; logCount: number }[]> = {};
+        for (const status in grouped) {
+            result[status] = Object.entries(grouped[status]).map(([productName, data]) => ({
+                productName,
+                ...data,
+            })).sort((a, b) => a.productName.localeCompare(b.productName));
+        }
+        
+        return result;
+    }, [allLogs, viewMode]);
     
     const handleMoveClick = (log: MoldingLogEntry) => {
         setSelectedLog(log);
@@ -143,10 +167,28 @@ export const ProductionKanbanTab: React.FC = () => {
             log.id === logId ? { ...log, status: newStatus } : log
         );
         saveMoldingLogs(updatedLogs);
-        fetchData(); // Refetch data to update the board
+        fetchData(); 
         setIsMoveModalOpen(false);
         setSelectedLog(null);
     };
+
+    const ViewButton: React.FC<{
+        targetView: 'individual' | 'summary';
+        label: string;
+        icon: React.ReactNode;
+    }> = ({ targetView, label, icon }) => (
+        <button
+            onClick={() => setViewMode(targetView)}
+            className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                viewMode === targetView
+                    ? 'bg-green-600 text-white shadow'
+                    : 'bg-white text-gray-700 hover:bg-gray-100'
+            }`}
+        >
+            {icon}
+            {label}
+        </button>
+    );
 
     return (
         <div>
@@ -158,16 +200,36 @@ export const ProductionKanbanTab: React.FC = () => {
                     onSave={handleSaveMove}
                 />
             )}
-            <h2 className="text-2xl font-bold mb-6">สายการผลิต (Kanban)</h2>
+            <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold">สายการผลิต (Kanban)</h2>
+                <div className="flex items-center gap-2 p-1 bg-gray-200 rounded-lg">
+                    <ViewButton targetView="individual" label="มุมมองรายชิ้น" icon={<ListIcon className="w-4 h-4" />} />
+                    <ViewButton targetView="summary" label="มุมมองสรุป" icon={<BarChart2Icon className="w-4 h-4" />} />
+                </div>
+            </div>
             <div className="flex gap-4 overflow-x-auto pb-4">
-                {statuses.filter(s => s !== 'เสร็จสิ้น').map(status => (
-                    <KanbanColumn
-                        key={status}
-                        title={status}
-                        logs={logsByStatus[status] || []}
-                        onMove={handleMoveClick}
-                    />
-                ))}
+                {statuses.filter(s => s !== 'เสร็จสิ้น').map(status => {
+                    const individualLogs = logsByStatus[status] || [];
+                    const summaryLogs = summaryLogsByStatus[status] || [];
+                    const count = viewMode === 'individual' ? individualLogs.length : summaryLogs.length;
+
+                    return (
+                        <div key={status} className="bg-gray-100 rounded-xl w-72 flex-shrink-0 flex flex-col" style={{height: 'calc(100vh - 200px)'}}>
+                            <h3 className="font-bold p-4 border-b text-gray-700 flex-shrink-0">{status} <span className="text-gray-400 font-medium text-sm">({count})</span></h3>
+                            <div className="p-2 space-y-2 overflow-y-auto flex-grow">
+                                {viewMode === 'individual' ? (
+                                    individualLogs.map(log => (
+                                        <KanbanCard key={log.id} log={log} onMove={handleMoveClick} />
+                                    ))
+                                ) : (
+                                    summaryLogs.map(summary => (
+                                        <AggregatedKanbanCard key={summary.productName} data={summary} />
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );
