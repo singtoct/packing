@@ -1,5 +1,6 @@
 
-export type Tab = 'dashboard' | 'factory_floor' | 'packing_floor' | 'production_plan' | 'analysis' | 'procurement' | 'molding' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'profit_analysis' | 'stats' | 'reports' | 'products' | 'settings' | 'customers' | 'complaints';
+
+export type Tab = 'dashboard' | 'factory_floor' | 'packing_floor' | 'production_plan' | 'production_kanban' | 'analysis' | 'procurement' | 'molding' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'profit_analysis' | 'stats' | 'reports' | 'products' | 'settings' | 'customers' | 'complaints';
 
 
 export interface OrderItem {

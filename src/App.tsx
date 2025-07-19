@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { PackingLogTab } from './components/PackingLogTab';
@@ -28,8 +29,9 @@ import { getSettings, getInventory, getOrders, getQCEntries, getMachines, getRea
 import { InventoryItem, AppNotification, AppSettings } from './types';
 import { ProductionPlanTab } from './components/ProductionPlanTab';
 import { PackingFloorTab } from './components/PackingFloorTab';
+import { ProductionKanbanTab } from './components/ProductionKanbanTab';
 
-export type Tab = 'dashboard' | 'factory_floor' | 'packing_floor' | 'production_plan' | 'analysis' | 'procurement' | 'molding' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'profit_analysis' | 'stats' | 'reports' | 'products' | 'settings' | 'customers' | 'complaints';
+export type Tab = 'dashboard' | 'factory_floor' | 'packing_floor' | 'production_plan' | 'production_kanban' | 'analysis' | 'procurement' | 'molding' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'profit_analysis' | 'stats' | 'reports' | 'products' | 'settings' | 'customers' | 'complaints';
 export type QuickActionType = 'order' | 'packing' | 'molding';
 
 const App: React.FC = () => {
@@ -221,6 +223,8 @@ const App: React.FC = () => {
         return <PackingFloorTab />;
       case 'production_plan':
         return <ProductionPlanTab />;
+      case 'production_kanban':
+        return <ProductionKanbanTab />;
       case 'analysis':
         return <AnalysisTab />;
        case 'procurement':

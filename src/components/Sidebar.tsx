@@ -7,7 +7,7 @@ import {
     FactoryIcon, RouteIcon, BoxIcon, ClipboardCheckIcon, ArchiveIcon, BeakerIcon, 
     UsersIcon, WrenchIcon, DollarSignIcon, BarChart3Icon, FileTextIcon, ChevronDownIcon,
     DatabaseIcon, SearchIcon, SettingsIcon, LayoutGridIcon, PieChartIcon, HeartHandshakeIcon, 
-    MessageSquareWarningIcon, EditIcon
+    MessageSquareWarningIcon, EditIcon, ClipboardListIcon
 } from 'lucide-react';
 
 interface MenuItemProps {
@@ -87,6 +87,12 @@ const menuConfig = [
         tab: 'production_plan' as Tab, 
         title: 'แผนการผลิต', 
         icon: <ClipboardCheckIcon className="w-5 h-5"/> 
+    },
+    { 
+        isCategory: false, 
+        tab: 'production_kanban' as Tab, 
+        title: 'สายการผลิต (Kanban)', 
+        icon: <ClipboardListIcon className="w-5 h-5"/> 
     },
     {
         isCategory: true,
