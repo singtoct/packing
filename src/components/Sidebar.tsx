@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 
 // Define a type for the Lucide icons to ensure type safety
-type IconComponent = React.ComponentType<{ className: string }>;
+type IconComponent = React.ComponentType<{ className?: string }>;
 
 // --- Sub-components expecting icon component references ---
 
