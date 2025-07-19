@@ -13,10 +13,10 @@ interface AggregatedProductData {
     orders: OrderItem[];
 }
 
-const ProductDetailsRow: React.FC<{ data: AggregatedProductData }> = ({ data }) => {
+const ProductDetailsRow: React.FC<{ data: AggregatedProductData, colSpan: number }> = ({ data, colSpan }) => {
     return (
         <tr className="bg-gray-50">
-            <td colSpan={7} className="p-4">
+            <td colSpan={colSpan} className="p-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <h4 className="font-semibold text-sm text-gray-700 mb-2">ออเดอร์ที่เกี่ยวข้อง ({data.orders.length})</h4>
@@ -43,6 +43,7 @@ export const ProductionPlanTab: React.FC = () => {
     const [products, setProducts] = useState<Product[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
+    const [productionStatuses, setProductionStatuses] = useState<string[]>([]);
 
     useEffect(() => {
         const handleStorageChange = () => {
@@ -50,6 +51,13 @@ export const ProductionPlanTab: React.FC = () => {
             setMoldingLogs(getMoldingLogs());
             setInventory(getInventory());
             setProducts(getProducts());
+            
+            const settings = getSettings();
+            const statuses = settings.productionStatuses || [];
+            if (!statuses.includes('เสร็จสิ้น')) {
+                statuses.push('เสร็จสิ้น');
+            }
+            setProductionStatuses(statuses);
         };
         handleStorageChange();
         window.addEventListener('storage', handleStorageChange);
@@ -112,20 +120,8 @@ export const ProductionPlanTab: React.FC = () => {
         if (!searchTerm) return aggregatedData;
         return aggregatedData.filter(item => item.productName.toLowerCase().includes(searchTerm.toLowerCase()));
     }, [aggregatedData, searchTerm]);
-
-    const StatusBreakdown: React.FC<{ breakdown: Record<string, number> }> = ({ breakdown }) => {
-        const entries = Object.entries(breakdown);
-        if (entries.length === 0) return <span className="text-gray-400">-</span>;
-        return (
-            <div className="flex flex-wrap gap-x-3 gap-y-1">
-                {entries.map(([status, count]) => (
-                    <span key={status} className="text-xs bg-gray-100 text-gray-700 font-medium px-2 py-0.5 rounded-full">
-                        {status}: {count.toLocaleString()}
-                    </span>
-                ))}
-            </div>
-        );
-    };
+    
+    const tableColSpan = 6 + productionStatuses.length;
 
     return (
         <div>
@@ -143,12 +139,16 @@ export const ProductionPlanTab: React.FC = () => {
                 <table className="min-w-full bg-white divide-y divide-gray-200 rounded-lg shadow-sm border">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/5">สินค้า</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">สินค้า</th>
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">ยอดสั่งซื้อ</th>
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">สต็อกสำเร็จรูป</th>
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">ผลิตแล้วทั้งหมด</th>
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">ต้องผลิตเพิ่ม</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">สถานะที่ค้าง</th>
+                            {productionStatuses.map(status => (
+                                <th key={status} className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider" title={status}>
+                                    {status.length > 10 ? status.substring(0, 9) + '...' : status}
+                                </th>
+                            ))}
                             <th className="relative px-6 py-3"><span className="sr-only">Details</span></th>
                         </tr>
                     </thead>
@@ -171,14 +171,18 @@ export const ProductionPlanTab: React.FC = () => {
                                             </span>
                                         )}
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-gray-600"><StatusBreakdown breakdown={data.statusBreakdown} /></td>
+                                    {productionStatuses.map(status => (
+                                        <td key={status} className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
+                                            {data.statusBreakdown[status] ? data.statusBreakdown[status].toLocaleString() : '-'}
+                                        </td>
+                                    ))}
                                     <td className="px-6 py-4 whitespace-nowrap text-right">
                                          <button onClick={() => setExpandedProduct(expandedProduct === data.productName ? null : data.productName)} className="p-2 text-gray-500 hover:bg-gray-100 rounded-full" title="ดูรายละเอียด">
                                             <ChevronDownIcon className={`w-5 h-5 transition-transform ${expandedProduct === data.productName ? 'rotate-180' : ''}`} />
                                         </button>
                                     </td>
                                 </tr>
-                                {expandedProduct === data.productName && <ProductDetailsRow data={data} />}
+                                {expandedProduct === data.productName && <ProductDetailsRow data={data} colSpan={tableColSpan} />}
                             </React.Fragment>
                         ))}
                     </tbody>
