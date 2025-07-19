@@ -90,7 +90,7 @@ const DEFAULT_PRODUCTS: Product[] = [
     { id: 'i0j1k2l3-m4n5-o6p7-q8r9-s0t1u2v3w4x5', name: 'ชุดฐานล็อคเลือนเลื่อนเปิด-ปิด K2', color: 'สีขาว', salePrice: 0.77, cycleTimeSeconds: 4 },
     { id: 'j1k2l3m4-n5o6-p7q8-r9s0-t1u2v3w4x5y6', name: 'ฐานรองเบเกอร์เมน R1', color: 'สีขาว', salePrice: 5.05, cycleTimeSeconds: 9 },
     { id: 'k2l3m4n5-o6p7-q8r9-s0t1-u2v3w4x5y6z7', name: 'ฝาบิดบัสบาร์เมน R1-1', color: 'สีขาว', salePrice: 0.92, cycleTimeSeconds: 5 },
-    { id: 'l3m4n5o6-p7q8-r9s0-t1u2-v3w4x5y6z7a8', name: 'ฐานรองเบรคย่อย T1', color: 'สีขาว', salePrice: 1.97, cycleTimeSeconds: 6 },
+    { id: 'l3m4n5o6-p7q8-s0t1-u2v3-w4x5y6z7a8', name: 'ฐานรองเบรคย่อย T1', color: 'สีขาว', salePrice: 1.97, cycleTimeSeconds: 6 },
     { id: 'm4n5o6p7-q8r9-s0t1-u2v3-w4x5y6z7a8b9', name: 'ฝาปิดบัสบาร์ 2 ช่อง T1-1', color: 'สีขาว', salePrice: 0.36, cycleTimeSeconds: 4 },
     { id: 'n5o6p7q8-r9s0-t1u2-v3w4-x5y6z7a8b9c0', name: 'ขาล็อคข้อพับเปิด-ปิดฝา S1', color: 'สีขาว', salePrice: 0.33, cycleTimeSeconds: 3 },
     { id: 'o6p7q8r9-s0t1-u2v3-w4x5-y6z7a8b9c0d1', name: 'ขาพับเปิด-ปิดฝา S2', color: 'สีขาว', salePrice: 0.35, cycleTimeSeconds: 3 },
@@ -440,11 +440,12 @@ const DEFAULT_SETTINGS: AppSettings = {
         'อื่นๆ',
     ],
     productionStatuses: [
+        'รอแปะกันรอย',
         'รอประกบ',
-        'ห้องแพ็ค',
-        'รอแพค',
-        'รอส่ง',
-        'รอนับ'
+        'รอตรวจสอบ QC',
+        'รอแพ็ค',
+        'กำลังแพ็ค',
+        'รอส่งมอบ'
     ],
     roles: DEFAULT_ROLES,
     dashboardLayouts: DEFAULT_DASHBOARD_LAYOUTS,
