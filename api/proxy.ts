@@ -364,16 +364,18 @@ CRITICAL CONSTRAINTS:
 Return the plan as a JSON array of objects, sorted by priority. If no production is possible or necessary, return an empty array.
 `;
 
+        const contents = [
+            prompt,
+            "Sales Orders:", JSON.stringify(payload.orders),
+            "Finished Goods Inventory:", JSON.stringify(payload.inventory),
+            "Machines:", JSON.stringify(payload.machines),
+            "BOMs:", JSON.stringify(payload.boms),
+            "Raw Materials:", JSON.stringify(payload.rawMaterials),
+        ].join('\n\n');
+
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
-            contents: [
-                prompt,
-                "Sales Orders:", JSON.stringify(payload.orders),
-                "Finished Goods Inventory:", JSON.stringify(payload.inventory),
-                "Machines:", JSON.stringify(payload.machines),
-                "BOMs:", JSON.stringify(payload.boms),
-                "Raw Materials:", JSON.stringify(payload.rawMaterials),
-            ],
+            contents: contents,
             config: {
                 responseMimeType: "application/json",
                 temperature: 0.2,
@@ -388,7 +390,6 @@ Return the plan as a JSON array of objects, sorted by priority. If no production
                             reason: { type: Type.STRING, description: "A brief justification for this production task." },
                             priority: { type: Type.NUMBER, description: "A number from 1 (highest) to 10 (lowest)." }
                         },
-                        required: ["productName", "quantity", "machine", "reason", "priority"]
                     }
                 }
             },
@@ -422,15 +423,17 @@ The formula should roughly be: \`Days Until Stockout = Current Stock / (Average 
 Return a JSON array of the top 10 most critical items (lowest positive daysUntilStockout).
 `;
 
+        const contents = [
+            prompt,
+            "Raw Materials:", JSON.stringify(payload.rawMaterials),
+            "Molding Logs (last 30 days):", JSON.stringify(payload.moldingLogs),
+            "Open Orders:", JSON.stringify(payload.orders),
+            "BOMs:", JSON.stringify(payload.boms),
+        ].join('\n\n');
+
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
-            contents: [
-                prompt,
-                "Raw Materials:", JSON.stringify(payload.rawMaterials),
-                "Molding Logs (last 30 days):", JSON.stringify(payload.moldingLogs),
-                "Open Orders:", JSON.stringify(payload.orders),
-                "BOMs:", JSON.stringify(payload.boms),
-            ],
+            contents: contents,
             config: {
                 responseMimeType: "application/json",
                 temperature: 0.2,
@@ -443,10 +446,9 @@ Return a JSON array of the top 10 most critical items (lowest positive daysUntil
                             rawMaterialName: { type: Type.STRING, description: "The name of the raw material." },
                             unit: { type: Type.STRING, description: "The unit of measurement." },
                             currentStock: { type: Type.NUMBER, description: "The current quantity in stock." },
-                            daysUntilStockout: { type: Type.NUMBER, description: "Predicted number of days until stock runs out. Can be null if not depleting." },
+                            daysUntilStockout: { type: Type.NUMBER, nullable: true, description: "Predicted number of days until stock runs out. Can be null if not depleting." },
                             reason: { type: Type.STRING, description: "Brief explanation of the forecast (e.g., high historical usage, large upcoming order)." }
                         },
-                        required: ["rawMaterialId", "rawMaterialName", "unit", "currentStock", "daysUntilStockout", "reason"]
                     }
                 }
             },
