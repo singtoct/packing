@@ -384,7 +384,6 @@ If no production is possible or necessary, return an empty array [].
             model: "gemini-2.5-flash",
             contents: contents,
             config: {
-                responseMimeType: "application/json",
                 temperature: 0.2,
             },
         });
@@ -436,7 +435,6 @@ Each object must have these keys:
             model: "gemini-2.5-flash",
             contents: contents,
             config: {
-                responseMimeType: "application/json",
                 temperature: 0.2,
             },
         });
