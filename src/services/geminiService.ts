@@ -122,7 +122,36 @@ export const generateProductionPlan = async (
     rawMaterials: RawMaterial[]
 ): Promise<AIProductionPlanItem[]> => {
     try {
-        const payload = { orders, inventory, machines, boms, rawMaterials };
+        // --- Data Pruning to reduce payload size ---
+        // 1. Filter for only the most relevant data to send to the AI
+        const runningMachines = machines.filter(m => m.status === 'Running');
+        
+        const requiredProductNames = new Set<string>();
+        orders.forEach(o => requiredProductNames.add(`${o.name} (${o.color})`));
+        inventory.forEach(i => {
+            if (i.minStock !== undefined && i.quantity < i.minStock) {
+                requiredProductNames.add(i.name);
+            }
+        });
+
+        const relevantBoms = boms.filter(b => requiredProductNames.has(b.productName));
+        
+        const requiredMaterialIds = new Set<string>();
+        relevantBoms.forEach(b => {
+            b.components.forEach(c => requiredMaterialIds.add(c.rawMaterialId));
+        });
+
+        const relevantRawMaterials = rawMaterials.filter(rm => requiredMaterialIds.has(rm.id));
+
+        // 2. Create a lean payload with only necessary fields to minimize request size
+        const payload = {
+            orders: orders.map(({ id, name, color, quantity, dueDate }) => ({ id, name, color, quantity, dueDate })),
+            inventory: inventory.filter(i => i.minStock !== undefined && i.quantity < i.minStock),
+            machines: runningMachines.map(({ name, status }) => ({ name, status })),
+            boms: relevantBoms,
+            rawMaterials: relevantRawMaterials.map(({ id, name, quantity, unit }) => ({ id, name, quantity, unit }))
+        };
+
         const plan = await callApiProxy<AIProductionPlanItem[]>('generateProductionPlan', payload);
         return plan || [];
     } catch (error) {
@@ -138,7 +167,14 @@ export const generateInventoryForecast = async (
     rawMaterials: RawMaterial[]
 ): Promise<AIInventoryForecastItem[]> => {
     try {
-        const payload = { orders, moldingLogs, boms, rawMaterials };
+        // --- Data Pruning to reduce payload size ---
+        // Create a lean payload with only necessary fields for the AI model
+        const payload = {
+            orders: orders.map(({ name, color, quantity, dueDate }) => ({ name, color, quantity, dueDate })),
+            moldingLogs: moldingLogs.map(({ productName, quantityProduced, date }) => ({ productName, quantityProduced, date })),
+            boms, // BOMs are relatively small and needed for full context
+            rawMaterials: rawMaterials.map(({ id, name, quantity, unit }) => ({ id, name, quantity, unit })),
+        };
         const forecast = await callApiProxy<AIInventoryForecastItem[]>('generateInventoryForecast', payload);
         return forecast || [];
     } catch (error) {

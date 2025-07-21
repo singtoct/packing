@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { getOrders, getPackingLogs, getInventory, getQCEntries, getMoldingLogs, getBOMs, getRawMaterials, getMachines, getSettings, saveSettings } from '../services/storageService';
 import { generateProductionPlan, generateInventoryForecast } from '../services/geminiService';
@@ -49,7 +50,7 @@ const AIInventoryForecastCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = 
             const generatedForecast = await generateInventoryForecast(orders, moldingLogs, boms, rawMaterials);
             setForecast(generatedForecast);
         } catch (err) {
-            setError('Failed to generate forecast. Please try again.');
+            setError('ไม่สามารถสร้างพยากรณ์ได้ โปรดลองอีกครั้ง');
             console.error(err);
         } finally {
             setIsLoading(false);
@@ -117,7 +118,7 @@ const AIPlannerCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = () => {
             const generatedPlan = await generateProductionPlan(orders, inventory, machines, boms, rawMaterials);
             setPlan(generatedPlan);
         } catch (err) {
-            setError('Failed to generate plan. Please try again.');
+            setError('ไม่สามารถสร้างแผนได้ โปรดลองอีกครั้ง');
             console.error(err);
         } finally {
             setIsLoading(false);
