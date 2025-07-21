@@ -205,7 +205,7 @@ export interface AIInventoryForecastItem {
     rawMaterialName: string;
     unit: string;
     currentStock: number;
-    daysUntilStockout: number | null;
+    daysUntilStockout: number;
     reason: string;
 }
 

@@ -60,7 +60,7 @@ const AIInventoryForecastCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = 
         <StatCard title="AI คาดการณ์สต็อกวัตถุดิบ" icon={<BrainCircuitIcon className="w-6 h-6 text-cyan-500" />} className="bg-cyan-50 border-cyan-200">
              {isLoading ? (
                 <div className="flex flex-col items-center justify-center h-full">
-                    <LoaderIcon className="w-12 h-12 text-cyan-500"/>
+                    <LoaderIcon className="w-12 h-12 text-cyan-500 animate-spin"/>
                     <p className="mt-2 text-cyan-700">AI กำลังวิเคราะห์ข้อมูลสต็อก...</p>
                 </div>
             ) : error ? (
@@ -72,8 +72,8 @@ const AIInventoryForecastCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = 
                          <div key={index} className="bg-white p-2 rounded-lg border border-gray-200">
                             <p className="font-bold text-sm text-gray-800 truncate">{item.rawMaterialName}</p>
                             <div className="flex justify-between items-baseline">
-                                <span className={`text-lg font-bold ${item.daysUntilStockout !== null && item.daysUntilStockout < 7 ? 'text-red-600' : 'text-cyan-600'}`}>
-                                    {item.daysUntilStockout !== null ? `${item.daysUntilStockout} วัน` : 'ไม่ลดลง'}
+                                <span className={`text-lg font-bold ${item.daysUntilStockout >= 0 && item.daysUntilStockout < 7 ? 'text-red-600' : 'text-cyan-600'}`}>
+                                    {item.daysUntilStockout >= 0 ? `${item.daysUntilStockout} วัน` : 'ไม่ลดลง'}
                                 </span>
                                 <span className="text-xs text-gray-500">{item.reason}</span>
                             </div>
@@ -128,7 +128,7 @@ const AIPlannerCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = () => {
         <StatCard title="แผนการผลิตที่แนะนำโดย AI" icon={<SparklesIcon className="w-6 h-6 text-violet-500" />} className="bg-violet-50 border-violet-200">
             {isLoading ? (
                 <div className="flex flex-col items-center justify-center h-full">
-                    <LoaderIcon className="w-12 h-12 text-violet-500"/>
+                    <LoaderIcon className="w-12 h-12 text-violet-500 animate-spin"/>
                     <p className="mt-2 text-violet-700">AI กำลังวิเคราะห์ข้อมูล...</p>
                 </div>
             ) : error ? (

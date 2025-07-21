@@ -361,14 +361,7 @@ CRITICAL CONSTRAINTS:
     b. Second priority: Replenishing finished goods that have fallen below their specified 'minStock' level.
 3.  **Machine Allocation**: Distribute tasks among available 'Running' machines.
 
-Return the plan as a JSON array of objects, sorted by priority. Each object must have these keys:
-- "productName": string
-- "quantity": number
-- "machine": string
-- "reason": string
-- "priority": number (1-10)
-
-If no production is possible or necessary, return an empty array [].
+Generate the plan based on the provided data below. If no production is possible or necessary, generate an empty array.
 `;
 
         const contents = [
@@ -385,6 +378,20 @@ If no production is possible or necessary, return an empty array [].
             contents: contents,
             config: {
                 temperature: 0.2,
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            productName: { type: Type.STRING },
+                            quantity: { type: Type.NUMBER },
+                            machine: { type: Type.STRING },
+                            reason: { type: Type.STRING },
+                            priority: { type: Type.NUMBER },
+                        }
+                    }
+                }
             },
         });
 
@@ -411,16 +418,9 @@ You are given:
 Your task is to calculate the 'daysUntilStockout' for each raw material.
 The formula should roughly be: \`Days Until Stockout = Current Stock / (Average Daily Consumption + Prorated Future Demand)\`.
 - Prorate future demand over the next 90 days.
-- If a material has no consumption or demand, its stockout date is effectively infinite; you can return 'null' for daysUntilStockout.
+- If a material has no consumption or demand, its stockout date is effectively infinite; return -1 for daysUntilStockout in this case.
 
-Return a JSON array of the top 10 most critical items (lowest positive daysUntilStockout).
-Each object must have these keys:
-- "rawMaterialId": string
-- "rawMaterialName": string
-- "unit": string
-- "currentStock": number
-- "daysUntilStockout": number or null
-- "reason": string
+Return a list of the top 10 most critical items (lowest positive daysUntilStockout).
 `;
 
         const contents = [
@@ -436,6 +436,21 @@ Each object must have these keys:
             contents: contents,
             config: {
                 temperature: 0.2,
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            rawMaterialId: { type: Type.STRING },
+                            rawMaterialName: { type: Type.STRING },
+                            unit: { type: Type.STRING },
+                            currentStock: { type: Type.NUMBER },
+                            daysUntilStockout: { type: Type.NUMBER },
+                            reason: { type: Type.STRING },
+                        }
+                    }
+                }
             },
         });
         
