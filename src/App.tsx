@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { PackingLogTab } from './components/PackingLogTab';
@@ -30,8 +31,9 @@ import { InventoryItem, AppNotification, AppSettings } from './types';
 import { ProductionPlanTab } from './components/ProductionPlanTab';
 import { PackingFloorTab } from './components/PackingFloorTab';
 import { ProductionKanbanTab } from './components/ProductionKanbanTab';
+import { MachinePerformanceTab } from './components/MachinePerformanceTab';
 
-export type Tab = 'dashboard' | 'factory_floor' | 'packing_floor' | 'production_plan' | 'production_kanban' | 'analysis' | 'procurement' | 'molding' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'profit_analysis' | 'stats' | 'reports' | 'products' | 'settings' | 'customers' | 'complaints';
+export type Tab = 'dashboard' | 'factory_floor' | 'packing_floor' | 'production_plan' | 'production_kanban' | 'analysis' | 'procurement' | 'molding' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'profit_analysis' | 'stats' | 'reports' | 'products' | 'settings' | 'customers' | 'complaints' | 'machine_performance';
 export type QuickActionType = 'order' | 'packing' | 'molding';
 
 const App: React.FC = () => {
@@ -255,6 +257,8 @@ const App: React.FC = () => {
         return <CostAnalysisTab />;
       case 'profit_analysis':
         return <ProfitabilityAnalysisTab />;
+      case 'machine_performance':
+        return <MachinePerformanceTab />;
       case 'stats':
         return <StatisticsTab />;
       case 'reports':

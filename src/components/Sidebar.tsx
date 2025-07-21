@@ -5,7 +5,7 @@ import {
     FactoryIcon, RouteIcon, BoxIcon, ClipboardCheckIcon, ArchiveIcon, BeakerIcon, 
     UsersIcon, WrenchIcon, DollarSignIcon, BarChart3Icon, FileTextIcon, ChevronDownIcon,
     DatabaseIcon, SearchIcon, SettingsIcon, LayoutGridIcon, PieChartIcon, HeartHandshakeIcon, 
-    MessageSquareWarningIcon, EditIcon, ClipboardListIcon
+    MessageSquareWarningIcon, EditIcon, ClipboardListIcon, BarChartHorizontalBigIcon
 } from 'lucide-react';
 
 // Define a type for the Lucide icons to ensure type safety
@@ -129,6 +129,7 @@ const menuConfig = [
         children: [
             { tab: 'profit_analysis', title: 'วิเคราะห์กำไร', icon: PieChartIcon },
             { tab: 'cost_analysis', title: 'วิเคราะห์ต้นทุน', icon: DollarSignIcon },
+            { tab: 'machine_performance', title: 'ประสิทธิภาพเครื่องจักร', icon: BarChartHorizontalBigIcon },
             { tab: 'stats', title: 'สถิติ', icon: BarChart3Icon },
             { tab: 'reports', title: 'รายงาน', icon: FileTextIcon },
         ],
