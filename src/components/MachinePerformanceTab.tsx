@@ -60,7 +60,7 @@ export const MachinePerformanceTab: React.FC = () => {
     const performanceData = useMemo(() => {
         const totalProduced = filteredLogs.reduce((sum, log) => sum + log.quantityProduced, 0);
         const totalRejected = filteredLogs.reduce((sum, log) => sum + log.quantityRejected, 0);
-        const rejectionRate = totalProduced > 0 ? (totalRejected / totalProduced) * 100 : 0;
+        const rejectionRate = totalProduced > 0 ? (Number(totalRejected) / Number(totalProduced)) * 100 : 0;
 
         const productSummary = filteredLogs.reduce((acc, log) => {
             acc[log.productName] = (acc[log.productName] || 0) + log.quantityProduced;

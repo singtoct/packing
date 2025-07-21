@@ -2,6 +2,8 @@
 
 
 
+
+
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom/client';
 import { getSuppliers, saveSuppliers, getPurchaseOrders, savePurchaseOrders, getRawMaterials, saveRawMaterials, getAnalysisShortfall, getSettings } from '../services/storageService';
@@ -200,7 +202,7 @@ export const ProcurementTab: React.FC = () => {
     
     const handleAutoCreatePOs = () => {
         if (shortfall.length === 0) return;
-        const materialsMap = new Map(rawMaterials.map(m => [m.id, m]));
+        const materialsMap = new Map<string, RawMaterial>(rawMaterials.map(m => [m.id, m]));
         const posBySupplier = new Map<string, { po: Omit<PurchaseOrder, 'id'>, supplierName: string }>();
 
         shortfall.forEach(item => {

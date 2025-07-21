@@ -1,6 +1,8 @@
 
 
 
+
+
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { PackingLogTab } from './components/PackingLogTab';
@@ -201,14 +203,14 @@ const App: React.FC = () => {
   };
   
   const markAsRead = (id: string) => {
-      const newReadNotifications = new Set(readNotifications);
+      const newReadNotifications = new Set<string>(readNotifications);
       newReadNotifications.add(id);
       setReadNotifications(newReadNotifications);
       saveReadNotificationIds(newReadNotifications);
   };
 
   const markAllAsRead = () => {
-      const newReadNotifications = new Set(notifications.map(n => n.id));
+      const newReadNotifications = new Set<string>(notifications.map(n => n.id));
       setReadNotifications(newReadNotifications);
       saveReadNotificationIds(newReadNotifications);
   };

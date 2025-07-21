@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { getMoldingLogs, getEmployees, getSettings, getPurchaseOrders, getRawMaterials } from '../services/storageService';
 import { MoldingLogEntry, Employee, PurchaseOrder, RawMaterial } from '../types';
@@ -132,7 +133,7 @@ const ShippingStats: React.FC = () => {
             finished,
             inFinalStage,
             inProgress,
-            topFinished: Array.from(topFinishedProducts.entries()).map(([name, quantity]) => ({name, quantity})).sort((a,b) => b.quantity-a.quantity).slice(0,5)
+            topFinished: Array.from(topFinishedProducts.entries()).map(([name, quantity]) => ({name, quantity})).sort((a,b) => Number(b.quantity) - Number(a.quantity)).slice(0,5)
         };
     }, [logs]);
 

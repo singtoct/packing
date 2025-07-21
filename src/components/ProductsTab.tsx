@@ -117,7 +117,7 @@ const ImportReviewModal: React.FC<{
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
             <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-2xl font-bold text-gray-800">ตรวจสอบข้อมูลสินค้า</h2>
@@ -214,7 +214,7 @@ export const ProductsTab: React.FC = () => {
                 ...p,
                 salePrice,
                 cost,
-                profit: salePrice - cost,
+                profit: Number(salePrice) - cost,
             };
         });
 

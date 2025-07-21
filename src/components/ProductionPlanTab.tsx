@@ -69,7 +69,7 @@ export const ProductionPlanTab: React.FC = () => {
         const allProducts = new Set(products.map(p => `${p.name} (${p.color})`));
         orders.forEach(o => allProducts.add(`${o.name} (${o.color})`));
 
-        for (const productName of allProducts) {
+        allProducts.forEach(productName => {
             productMap.set(productName, {
                 productName,
                 totalOrdered: 0,
@@ -79,7 +79,7 @@ export const ProductionPlanTab: React.FC = () => {
                 statusBreakdown: {},
                 orders: [],
             });
-        }
+        });
         
         orders.forEach(order => {
             const productName = `${order.name} (${order.color})`;

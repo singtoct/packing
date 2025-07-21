@@ -389,7 +389,8 @@ Generate the plan based on the provided data below. If no production is possible
                             machine: { type: Type.STRING },
                             reason: { type: Type.STRING },
                             priority: { type: Type.NUMBER },
-                        }
+                        },
+                        required: ["productName", "quantity", "machine", "reason", "priority"]
                     }
                 }
             },
@@ -448,7 +449,8 @@ Return a list of the top 10 most critical items (lowest positive daysUntilStocko
                             currentStock: { type: Type.NUMBER },
                             daysUntilStockout: { type: Type.NUMBER },
                             reason: { type: Type.STRING },
-                        }
+                        },
+                        required: ["rawMaterialId", "rawMaterialName", "unit", "currentStock", "daysUntilStockout", "reason"]
                     }
                 }
             },

@@ -196,7 +196,7 @@ export const MoldingTab: React.FC = () => {
             return;
         }
 
-        const rawMaterialMap = new Map(rawMaterials.map(rm => [rm.id, rm]));
+        const rawMaterialMap = new Map<string, RawMaterial>(rawMaterials.map(rm => [rm.id, rm]));
         
         const newEditableMaterials = bom.components.map(comp => {
             const material = rawMaterialMap.get(comp.rawMaterialId);
@@ -230,7 +230,7 @@ export const MoldingTab: React.FC = () => {
             return { hasBOM: true, isSufficient: true, required: [], totalCost: 0 };
         }
 
-        const rawMaterialMap = new Map(rawMaterials.map(rm => [rm.id, rm]));
+        const rawMaterialMap = new Map<string, RawMaterial>(rawMaterials.map(rm => [rm.id, rm]));
         let isSufficient = true;
         let totalCost = 0;
 
@@ -290,7 +290,7 @@ export const MoldingTab: React.FC = () => {
     }, [logs, sortConfig]);
 
     const handleMaterialChange = (index: number, newMaterialId: string) => {
-        const rawMaterialMap = new Map(rawMaterials.map(rm => [rm.id, rm]));
+        const rawMaterialMap = new Map<string, RawMaterial>(rawMaterials.map(rm => [rm.id, rm]));
         const newMaterial = rawMaterialMap.get(newMaterialId);
 
         if(newMaterial) {
@@ -487,7 +487,7 @@ export const MoldingTab: React.FC = () => {
     const handleConfirmImport = (finalLogs: Omit<StagedLog, '_tempId'>[]) => {
         // Pre-flight check
         const bomsMap = new Map(getBOMs().map(b => [b.productName, b]));
-        const materialsMap = new Map(getRawMaterials().map(m => [m.id, m]));
+        const materialsMap = new Map<string, RawMaterial>(getRawMaterials().map(m => [m.id, m]));
         const requiredMaterials = new Map<string, number>();
 
         for (const row of finalLogs) {
