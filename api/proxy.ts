@@ -361,7 +361,14 @@ CRITICAL CONSTRAINTS:
     b. Second priority: Replenishing finished goods that have fallen below their specified 'minStock' level.
 3.  **Machine Allocation**: Distribute tasks among available 'Running' machines.
 
-Return the plan as a JSON array of objects, sorted by priority. If no production is possible or necessary, return an empty array.
+Return the plan as a JSON array of objects, sorted by priority. Each object must have these keys:
+- "productName": string
+- "quantity": number
+- "machine": string
+- "reason": string
+- "priority": number (1-10)
+
+If no production is possible or necessary, return an empty array [].
 `;
 
         const contents = [
@@ -379,19 +386,6 @@ Return the plan as a JSON array of objects, sorted by priority. If no production
             config: {
                 responseMimeType: "application/json",
                 temperature: 0.2,
-                responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            productName: { type: Type.STRING, description: "The full name of the product to produce." },
-                            quantity: { type: Type.NUMBER, description: "The number of units (pieces) to produce." },
-                            machine: { type: Type.STRING, description: "The recommended machine name to use." },
-                            reason: { type: Type.STRING, description: "A brief justification for this production task." },
-                            priority: { type: Type.NUMBER, description: "A number from 1 (highest) to 10 (lowest)." }
-                        },
-                    }
-                }
             },
         });
 
@@ -421,6 +415,13 @@ The formula should roughly be: \`Days Until Stockout = Current Stock / (Average 
 - If a material has no consumption or demand, its stockout date is effectively infinite; you can return 'null' for daysUntilStockout.
 
 Return a JSON array of the top 10 most critical items (lowest positive daysUntilStockout).
+Each object must have these keys:
+- "rawMaterialId": string
+- "rawMaterialName": string
+- "unit": string
+- "currentStock": number
+- "daysUntilStockout": number or null
+- "reason": string
 `;
 
         const contents = [
@@ -437,20 +438,6 @@ Return a JSON array of the top 10 most critical items (lowest positive daysUntil
             config: {
                 responseMimeType: "application/json",
                 temperature: 0.2,
-                responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            rawMaterialId: { type: Type.STRING, description: "The unique ID of the raw material." },
-                            rawMaterialName: { type: Type.STRING, description: "The name of the raw material." },
-                            unit: { type: Type.STRING, description: "The unit of measurement." },
-                            currentStock: { type: Type.NUMBER, description: "The current quantity in stock." },
-                            daysUntilStockout: { type: Type.NUMBER, nullable: true, description: "Predicted number of days until stock runs out. Can be null if not depleting." },
-                            reason: { type: Type.STRING, description: "Brief explanation of the forecast (e.g., high historical usage, large upcoming order)." }
-                        },
-                    }
-                }
             },
         });
         
