@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getMachines, saveMachines, getMaintenanceLogs, saveMaintenanceLogs, getEmployees } from '../services/storageService';
+import { getMachines, saveMachines, getMaintenanceLogs, saveMaintenanceLogs, getEmployees, addMachine } from '../services/storageService';
 import { Machine, MaintenanceLog, Employee } from '../types';
 import { PlusCircleIcon, Trash2Icon, WrenchIcon, EditIcon } from 'lucide-react';
 
@@ -130,9 +130,12 @@ export const MaintenanceTab: React.FC = () => {
     const [logSortConfig, setLogSortConfig] = useState<LogSortConfig | null>({ key: 'date', direction: 'desc' });
 
     useEffect(() => {
-        setMachines(getMachines());
-        setLogs(getMaintenanceLogs());
-        setEmployees(getEmployees());
+        const loadData = async () => {
+            setMachines(await getMachines());
+            setLogs(await getMaintenanceLogs());
+            setEmployees(await getEmployees());
+        };
+        loadData();
     }, []);
 
     const requestMachineSort = (key: MachineSortKey) => {
@@ -198,25 +201,24 @@ export const MaintenanceTab: React.FC = () => {
     }, [logs, logSortConfig, machines]);
 
 
-    const handleAddMachine = (e: React.FormEvent) => {
+    const handleAddMachine = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newMachineName.trim()) return;
-        const newMachine: Machine = {
-            id: crypto.randomUUID(),
+        const newMachineData: Omit<Machine, 'id'> = {
             name: newMachineName,
             location: newMachineLocation,
             status: 'Idle',
             workingHoursPerDay: newMachineHours ? Number(newMachineHours) : undefined,
         };
+        const newMachine = await addMachine(newMachineData);
         const updated = [...machines, newMachine];
         setMachines(updated);
-        saveMachines(updated);
         setNewMachineName('');
         setNewMachineLocation('');
         setNewMachineHours('');
     };
     
-    const handleUpdateMachineField = (id: string, field: keyof Machine, value: any) => {
+    const handleUpdateMachineField = async (id: string, field: keyof Machine, value: any) => {
         const updated = machines.map(m => {
             if (m.id === id) {
                 const updatedMachine = { ...m, [field]: value };
@@ -235,14 +237,14 @@ export const MaintenanceTab: React.FC = () => {
             return m;
         });
         setMachines(updated);
-        saveMachines(updated);
+        await saveMachines(updated);
     };
 
-    const handleDeleteMachine = (id: string) => {
+    const handleDeleteMachine = async (id: string) => {
         if(window.confirm('คุณแน่ใจหรือไม่ว่าต้องการลบเครื่องจักรนี้? ประวัติการซ่อมบำรุงที่เกี่ยวข้องจะยังคงอยู่')) {
             const updated = machines.filter(m => m.id !== id);
             setMachines(updated);
-            saveMachines(updated);
+            await saveMachines(updated);
         }
     };
     
@@ -255,12 +257,12 @@ export const MaintenanceTab: React.FC = () => {
         });
     };
 
-    const handleDeleteSelected = () => {
+    const handleDeleteSelected = async () => {
         if(selectedMachines.size === 0) return;
         if(window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบเครื่องจักร ${selectedMachines.size} เครื่องที่เลือก?`)) {
             const updated = machines.filter(m => !selectedMachines.has(m.id));
             setMachines(updated);
-            saveMachines(updated);
+            await saveMachines(updated);
             setSelectedMachines(new Set());
         }
     };
@@ -270,10 +272,10 @@ export const MaintenanceTab: React.FC = () => {
         setIsModalOpen(true);
     };
     
-    const handleSaveLog = (log: MaintenanceLog) => {
+    const handleSaveLog = async (log: MaintenanceLog) => {
         const updatedLogs = [log, ...logs];
         setLogs(updatedLogs);
-        saveMaintenanceLogs(updatedLogs);
+        await saveMaintenanceLogs(updatedLogs);
     };
     
     const StatusBadge: React.FC<{status: Machine['status']}> = ({status}) => {

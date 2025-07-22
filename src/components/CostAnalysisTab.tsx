@@ -1,6 +1,4 @@
-
-
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { getMoldingLogs, getProducts } from '../services/storageService';
 import { MoldingLogEntry, Product } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -17,20 +15,25 @@ export const CostAnalysisTab: React.FC = () => {
         end: new Date().toISOString().split('T')[0],
     });
     const [selectedProduct, setSelectedProduct] = useState('All');
+    const [processedLogs, setProcessedLogs] = useState<ProcessedLog[]>([]);
 
-    const processedLogs = useMemo(() => {
-        const logs = getMoldingLogs();
-        const products = getProducts();
-        const productMap = new Map(products.map(p => [`${p.name} (${p.color})`, p]));
+    useEffect(() => {
+        const loadData = async () => {
+            const logs = await getMoldingLogs();
+            const products = await getProducts();
+            const productMap = new Map(products.map(p => [`${p.name} (${p.color})`, p]));
 
-        return logs
-            .filter(log => log.materialCost && log.materialCost > 0 && log.quantityProduced > 0)
-            .map(log => ({
-                ...log,
-                costPerPiece: log.materialCost! / log.quantityProduced,
-                product: productMap.get(log.productName)
-            }))
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            const processed = logs
+                .filter(log => log.materialCost && log.materialCost > 0 && log.quantityProduced > 0)
+                .map(log => ({
+                    ...log,
+                    costPerPiece: log.materialCost! / log.quantityProduced,
+                    product: productMap.get(log.productName)
+                }))
+                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            setProcessedLogs(processed);
+        };
+        loadData();
     }, []);
 
     const filteredLogs = useMemo(() => {
@@ -103,7 +106,7 @@ export const CostAnalysisTab: React.FC = () => {
                         <XAxis dataKey="name" angle={-45} textAnchor="end" interval={0} tick={{ fontSize: 10 }} />
                         <YAxis tickFormatter={(value) => `฿${value.toFixed(2)}`} />
                         <Tooltip 
-                            formatter={(value, name, props) => [`฿${Number(value).toFixed(3)}`, props.payload.fullName]} 
+                            formatter={(value: any, name: any, props: any) => [`฿${Number(value).toFixed(3)}`, props.payload.fullName]} 
                             contentStyle={{ borderRadius: '0.5rem', fontSize: '12px' }}/>
                         <Legend wrapperStyle={{paddingTop: '50px'}}/>
                         <Bar dataKey="avgCostPerPiece" name="ต้นทุนเฉลี่ย/ชิ้น" fill="#ef4444" />

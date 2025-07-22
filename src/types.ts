@@ -1,6 +1,3 @@
-
-
-
 export type Tab = 'dashboard' | 'factory_floor' | 'packing_floor' | 'production_plan' | 'production_kanban' | 'analysis' | 'procurement' | 'molding' | 'logs' | 'qc' | 'shipments' | 'inventory' | 'raw_materials' | 'maintenance' | 'employees' | 'cost_analysis' | 'profit_analysis' | 'stats' | 'reports' | 'products' | 'settings' | 'customers' | 'complaints' | 'machine_performance';
 
 
@@ -37,6 +34,7 @@ export interface MoldingLogEntry {
 }
 
 export interface InventoryItem {
+    id: string;
     name: string;
     quantity: number;
     minStock?: number;
@@ -81,6 +79,7 @@ export interface RawMaterial {
 }
 
 export interface BillOfMaterial {
+  id: string;
   productName: string; // The name of the finished good, e.g., "ฝาหน้ากาก CT A-103 (สีขาว)"
   components: {
     rawMaterialId: string;

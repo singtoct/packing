@@ -17,7 +17,11 @@ const QCInspectionModal: React.FC<{
     const [failureReasons, setFailureReasons] = useState<string[]>([]);
 
     useEffect(() => {
-        setFailureReasons(getSettings().qcFailureReasons);
+        const loadReasons = async () => {
+            const settings = await getSettings();
+            setFailureReasons(settings.qcFailureReasons);
+        };
+        loadReasons();
     }, []);
 
     const handleReasonChange = (reason: string, checked: boolean) => {
@@ -155,13 +159,13 @@ export const QCTab: React.FC = () => {
     const [quickSearchId, setQuickSearchId] = useState('');
 
     useEffect(() => {
-        const handleStorageChange = () => {
-            setQcEntries(getQCEntries());
+        const handleStorageChange = async () => {
+            setQcEntries(await getQCEntries());
+            setEmployees(await getEmployees());
         };
         handleStorageChange();
-        setEmployees(getEmployees());
-        window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
+        window.addEventListener('storage', handleStorageChange as any);
+        return () => window.removeEventListener('storage', handleStorageChange as any);
     }, []);
 
     const openModal = (entry: QCEntry) => {
@@ -186,9 +190,9 @@ export const QCTab: React.FC = () => {
         }
     }
 
-    const handleSaveInspection = (updatedEntry: QCEntry) => {
+    const handleSaveInspection = async (updatedEntry: QCEntry) => {
         const updatedEntries = qcEntries.map(e => e.id === updatedEntry.id ? updatedEntry : e);
-        saveQCEntries(updatedEntries);
+        await saveQCEntries(updatedEntries);
         setQcEntries(updatedEntries);
         closeModal();
     };

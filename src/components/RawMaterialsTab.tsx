@@ -1,10 +1,14 @@
 
 
 
+
+
+
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { RawMaterial, BillOfMaterial, MoldingLogEntry, Product, PurchaseOrder, Supplier } from '../types';
-import { getRawMaterials, saveRawMaterials, getBOMs, saveBOMs, getMoldingLogs, getProducts, getPurchaseOrders, getSuppliers } from '../services/storageService';
+import { getRawMaterials, saveRawMaterials, getBOMs, saveBOMs, getMoldingLogs, getProducts, getPurchaseOrders, getSuppliers, addRawMaterial } from '../services/storageService';
 import { PlusCircleIcon, Trash2Icon, EditIcon, SparklesIcon, DownloadIcon, UploadIcon, XCircleIcon, SearchIcon, FileClockIcon } from 'lucide-react';
 import { IntelligentMaterialImportModal } from './IntelligentMaterialImportModal';
 import { SearchableInput } from './SearchableInput';
@@ -33,20 +37,23 @@ const PurchaseHistoryRow: React.FC<{ materialId: string }> = ({ materialId }) =>
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const allPOs = getPurchaseOrders();
-        const allSuppliers = getSuppliers();
-        const supplierMap = new Map(allSuppliers.map(s => [s.id, s.name]));
+        const loadData = async () => {
+            const allPOs = await getPurchaseOrders();
+            const allSuppliers = await getSuppliers();
+            const supplierMap = new Map(allSuppliers.map(s => [s.id, s.name]));
 
-        const relevantPOs = allPOs
-            .map(po => {
-                const poItem = po.items.find(item => item.rawMaterialId === materialId);
-                return poItem ? { ...po, supplierName: supplierMap.get(po.supplierId) || 'N/A', poItem } : null;
-            })
-            .filter((po): po is NonNullable<typeof po> => po !== null)
-            .sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
+            const relevantPOs = allPOs
+                .map(po => {
+                    const poItem = po.items.find(item => item.rawMaterialId === materialId);
+                    return poItem ? { ...po, supplierName: supplierMap.get(po.supplierId) || 'N/A', poItem } : null;
+                })
+                .filter((po): po is NonNullable<typeof po> => po !== null)
+                .sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
 
-        setHistory(relevantPOs);
-        setIsLoading(false);
+            setHistory(relevantPOs);
+            setIsLoading(false);
+        };
+        loadData();
     }, [materialId]);
 
     return (
@@ -166,13 +173,13 @@ export const RawMaterialsTab: React.FC = () => {
     const [boms, setBoms] = useState<BillOfMaterial[]>([]);
 
     useEffect(() => {
-        const handleStorageChange = () => {
-            setRawMaterials(getRawMaterials());
-            setBoms(getBOMs());
+        const handleStorageChange = async () => {
+            setRawMaterials(await getRawMaterials());
+            setBoms(await getBOMs());
         };
         handleStorageChange();
-        window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
+        window.addEventListener('storage', handleStorageChange as any);
+        return () => window.removeEventListener('storage', handleStorageChange as any);
     }, []);
 
     const ViewButton: React.FC<{ targetView: View, label: string }> = ({ targetView, label }) => (
@@ -223,7 +230,10 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
     useEffect(() => {
-        setSuppliers(getSuppliers());
+        const loadData = async () => {
+            setSuppliers(await getSuppliers());
+        };
+        loadData();
     }, []);
 
     const handleToggleHistory = (materialId: string) => {
@@ -266,36 +276,35 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
         );
     }, [sortedRawMaterials, searchTerm]);
 
-    const handleAddMaterial = (e: React.FormEvent) => {
+    const handleAddMaterial = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!name.trim() || !unit.trim()) return;
-        const newMaterial: RawMaterial = { 
-            id: crypto.randomUUID(), 
+        const newMaterialData: Omit<RawMaterial, 'id'> = { 
             name, 
             quantity, 
             unit,
             costPerUnit: costPerUnit === '' ? undefined : Number(costPerUnit)
         };
+        const newMaterial = await addRawMaterial(newMaterialData);
         const updatedMaterials = [...rawMaterials, newMaterial];
         setRawMaterials(updatedMaterials);
-        saveRawMaterials(updatedMaterials);
         setName('');
         setQuantity(0);
         setUnit('kg');
         setCostPerUnit('');
     };
     
-    const handleUpdateField = (id: string, field: keyof RawMaterial, value: any) => {
+    const handleUpdateField = async (id: string, field: keyof RawMaterial, value: any) => {
         const updated = rawMaterials.map(m => m.id === id ? { ...m, [field]: value } : m);
         setRawMaterials(updated);
-        saveRawMaterials(updated);
+        await saveRawMaterials(updated);
     };
 
-    const handleDeleteMaterial = (id: string) => {
+    const handleDeleteMaterial = async (id: string) => {
         if (window.confirm('การลบวัตถุดิบจะทำให้ BOM ที่ใช้วัตถุดิบนี้เสียหายได้ ยืนยันหรือไม่?')) {
             const updated = rawMaterials.filter(m => m.id !== id);
             setRawMaterials(updated);
-            saveRawMaterials(updated);
+            await saveRawMaterials(updated);
         }
     };
     
@@ -323,20 +332,20 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
         setSelectedMaterials(newSelected);
     };
 
-    const handleDeleteSelected = () => {
+    const handleDeleteSelected = async () => {
         if (selectedMaterials.size === 0) return;
         if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบ ${selectedMaterials.size} รายการที่เลือก?`)) {
             const updated = rawMaterials.filter(m => !selectedMaterials.has(m.id));
             setRawMaterials(updated);
-            saveRawMaterials(updated);
+            await saveRawMaterials(updated);
             setSelectedMaterials(new Set());
         }
     };
 
-    const handleSaveImportedMaterials = (newMaterials: RawMaterial[]) => {
+    const handleSaveImportedMaterials = async (newMaterials: RawMaterial[]) => {
         const updatedMaterials = [...rawMaterials, ...newMaterials];
         setRawMaterials(updatedMaterials);
-        saveRawMaterials(updatedMaterials);
+        await saveRawMaterials(updatedMaterials);
     };
 
     const handleExportTemplate = () => {
@@ -376,7 +385,7 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
         reader.readAsBinaryString(file);
     };
 
-    const handleConfirmExcelImport = (finalData: RawMaterialExcelRow[]) => {
+    const handleConfirmExcelImport = async (finalData: RawMaterialExcelRow[]) => {
         const materialsMap: Map<string, RawMaterial> = new Map(rawMaterials.map(m => [m.name, m]));
         finalData.forEach(row => {
             const name = row.Name;
@@ -398,7 +407,7 @@ const InventoryView: React.FC<{ rawMaterials: RawMaterial[], setRawMaterials: Re
             }
         });
         const updatedList: RawMaterial[] = Array.from(materialsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-        saveRawMaterials(updatedList);
+        await saveRawMaterials(updatedList);
         setRawMaterials(updatedList);
         alert(`นำเข้าและอัปเดตสำเร็จ ${finalData.length} รายการ`);
         setIsExcelReviewModalOpen(false);
@@ -639,26 +648,38 @@ const BOMView: React.FC<{ boms: BillOfMaterial[], setBoms: React.Dispatch<React.
     const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
     const [bomSortDir, setBomSortDir] = useState<SortDirection>('asc');
     const [searchTerm, setSearchTerm] = useState('');
+    const [availableProducts, setAvailableProducts] = useState<string[]>([]);
 
-    const availableProducts = useMemo(() => {
-        const productSet = new Set<string>();
-        getMoldingLogs().forEach(log => productSet.add(log.productName));
-        getProducts().forEach(prod => productSet.add(`${prod.name} (${prod.color})`));
-        const sorted = Array.from(productSet).sort((a,b) => a.localeCompare(b));
+    useEffect(() => {
+        const loadProductNames = async () => {
+            const productSet = new Set<string>();
+            const logs = await getMoldingLogs();
+            const prods = await getProducts();
+            logs.forEach(log => productSet.add(log.productName));
+            prods.forEach(prod => productSet.add(`${prod.name} (${prod.color})`));
+            const sorted = Array.from(productSet).sort((a,b) => a.localeCompare(b));
+            setAvailableProducts(sorted);
+        };
+        loadProductNames();
+    }, []);
+
+    const sortedAvailableProducts = useMemo(() => {
+        const sorted = [...availableProducts];
         if(bomSortDir === 'desc') {
             return sorted.reverse();
         }
         return sorted;
-    }, [bomSortDir]);
+    }, [availableProducts, bomSortDir]);
+
 
     const filteredProducts = useMemo(() => {
         if (!searchTerm.trim()) {
-            return availableProducts;
+            return sortedAvailableProducts;
         }
-        return availableProducts.filter(prod => 
+        return sortedAvailableProducts.filter(prod => 
             prod.toLowerCase().includes(searchTerm.toLowerCase())
         );
-    }, [availableProducts, searchTerm]);
+    }, [sortedAvailableProducts, searchTerm]);
     
     const rawMaterialMap = useMemo(() => new Map(rawMaterials.map(rm => [rm.id, rm])), [rawMaterials]);
     const bomProductNames = useMemo(() => new Set(boms.map(b => b.productName)), [boms]);
@@ -666,7 +687,7 @@ const BOMView: React.FC<{ boms: BillOfMaterial[], setBoms: React.Dispatch<React.
     useEffect(() => {
         if (selectedProduct) {
             const existingBom = boms.find(b => b.productName === selectedProduct);
-            setEditingBom(existingBom ? { ...existingBom } : { productName: selectedProduct, components: [] });
+            setEditingBom(existingBom ? { ...existingBom } : { id: selectedProduct, productName: selectedProduct, components: [] });
         } else {
             setEditingBom(null);
         }
@@ -693,23 +714,25 @@ const BOMView: React.FC<{ boms: BillOfMaterial[], setBoms: React.Dispatch<React.
         setEditingBom({ ...editingBom, components: newComponents });
     };
 
-    const handleSaveBom = () => {
+    const handleSaveBom = async () => {
         if (!editingBom) return;
         const updatedBoms = boms.filter(b => b.productName !== editingBom.productName);
-        setBoms([...updatedBoms, editingBom]);
-        saveBOMs([...updatedBoms, editingBom]);
+        const newBomList = [...updatedBoms, editingBom];
+        setBoms(newBomList);
+        await saveBOMs(newBomList);
         alert(`บันทึก BOM สำหรับ ${editingBom.productName} เรียบร้อยแล้ว`);
     };
 
-    const handleCopyBom = (destinationProduct: string) => {
+    const handleCopyBom = async (destinationProduct: string) => {
         if (!editingBom) return;
         const newBom: BillOfMaterial = {
+            id: destinationProduct,
             productName: destinationProduct,
             components: editingBom.components,
         };
         const updatedBoms = [...boms, newBom];
         setBoms(updatedBoms);
-        saveBOMs(updatedBoms);
+        await saveBOMs(updatedBoms);
         alert(`คัดลอก BOM จาก "${editingBom.productName}" ไปยัง "${destinationProduct}" เรียบร้อยแล้ว`);
         setIsCopyModalOpen(false);
         setSelectedProduct(destinationProduct);

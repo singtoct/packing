@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { Product, BillOfMaterial, RawMaterial } from '../types';
-import { getProducts, saveProducts, getBOMs, getRawMaterials } from '../services/storageService';
+import { getProducts, saveProducts, getBOMs, getRawMaterials, addProduct } from '../services/storageService';
 import { PlusCircleIcon, Trash2Icon, EditIcon, DownloadIcon, DatabaseIcon, UploadIcon, XCircleIcon } from 'lucide-react';
 
 type SortDirection = 'asc' | 'desc';
@@ -166,14 +166,14 @@ export const ProductsTab: React.FC = () => {
     const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'name', direction: 'asc' });
 
     useEffect(() => {
-        const refreshData = () => {
-            setProducts(getProducts());
-            setBoms(getBOMs());
-            setRawMaterials(getRawMaterials());
+        const refreshData = async () => {
+            setProducts(await getProducts());
+            setBoms(await getBOMs());
+            setRawMaterials(await getRawMaterials());
         };
         refreshData();
-        window.addEventListener('storage', refreshData);
-        return () => window.removeEventListener('storage', refreshData);
+        window.addEventListener('storage', refreshData as any);
+        return () => window.removeEventListener('storage', refreshData as any);
     }, []);
 
     const requestSort = (key: SortKey) => {
@@ -208,13 +208,12 @@ export const ProductsTab: React.FC = () => {
     const sortedProducts = useMemo(() => {
         let sortableItems: ProductWithCost[] = products.map((p: Product) => {
             const cost = productCosts.get(p.id) || 0;
-            const salePriceNum = Number(p.salePrice);
-            const salePrice = isNaN(salePriceNum) ? 0 : salePriceNum;
+            const salePriceValue = Number(p.salePrice) || 0;
             return {
                 ...p,
-                salePrice,
+                salePrice: salePriceValue,
                 cost,
-                profit: Number(salePrice) - cost,
+                profit: Number(salePriceValue) - Number(cost),
             };
         });
 
@@ -222,52 +221,54 @@ export const ProductsTab: React.FC = () => {
             sortableItems.sort((a, b) => {
                 const aVal = a[sortConfig.key];
                 const bVal = b[sortConfig.key];
-                if (aVal === undefined) return 1;
-                if (bVal === undefined) return -1;
-                if (aVal < bVal) {
-                    return sortConfig.direction === 'asc' ? -1 : 1;
+        
+                if (aVal === undefined || aVal === null) return 1;
+                if (bVal === undefined || bVal === null) return -1;
+        
+                let comparison = 0;
+                if (typeof aVal === 'number' && typeof bVal === 'number') {
+                    comparison = aVal - bVal;
+                } else {
+                    comparison = String(aVal).localeCompare(String(bVal));
                 }
-                if (aVal > bVal) {
-                    return sortConfig.direction === 'asc' ? 1 : -1;
-                }
-                return 0;
+                
+                return sortConfig.direction === 'asc' ? comparison : -comparison;
             });
         }
         return sortableItems;
     }, [products, productCosts, sortConfig]);
 
-    const handleAddProduct = (e: React.FormEvent) => {
+    const handleAddProduct = async (e: React.FormEvent) => {
         e.preventDefault();
         if(!name.trim() || !color.trim() || salePrice === '') return;
 
-        const newProduct: Product = {
-            id: crypto.randomUUID(),
+        const newProductData: Omit<Product, 'id'> = {
             name,
             color,
             salePrice: Number(salePrice),
             cycleTimeSeconds: cycleTime === '' ? undefined : Number(cycleTime),
         };
+        const newProduct = await addProduct(newProductData);
         const updated = [...products, newProduct];
         setProducts(updated);
-        saveProducts(updated);
         setName('');
         setColor('');
         setSalePrice('');
         setCycleTime('');
     };
 
-    const handleUpdateProduct = (updatedProduct: Product) => {
+    const handleUpdateProduct = async (updatedProduct: Product) => {
         const updated = products.map(p => p.id === updatedProduct.id ? updatedProduct : p);
         setProducts(updated);
-        saveProducts(updated);
+        await saveProducts(updated);
         setEditingProduct(null);
     };
 
-    const handleDeleteProduct = (id: string) => {
+    const handleDeleteProduct = async (id: string) => {
         if(window.confirm('คุณแน่ใจหรือไม่ว่าต้องการลบสินค้านี้?')) {
             const updated = products.filter(p => p.id !== id);
             setProducts(updated);
-            saveProducts(updated);
+            await saveProducts(updated);
         }
     };
 
@@ -285,12 +286,12 @@ export const ProductsTab: React.FC = () => {
         else setSelectedProducts(new Set());
     };
 
-    const handleDeleteSelected = () => {
+    const handleDeleteSelected = async () => {
         if (selectedProducts.size === 0) return;
         if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบ ${selectedProducts.size} สินค้าที่เลือก?`)) {
             const updated = products.filter(p => !selectedProducts.has(p.id));
             setProducts(updated);
-            saveProducts(updated);
+            await saveProducts(updated);
             setSelectedProducts(new Set());
         }
     };
@@ -331,89 +332,74 @@ export const ProductsTab: React.FC = () => {
                 const nameHeader = findHeader(firstRow, 'name', 'ชื่อสินค้า');
                 const colorHeader = findHeader(firstRow, 'color', 'สี');
                 const salePriceHeader = findHeader(firstRow, 'saleprice', 'ราคาขาย');
-                const cycleTimeHeader = findHeader(firstRow, 'cycletimeseconds', 'cycletime(s)');
+                const cycleTimeHeader = findHeader(firstRow, 'cycletimeseconds', 'cycletime');
 
-                if (!nameHeader || !colorHeader) {
-                    alert('ไม่พบหัวคอลัมน์ที่จำเป็น (Name/ชื่อสินค้า, Color/สี) ในไฟล์ Excel');
+                if (!nameHeader || !colorHeader || !salePriceHeader) {
+                    alert('ไม่พบ Header ที่จำเป็นในไฟล์ Excel (ต้องมี: Name/ชื่อสินค้า, Color/สี, SalePrice/ราคาขาย)');
                     if (importFileRef.current) importFileRef.current.value = '';
                     return;
                 }
-
-                const processedData: ProductExcelRow[] = json.map(row => {
-                    const name = row[nameHeader!];
-                    const color = row[colorHeader!];
-
-                    let salePriceValue: number;
-                    const rawSalePrice = salePriceHeader ? row[salePriceHeader] : undefined;
-                    if (typeof rawSalePrice === 'string') {
-                        const parsed = Number(rawSalePrice.replace(/[^0-9.-]+/g, ""));
-                        salePriceValue = isNaN(parsed) ? 0 : parsed;
-                    } else if (typeof rawSalePrice === 'number' && !isNaN(rawSalePrice)) {
-                        salePriceValue = rawSalePrice;
-                    } else {
-                        salePriceValue = 0;
-                    }
-                    
-                    let cycleTimeValue: number | undefined;
-                    const rawCycleTime = cycleTimeHeader ? row[cycleTimeHeader] : undefined;
-                    if (typeof rawCycleTime === 'string') {
-                        const parsed = Number(rawCycleTime.replace(/[^0-9.-]+/g, ""));
-                        cycleTimeValue = isNaN(parsed) ? undefined : parsed;
-                    } else if (typeof rawCycleTime === 'number' && !isNaN(rawCycleTime)) {
-                        cycleTimeValue = rawCycleTime;
-                    } else {
-                        cycleTimeValue = undefined;
-                    }
+                
+                const newStagedData: ProductExcelRow[] = json.map(row => {
+                    const name = row[nameHeader];
+                    const color = row[colorHeader];
+                    const salePrice = row[salePriceHeader];
+                    const cycleTime = cycleTimeHeader ? row[cycleTimeHeader] : undefined;
 
                     return {
-                        Name: String(name),
-                        Color: String(color),
-                        SalePrice: salePriceValue,
-                        CycleTimeSeconds: cycleTimeValue,
+                        Name: typeof name === 'string' ? name.trim() : undefined,
+                        Color: typeof color === 'string' ? color.trim() : undefined,
+                        SalePrice: typeof salePrice === 'number' ? salePrice : undefined,
+                        CycleTimeSeconds: typeof cycleTime === 'number' ? cycleTime : undefined,
                     };
-                }).filter(row => row.Name && row.Color);
+                }).filter(p => p.Name && p.Color && typeof p.SalePrice === 'number');
 
-                if (processedData.length > 0) {
-                    setStagedData(processedData);
+
+                if (newStagedData.length > 0) {
+                    setStagedData(newStagedData);
                     setIsReviewModalOpen(true);
                 } else {
-                     alert("ไม่พบข้อมูลสินค้าที่ถูกต้องในไฟล์ Excel");
+                    alert('ไม่พบข้อมูลสินค้าที่ถูกต้องในไฟล์');
                 }
 
             } catch (error) {
-                console.error("Error importing products:", error);
+                console.error("Error importing from Excel:", error);
                 alert("เกิดข้อผิดพลาดในการอ่านไฟล์ Excel");
             } finally {
-                if(importFileRef.current) importFileRef.current.value = '';
+                if (importFileRef.current) importFileRef.current.value = '';
             }
         };
         reader.readAsBinaryString(file);
     };
 
-    const handleConfirmImport = (finalData: ProductExcelRow[]) => {
-        const productMap: Map<string, Product> = new Map(products.map(p => [`${p.name}-${p.color}`, p]));
+    const handleConfirmImport = async (finalData: ProductExcelRow[]) => {
+        const productMap: Map<string, Product> = new Map(products.map(p => [`${p.name} (${p.color})`.toLowerCase(), p]));
         
-        finalData.forEach(row => {
-            const name = row.Name;
-            const color = row.Color;
-            const salePrice = Number(row.SalePrice);
-            const cycleTimeSeconds = row.CycleTimeSeconds !== undefined ? Number(row.CycleTimeSeconds) : undefined;
-
-            if (name && color && !isNaN(salePrice)) {
-                const key = `${name}-${color}`;
+        for (const row of finalData) {
+            if (row.Name && row.Color && row.SalePrice !== undefined) {
+                const key = `${row.Name} (${row.Color})`.toLowerCase();
                 const existing = productMap.get(key);
                 if (existing) {
-                    existing.salePrice = salePrice;
-                    existing.cycleTimeSeconds = cycleTimeSeconds;
+                    // Update existing
+                    existing.salePrice = row.SalePrice;
+                    existing.cycleTimeSeconds = row.CycleTimeSeconds;
                 } else {
-                    productMap.set(key, { id: crypto.randomUUID(), name, color, salePrice, cycleTimeSeconds });
+                    // Add new
+                    const newProduct: Product = {
+                        id: crypto.randomUUID(),
+                        name: row.Name,
+                        color: row.Color,
+                        salePrice: row.SalePrice,
+                        cycleTimeSeconds: row.CycleTimeSeconds,
+                    };
+                    productMap.set(key, newProduct);
                 }
             }
-        });
-        
-        const updated: Product[] = Array.from(productMap.values()).sort((a,b) => a.name.localeCompare(b.name));
-        setProducts(updated);
-        saveProducts(updated);
+        }
+
+        const updatedList = Array.from(productMap.values()).sort((a,b) => a.name.localeCompare(b.name));
+        setProducts(updatedList);
+        await saveProducts(updatedList);
         alert(`นำเข้าและอัปเดตสำเร็จ ${finalData.length} รายการ`);
         setIsReviewModalOpen(false);
     };
@@ -422,51 +408,50 @@ export const ProductsTab: React.FC = () => {
         <div>
             {editingProduct && <EditProductModal product={editingProduct} onClose={() => setEditingProduct(null)} onSave={handleUpdateProduct} />}
             {isReviewModalOpen && <ImportReviewModal stagedData={stagedData} onClose={() => setIsReviewModalOpen(false)} onConfirm={handleConfirmImport} />}
-
+            
             <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
-                 <h2 className="text-2xl font-bold">จัดการรายการสินค้า (Master Data)</h2>
-                <div className="flex gap-2 flex-wrap">
+                <h2 className="text-2xl font-bold">จัดการรายการสินค้า</h2>
+                 <div className="flex gap-2 flex-wrap">
                     <input type="file" ref={importFileRef} onChange={handleImportFromExcel} accept=".xlsx, .xls" className="hidden"/>
-                    <button onClick={() => importFileRef.current?.click()} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-teal-600 hover:bg-teal-700 focus:outline-none">
+                    <button onClick={() => importFileRef.current?.click()} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-teal-600 hover:bg-teal-700">
                         <UploadIcon className="w-5 h-5"/>
                         นำเข้า (Excel)
                     </button>
-                    <button onClick={handleExportTemplate} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none">
+                    <button onClick={handleExportTemplate} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700">
                         <DownloadIcon className="w-5 h-5"/>
                         ส่งออกฟอร์มเปล่า
                     </button>
                 </div>
             </div>
-             <form onSubmit={handleAddProduct} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end bg-gray-50 p-4 rounded-lg border mb-10">
+
+            <form onSubmit={handleAddProduct} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end bg-gray-50 p-4 rounded-lg border mb-10">
                 <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700">ชื่อสินค้า</label>
                     <input type="text" value={name} onChange={e => setName(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required />
                 </div>
-                 <div>
+                <div>
                     <label className="block text-sm font-medium text-gray-700">สี</label>
                     <input type="text" value={color} onChange={e => setColor(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required />
                 </div>
                  <div>
-                    <label className="block text-sm font-medium text-gray-700">ราคาขาย (ต่อชิ้น)</label>
+                    <label className="block text-sm font-medium text-gray-700">ราคาขาย</label>
                     <input type="number" min="0" step="any" value={salePrice} onChange={e => setSalePrice(e.target.value === '' ? '' : Number(e.target.value))} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required />
                 </div>
-                <div>
+                 <div>
                     <label className="block text-sm font-medium text-gray-700">Cycle Time (วินาที)</label>
-                    <input type="number" min="0" step="any" value={cycleTime} onChange={e => setCycleTime(e.target.value === '' ? '' : Number(e.target.value))} placeholder="สำหรับ OEE" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <input type="number" min="0" step="any" value={cycleTime} onChange={e => setCycleTime(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Optional" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
                 </div>
-                <div className="col-span-full flex justify-end">
-                     <button type="submit" className="inline-flex items-center justify-center gap-2 w-full md:w-auto px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700">
-                        <PlusCircleIcon className="w-5 h-5" />
-                        เพิ่มสินค้า
-                    </button>
-                </div>
+                <button type="submit" className="md:col-start-5 inline-flex items-center justify-center gap-2 w-full px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700">
+                    <PlusCircleIcon className="w-5 h-5" /> เพิ่มสินค้า
+                </button>
             </form>
 
-            <div className="flex justify-end mb-4">
-                 <button 
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-semibold">รายการสินค้าทั้งหมด</h3>
+                <button
                     onClick={handleDeleteSelected}
                     disabled={selectedProducts.size === 0}
-                    className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 disabled:bg-gray-400"
                 >
                     <Trash2Icon className="w-5 h-5"/>
                     ลบ ({selectedProducts.size})
@@ -474,62 +459,33 @@ export const ProductsTab: React.FC = () => {
             </div>
 
             <div className="overflow-x-auto">
-                 <table className="min-w-full bg-white divide-y divide-gray-200 rounded-lg shadow-sm border">
+                <table className="min-w-full bg-white divide-y divide-gray-200 rounded-lg shadow-sm border">
                     <thead className="bg-gray-50">
                         <tr>
-                             <th className="p-4">
-                                <input 
-                                    type="checkbox"
-                                    className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                                    onChange={e => handleSelectAll(e.target.checked)}
-                                    checked={products.length > 0 && selectedProducts.size === products.length}
-                                />
-                            </th>
-                            <SortableHeader sortKey="name" label="สินค้า" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase" />
-                            <SortableHeader sortKey="salePrice" label="ราคาขาย" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase" justify="right" />
-                            <SortableHeader sortKey="cycleTimeSeconds" label="Cycle Time (s)" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase" justify="right" />
-                            <SortableHeader sortKey="cost" label="ต้นทุนวัตถุดิบ" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase" justify="right" />
-                            <SortableHeader sortKey="profit" label="กำไร" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase" justify="right" />
-                            <th className="relative px-6 py-3 w-28"><span className="sr-only">Actions</span></th>
+                             <th className="p-4"><input type="checkbox" onChange={e => handleSelectAll(e.target.checked)} checked={products.length > 0 && selectedProducts.size === products.length} /></th>
+                            <SortableHeader label="ชื่อสินค้า" sortKey="name" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase w-2/5" />
+                            <SortableHeader label="ราคาขาย" sortKey="salePrice" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase" justify="right" />
+                            <SortableHeader label="ต้นทุนวัตถุดิบ" sortKey="cost" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase" justify="right" />
+                            <SortableHeader label="กำไร" sortKey="profit" sortConfig={sortConfig} requestSort={requestSort} className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase" justify="right" />
+                            <th className="px-6 py-3"></th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                        {products.length > 0 ? sortedProducts.map(p => {
-                            const profit = p.profit;
-                            return (
-                                <tr key={p.id} className={selectedProducts.has(p.id) ? 'bg-green-50' : ''}>
-                                    <td className="p-4">
-                                        <input 
-                                            type="checkbox"
-                                            className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                                            checked={selectedProducts.has(p.id)}
-                                            onChange={e => handleSelectProduct(p.id, e.target.checked)}
-                                        />
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <p className="text-sm font-semibold text-gray-800">{p.name}</p>
-                                        <p className="text-sm text-gray-500">{p.color}</p>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-green-700">{p.salePrice.toFixed(2)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500">{p.cycleTimeSeconds || '-'}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-orange-700">{p.cost > 0 ? p.cost.toFixed(2) : '-'}</td>
-                                    <td className={`px-6 py-4 whitespace-nowrap text-sm text-right font-bold ${profit >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
-                                        {p.cost > 0 ? profit.toFixed(2) : '-'}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <button onClick={() => setEditingProduct(p)} className="text-blue-600 hover:text-blue-900 mr-3"><EditIcon className="w-5 h-5"/></button>
-                                        <button onClick={() => handleDeleteProduct(p.id)} className="text-red-600 hover:text-red-900"><Trash2Icon className="w-5 h-5"/></button>
-                                    </td>
-                                </tr>
-                            )
-                        }) : (
-                            <tr><td colSpan={7} className="text-center text-gray-500 py-8">
-                                <DatabaseIcon className="mx-auto w-12 h-12 text-gray-300"/>
-                                <p className="mt-2">ยังไม่มีสินค้าในระบบ</p>
-                            </td></tr>
-                        )}
+                        {sortedProducts.map(p => (
+                            <tr key={p.id} className={selectedProducts.has(p.id) ? 'bg-green-50' : ''}>
+                                <td className="p-4"><input type="checkbox" checked={selectedProducts.has(p.id)} onChange={e => handleSelectProduct(p.id, e.target.checked)} /></td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{p.name} ({p.color})</td>
+                                <td className="px-6 py-4 text-sm text-right">{p.salePrice.toLocaleString('th-TH', { style: 'currency', currency: 'THB' })}</td>
+                                <td className="px-6 py-4 text-sm text-right">{p.cost > 0 ? p.cost.toLocaleString('th-TH', { style: 'currency', currency: 'THB' }) : '-'}</td>
+                                <td className={`px-6 py-4 text-sm font-bold text-right ${p.profit > 0 ? 'text-green-600' : 'text-red-600'}`}>{p.profit.toLocaleString('th-TH', { style: 'currency', currency: 'THB' })}</td>
+                                <td className="px-6 py-4 text-right space-x-2">
+                                    <button onClick={() => setEditingProduct(p)} className="p-2 text-blue-600 hover:bg-blue-100 rounded-full"><EditIcon className="w-4 h-4" /></button>
+                                    <button onClick={() => handleDeleteProduct(p.id)} className="p-2 text-red-600 hover:bg-red-100 rounded-full"><Trash2Icon className="w-4 h-4" /></button>
+                                </td>
+                            </tr>
+                        ))}
                     </tbody>
-                 </table>
+                </table>
             </div>
         </div>
     );

@@ -46,22 +46,28 @@ export const ProductionPlanTab: React.FC = () => {
     const [productionStatuses, setProductionStatuses] = useState<string[]>([]);
 
     useEffect(() => {
-        const handleStorageChange = () => {
-            setOrders(getOrders());
-            setMoldingLogs(getMoldingLogs());
-            setInventory(getInventory());
-            setProducts(getProducts());
+        const handleStorageChange = async () => {
+            const [ordersData, logsData, inventoryData, productsData, settingsData] = await Promise.all([
+                getOrders(),
+                getMoldingLogs(),
+                getInventory(),
+                getProducts(),
+                getSettings()
+            ]);
+            setOrders(ordersData);
+            setMoldingLogs(logsData);
+            setInventory(inventoryData);
+            setProducts(productsData);
             
-            const settings = getSettings();
-            const statuses = settings.productionStatuses || [];
+            const statuses = settingsData.productionStatuses || [];
             if (!statuses.includes('เสร็จสิ้น')) {
                 statuses.push('เสร็จสิ้น');
             }
             setProductionStatuses(statuses);
         };
         handleStorageChange();
-        window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
+        window.addEventListener('storage', handleStorageChange as any);
+        return () => window.removeEventListener('storage', handleStorageChange as any);
     }, []);
 
     const aggregatedData = useMemo((): AggregatedProductData[] => {
@@ -90,14 +96,14 @@ export const ProductionPlanTab: React.FC = () => {
             }
         });
 
-        inventory.forEach(item => {
+        inventory.forEach((item: InventoryItem) => {
             const entry = productMap.get(item.name);
             if (entry) {
                 entry.inStock = item.quantity;
             }
         });
 
-        moldingLogs.forEach(log => {
+        moldingLogs.forEach((log: MoldingLogEntry) => {
             const entry = productMap.get(log.productName);
             if (entry) {
                 entry.totalMolded += log.quantityProduced;

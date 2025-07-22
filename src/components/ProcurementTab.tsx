@@ -1,12 +1,6 @@
-
-
-
-
-
-
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom/client';
-import { getSuppliers, saveSuppliers, getPurchaseOrders, savePurchaseOrders, getRawMaterials, saveRawMaterials, getAnalysisShortfall, getSettings } from '../services/storageService';
+import { getSuppliers, saveSuppliers, getPurchaseOrders, savePurchaseOrders, getRawMaterials, saveRawMaterials, getAnalysisShortfall, getSettings, addPurchaseOrder } from '../services/storageService';
 import { Supplier, PurchaseOrder, RawMaterial } from '../types';
 import { PlusCircleIcon, Trash2Icon, ShoppingCartIcon, EditIcon, PrinterIcon } from 'lucide-react';
 import { POFormModal } from './POFormModal';
@@ -39,7 +33,7 @@ const SupplierView: React.FC<{
         }
     }, [isEditing]);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!name.trim()) return;
 
@@ -58,15 +52,15 @@ const SupplierView: React.FC<{
             updatedSuppliers = [...suppliers, newSupplier].sort((a,b) => a.name.localeCompare(b.name));
         }
         setSuppliers(updatedSuppliers);
-        saveSuppliers(updatedSuppliers);
+        await saveSuppliers(updatedSuppliers);
         setIsEditing(null);
     };
 
-    const handleDelete = (id: string) => {
+    const handleDelete = async (id: string) => {
         if(window.confirm('คุณแน่ใจหรือไม่ว่าต้องการลบซัพพลายเออร์รายนี้? การดำเนินการนี้อาจส่งผลกระทบต่อใบสั่งซื้อที่มีอยู่')) {
             const updated = suppliers.filter(s => s.id !== id);
             setSuppliers(updated);
-            saveSuppliers(updated);
+            await saveSuppliers(updated);
         }
     };
 
@@ -84,12 +78,12 @@ const SupplierView: React.FC<{
         else setSelectedSuppliers(new Set());
     };
 
-    const handleDeleteSelected = () => {
+    const handleDeleteSelected = async () => {
         if (selectedSuppliers.size === 0) return;
         if(window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบซัพพลายเออร์ ${selectedSuppliers.size} รายที่เลือก?`)) {
             const updated = suppliers.filter(s => !selectedSuppliers.has(s.id));
             setSuppliers(updated);
-            saveSuppliers(updated);
+            await saveSuppliers(updated);
             setSelectedSuppliers(new Set());
         }
     };
@@ -189,27 +183,28 @@ export const ProcurementTab: React.FC = () => {
     const [poInitialItems, setPoInitialItems] = useState<{ rawMaterialId: string; quantity: number }[] | undefined>(undefined);
 
     useEffect(() => {
-        const refreshData = () => {
-            setSuppliers(getSuppliers());
-            setPurchaseOrders(getPurchaseOrders().sort((a,b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime()));
-            setRawMaterials(getRawMaterials());
-            setShortfall(getAnalysisShortfall());
+        const refreshData = async () => {
+            setSuppliers(await getSuppliers());
+            const pos = await getPurchaseOrders();
+            setPurchaseOrders(pos.sort((a,b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime()));
+            setRawMaterials(await getRawMaterials());
+            setShortfall(await getAnalysisShortfall());
         };
         refreshData();
-        window.addEventListener('storage', refreshData);
-        return () => window.removeEventListener('storage', refreshData);
+        window.addEventListener('storage', refreshData as any);
+        return () => window.removeEventListener('storage', refreshData as any);
     }, []);
     
-    const handleAutoCreatePOs = () => {
+    const handleAutoCreatePOs = async () => {
         if (shortfall.length === 0) return;
         const materialsMap = new Map<string, RawMaterial>(rawMaterials.map(m => [m.id, m]));
         const posBySupplier = new Map<string, { po: Omit<PurchaseOrder, 'id'>, supplierName: string }>();
 
-        shortfall.forEach(item => {
+        for (const item of shortfall) {
             const material = materialsMap.get(item.id);
             if (!material || !material.defaultSupplierId) {
                 alert(`กรุณากำหนดซัพพลายเออร์หลักสำหรับ "${material?.name || item.name}" ก่อน`);
-                throw new Error("Missing default supplier");
+                return; // Stop the process
             }
 
             if (!posBySupplier.has(material.defaultSupplierId)) {
@@ -233,12 +228,13 @@ export const ProcurementTab: React.FC = () => {
                 quantity: Math.ceil(item.shortfall), // Round up to whole number
                 unitPrice: material.costPerUnit || 0
             });
-        });
+        }
         
         if (window.confirm(`ระบบจะสร้างใบสั่งซื้อฉบับร่าง ${posBySupplier.size} ใบ ยืนยันหรือไม่?`)) {
-            const newPOs = Array.from(posBySupplier.values()).map(data => ({ ...data.po, id: crypto.randomUUID() }));
+            const newPOsPromises = Array.from(posBySupplier.values()).map(data => addPurchaseOrder(data.po));
+            const newPOs = await Promise.all(newPOsPromises);
+
             const updatedPOs = [...newPOs, ...purchaseOrders].sort((a,b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
-            savePurchaseOrders(updatedPOs);
             setPurchaseOrders(updatedPOs);
             alert('สร้างใบสั่งซื้อฉบับร่างเรียบร้อยแล้ว');
             setView('pos');
@@ -251,15 +247,15 @@ export const ProcurementTab: React.FC = () => {
         setIsPOModalOpen(true);
     };
 
-    const handleSavePO = (po: PurchaseOrder) => {
-        const updatedPOs = [po, ...purchaseOrders];
+    const handleSavePO = async (po: Omit<PurchaseOrder, 'id'>) => {
+        const newPO = await addPurchaseOrder(po);
+        const updatedPOs = [newPO, ...purchaseOrders].sort((a,b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
         setPurchaseOrders(updatedPOs);
-        savePurchaseOrders(updatedPOs);
         setIsPOModalOpen(false);
         setPoInitialItems(undefined);
     };
 
-    const handleReceivePO = (poId: string) => {
+    const handleReceivePO = async (poId: string) => {
         const poToReceive = purchaseOrders.find(po => po.id === poId);
         if (!poToReceive) return;
         
@@ -270,7 +266,7 @@ export const ProcurementTab: React.FC = () => {
             return po;
         });
 
-        const currentRawMaterials = getRawMaterials();
+        const currentRawMaterials = await getRawMaterials();
         poToReceive.items.forEach(item => {
             const materialIndex = currentRawMaterials.findIndex(rm => rm.id === item.rawMaterialId);
             if(materialIndex > -1) {
@@ -278,18 +274,19 @@ export const ProcurementTab: React.FC = () => {
             }
         });
         
-        saveRawMaterials(currentRawMaterials);
+        await saveRawMaterials(currentRawMaterials);
         setRawMaterials(currentRawMaterials);
         setPurchaseOrders(updatedPOs);
-        savePurchaseOrders(updatedPOs);
-        setShortfall(getAnalysisShortfall()); // Recalculate shortfall
+        await savePurchaseOrders(updatedPOs);
+        setShortfall(await getAnalysisShortfall()); // Recalculate shortfall
     };
     
-    const handlePrintPO = (poId: string) => {
+    const handlePrintPO = async (poId: string) => {
         const po = purchaseOrders.find(p => p.id === poId);
         const supplier = suppliers.find(s => s.id === po?.supplierId);
-        const companyInfo = getSettings().companyInfo;
-        const rawMaterialMap = new Map(rawMaterials.map(rm => [rm.id, { name: rm.name, unit: rm.unit }]));
+        const companyInfo = await getSettings();
+        const allRawMaterials = await getRawMaterials();
+        const rawMaterialMap = new Map(allRawMaterials.map(rm => [rm.id, { name: rm.name, unit: rm.unit }]));
 
         if (!po || !supplier) {
             alert("ไม่พบข้อมูลสำหรับพิมพ์");
@@ -312,7 +309,7 @@ export const ProcurementTab: React.FC = () => {
         const printRoot = printWindow.document.getElementById('print-root');
         if (printRoot) {
             const root = ReactDOM.createRoot(printRoot);
-            root.render(<POPrintView po={po} supplier={supplier} companyInfo={companyInfo} rawMaterialMap={rawMaterialMap} />);
+            root.render(<POPrintView po={po} supplier={supplier} companyInfo={companyInfo.companyInfo} rawMaterialMap={rawMaterialMap} />);
 
             setTimeout(() => {
                 printWindow.focus();

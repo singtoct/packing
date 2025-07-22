@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { PurchaseOrder, Supplier, RawMaterial } from '../types';
-import { getRawMaterials, saveRawMaterials } from '../services/storageService';
+import { getRawMaterials, saveRawMaterials, addRawMaterial } from '../services/storageService';
 import { SearchableInput } from './SearchableInput';
 import { PlusCircleIcon, Trash2Icon, XCircleIcon } from 'lucide-react';
 
@@ -32,6 +32,14 @@ export const POFormModal: React.FC<POFormModalProps> = ({ suppliers, rawMaterial
         items: initialItems.map(item => ({...item, unitPrice: rawMaterials.find(rm => rm.id === item.rawMaterialId)?.costPerUnit || 0 }))
     });
 
+    useEffect(() => {
+        const fetchMaterials = async () => {
+            const materials = await getRawMaterials();
+            setLocalRawMaterials(materials);
+        };
+        fetchMaterials();
+    }, []);
+
     const rawMaterialMap = useMemo(() => new Map(localRawMaterials.map(rm => [rm.id, rm])), [localRawMaterials]);
 
     const handleItemChange = (index: number, field: keyof POItemState, value: string | number) => {
@@ -47,7 +55,7 @@ export const POFormModal: React.FC<POFormModalProps> = ({ suppliers, rawMaterial
         setPo(prev => ({ ...prev, items: newItems }));
     };
 
-    const handleAddNewMaterial = (itemIndex: number) => {
+    const handleAddNewMaterial = async (itemIndex: number) => {
         const newName = window.prompt("กรุณาใส่ชื่อวัตถุดิบใหม่:");
         if (!newName || !newName.trim()) {
             return;
@@ -63,19 +71,16 @@ export const POFormModal: React.FC<POFormModalProps> = ({ suppliers, rawMaterial
             return;
         }
 
-        const newMaterial: RawMaterial = {
-            id: crypto.randomUUID(),
+        const newMaterialData: Omit<RawMaterial, 'id'> = {
             name: newName.trim(),
             quantity: 0,
             unit: newUnit.trim(),
             costPerUnit: 0,
         };
-
-        const allMaterials = getRawMaterials();
-        const updatedAllMaterials = [...allMaterials, newMaterial];
-        saveRawMaterials(updatedAllMaterials);
         
-        setLocalRawMaterials(updatedAllMaterials);
+        const newMaterial = await addRawMaterial(newMaterialData);
+        
+        setLocalRawMaterials(prev => [...prev, newMaterial]);
         handleItemChange(itemIndex, 'rawMaterialId', newMaterial.id);
     };
 

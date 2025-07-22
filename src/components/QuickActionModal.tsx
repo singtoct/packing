@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { QuickActionType } from '../App';
-import { OrderItem, PackingLogEntry, MoldingLogEntry, Employee, Product, RawMaterial, BillOfMaterial } from '../types';
-import { saveOrders, getPackingLogs, savePackingLogs, getInventory, saveInventory, saveMoldingLogs, saveRawMaterials, getEmployees, getProducts, getBOMs, getRawMaterials as getAllRawMaterials, getOrders as getAllOrders, saveQCEntries, getQCEntries } from '../services/storageService';
+import { OrderItem, PackingLogEntry, MoldingLogEntry, Employee, Product, RawMaterial, BillOfMaterial, InventoryItem } from '../types';
+import { saveOrders, getPackingLogs, savePackingLogs, getInventory, saveInventory, saveMoldingLogs, saveRawMaterials, getEmployees, getProducts, getBOMs, getOrders as getAllOrders, saveQCEntries, getQCEntries } from '../services/storageService';
 import { XCircleIcon, PlusCircleIcon } from 'lucide-react';
 import { SearchableInput } from './SearchableInput';
 
@@ -21,11 +21,15 @@ const QuickAddOrderForm: React.FC<{ onSave: () => void }> = ({ onSave }) => {
     const [dueDate, setDueDate] = useState('');
 
     useEffect(() => {
-        setProducts(getProducts());
+        const loadProducts = async () => {
+            const prods = await getProducts();
+            setProducts(prods);
+        };
+        loadProducts();
         setDueDate(new Date().toISOString().split('T')[0]);
     }, []);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const selectedProduct = products.find(p => p.id === selectedProductId);
         if (!selectedProduct || !dueDate) return;
@@ -38,8 +42,8 @@ const QuickAddOrderForm: React.FC<{ onSave: () => void }> = ({ onSave }) => {
             dueDate,
             salePrice: selectedProduct.salePrice,
         };
-        const allOrders = getAllOrders();
-        saveOrders([newOrder, ...allOrders]);
+        const allOrders = await getAllOrders();
+        await saveOrders([newOrder, ...allOrders]);
         onSave();
     };
     
@@ -74,18 +78,20 @@ const QuickAddPackingLogForm: React.FC<{ onSave: () => void }> = ({ onSave }) =>
     const [packerName, setPackerName] = useState('');
 
     useEffect(() => {
-        const emps = getEmployees();
-        setEmployees(emps);
-        if(emps.length > 0) setPackerName(emps[0].name);
-        
-        const orders = getAllOrders();
-        const uniqueItems = Array.from(new Set(orders.map(o => `${o.name} (${o.color})`))).sort();
-        setAvailableItems(uniqueItems);
-        if(uniqueItems.length > 0) setSelectedItem(uniqueItems[0]);
-
+        const loadData = async () => {
+            const emps = await getEmployees();
+            setEmployees(emps);
+            if(emps.length > 0) setPackerName(emps[0].name);
+            
+            const orders = await getAllOrders();
+            const uniqueItems = Array.from(new Set(orders.map(o => `${o.name} (${o.color})`))).sort();
+            setAvailableItems(uniqueItems);
+            if(uniqueItems.length > 0) setSelectedItem(uniqueItems[0]);
+        };
+        loadData();
     }, []);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedItem || !packerName) return;
 
@@ -97,20 +103,20 @@ const QuickAddPackingLogForm: React.FC<{ onSave: () => void }> = ({ onSave }) =>
             packerName,
         };
         
-        const allLogs = getPackingLogs();
-        savePackingLogs([newLog, ...allLogs]);
+        const allLogs = await getPackingLogs();
+        await savePackingLogs([newLog, ...allLogs]);
 
-        const inventory = getInventory();
+        const inventory = await getInventory();
         const itemInInventory = inventory.find(i => i.name === newLog.name);
         if (itemInInventory) {
             itemInInventory.quantity += newLog.quantity;
         } else {
-            inventory.push({ name: newLog.name, quantity: newLog.quantity });
+            inventory.push({ id: newLog.name, name: newLog.name, quantity: newLog.quantity });
         }
-        saveInventory(inventory);
+        await saveInventory(inventory);
         
-        const qcEntries = getQCEntries();
-        saveQCEntries([{
+        const qcEntries = await getQCEntries();
+        await saveQCEntries([{
             id: newLog.id,
             packingLogId: newLog.id,
             productName: newLog.name,

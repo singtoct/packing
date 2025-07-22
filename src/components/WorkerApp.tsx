@@ -14,16 +14,16 @@ type WorkerTab = 'molding' | 'packing' | 'status';
 export const WorkerApp: React.FC<WorkerAppProps> = ({ onDataUpdate }) => {
     const [activeTab, setActiveTab] = useState<WorkerTab | null>(null);
     
-    const handleExitWorkerMode = () => {
+    const handleExitWorkerMode = async () => {
         if (window.confirm("คุณต้องการออกจาก Worker Mode หรือไม่?")) {
-            const settings = getSettings();
+            const settings = await getSettings();
             // Find a non-production role, default to manager or the first role available
             const managerRole = settings.roles.find(r => r.name === 'ผู้จัดการโรงงาน');
             const nonProductionRole = managerRole || settings.roles.find(r => r.name !== 'ฝ่ายผลิต');
 
             if (nonProductionRole) {
                 settings.companyInfo.currentUserRoleId = nonProductionRole.id;
-                saveSettings(settings);
+                await saveSettings(settings);
                 window.location.reload();
             } else {
                 alert("ไม่พบบทบาทอื่นให้สลับไป โปรดติดต่อผู้ดูแลระบบ");

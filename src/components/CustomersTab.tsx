@@ -13,7 +13,11 @@ export const CustomersTab: React.FC = () => {
     const [phone, setPhone] = useState('');
 
     useEffect(() => {
-        setCustomers(getCustomers().sort((a,b) => a.name.localeCompare(b.name)));
+        const loadCustomers = async () => {
+            const fetchedCustomers = await getCustomers();
+            setCustomers(fetchedCustomers.sort((a,b) => a.name.localeCompare(b.name)));
+        };
+        loadCustomers();
     }, []);
 
     useEffect(() => {

@@ -136,10 +136,10 @@ export const PackingFloorTab: React.FC = () => {
     const [selectedStation, setSelectedStation] = useState<PackingStation | null>(null);
     const [selectedJob, setSelectedJob] = useState<PackingQueueItem | null>(null);
 
-    const fetchData = useCallback(() => {
+    const fetchData = useCallback(async () => {
         setIsLoading(true);
-        const allStations = getPackingStations().sort((a, b) => a.name.localeCompare(b.name));
-        const allQueue = getPackingQueue();
+        const allStations = (await getPackingStations()).sort((a, b) => a.name.localeCompare(b.name));
+        const allQueue = await getPackingQueue();
 
         const data: StationData[] = allStations.map(station => {
             const stationJobs = allQueue.filter(j => j.stationId === station.id);
@@ -164,9 +164,9 @@ export const PackingFloorTab: React.FC = () => {
         setIsLoading(false);
     }, []);
     
-    const handleStatusChange = useCallback((stationId: string, newStatus: PackingStation['status']) => {
-        const allStations = getPackingStations();
-        const allQueue = getPackingQueue();
+    const handleStatusChange = useCallback(async (stationId: string, newStatus: PackingStation['status']) => {
+        const allStations = await getPackingStations();
+        const allQueue = await getPackingQueue();
         const station = allStations.find(s => s.id === stationId);
         if (!station || station.status === newStatus) return;
 
@@ -190,23 +190,24 @@ export const PackingFloorTab: React.FC = () => {
             }
         }
         
-        savePackingStations(allStations);
-        savePackingQueue(allQueue);
+        await savePackingStations(allStations);
+        await savePackingQueue(allQueue);
         fetchData();
     }, [fetchData]);
 
     useEffect(() => {
         fetchData();
         const handleStorageChange = () => fetchData();
-        window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
+        window.addEventListener('storage', handleStorageChange as any);
+        return () => window.removeEventListener('storage', handleStorageChange as any);
     }, [fetchData]);
     
-    const handleCardClick = (station: PackingStation) => {
+    const handleCardClick = async (station: PackingStation) => {
         const stationJob = stationData.find(sd => sd.station.id === station.id)?.currentJob;
         setSelectedStation(station);
         if (stationJob) {
-            setSelectedJob(getPackingQueue().find(j => j.id === stationJob.id) || null);
+            const allQueue = await getPackingQueue();
+            setSelectedJob(allQueue.find(j => j.id === stationJob.id) || null);
             setIsEditModalOpen(true);
         } else {
             setIsAssignModalOpen(true);

@@ -156,15 +156,15 @@ export const MoldingTab: React.FC = () => {
     const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'date', direction: 'desc' });
 
     useEffect(() => {
-        const handleStorageChange = () => {
-            const storedLogs = getMoldingLogs();
+        const handleStorageChange = async () => {
+            const storedLogs = await getMoldingLogs();
             setLogs(storedLogs);
-            const loadedEmployees = getEmployees();
+            const loadedEmployees = await getEmployees();
             setEmployees(loadedEmployees);
-            setBoms(getBOMs());
-            setRawMaterials(getRawMaterials());
-            setProducts(getProducts());
-            const settings = getSettings();
+            setBoms(await getBOMs());
+            setRawMaterials(await getRawMaterials());
+            setProducts(await getProducts());
+            const settings = await getSettings();
             setProductionStatuses(settings.productionStatuses);
 
             if (loadedEmployees.length > 0 && !operatorName) {
@@ -179,8 +179,8 @@ export const MoldingTab: React.FC = () => {
         setDate(today);
         handleStorageChange();
 
-        window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
+        window.addEventListener('storage', handleStorageChange as any);
+        return () => window.removeEventListener('storage', handleStorageChange as any);
     }, [operatorName, nextStep]);
 
      useEffect(() => {
@@ -315,7 +315,7 @@ export const MoldingTab: React.FC = () => {
         });
     };
 
-    const handleAddLog = (e: React.FormEvent) => {
+    const handleAddLog = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!productName.trim() || !date || !operatorName || !machine || !nextStep) return;
 
@@ -352,7 +352,7 @@ export const MoldingTab: React.FC = () => {
             materialCost: materialCheck.totalCost > 0 ? materialCheck.totalCost : undefined,
         };
 
-        const currentRawMaterials = getRawMaterials();
+        const currentRawMaterials = await getRawMaterials();
         materialCheck.required.forEach(req => {
             const matIndex = currentRawMaterials.findIndex(rm => rm.id === req.rawMaterialId);
             if (matIndex > -1) {
@@ -360,12 +360,12 @@ export const MoldingTab: React.FC = () => {
             }
         });
 
-        saveRawMaterials(currentRawMaterials);
+        await saveRawMaterials(currentRawMaterials);
         setRawMaterials(currentRawMaterials);
 
         const updatedLogs = [newLog, ...logs];
         setLogs(updatedLogs);
-        saveMoldingLogs(updatedLogs);
+        await saveMoldingLogs(updatedLogs);
 
         setProductName('');
         setQuantityProduced(1);
@@ -373,11 +373,11 @@ export const MoldingTab: React.FC = () => {
         setEditableMaterials([]);
     };
 
-    const handleDeleteLog = (id: string) => {
+    const handleDeleteLog = async (id: string) => {
         if (window.confirm('คุณแน่ใจหรือไม่ว่าต้องการลบรายการบันทึกนี้? การกระทำนี้จะไม่คืนวัตถุดิบที่ใช้ไปในสต็อก')) {
             const updatedLogs = logs.filter(log => log.id !== id);
             setLogs(updatedLogs);
-            saveMoldingLogs(updatedLogs);
+            await saveMoldingLogs(updatedLogs);
         }
     };
     
@@ -419,12 +419,12 @@ export const MoldingTab: React.FC = () => {
         else setSelectedLogs(new Set());
     };
 
-    const handleDeleteSelected = () => {
+    const handleDeleteSelected = async () => {
         if (selectedLogs.size === 0) return;
         if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบ ${selectedLogs.size} รายการที่เลือก? การกระทำนี้จะไม่คืนวัตถุดิบที่ใช้ไป`)) {
             const updatedLogs = logs.filter(log => !selectedLogs.has(log.id));
             setLogs(updatedLogs);
-            saveMoldingLogs(updatedLogs);
+            await saveMoldingLogs(updatedLogs);
             setSelectedLogs(new Set());
         }
     };
@@ -484,10 +484,12 @@ export const MoldingTab: React.FC = () => {
         reader.readAsBinaryString(file);
     };
 
-    const handleConfirmImport = (finalLogs: Omit<StagedLog, '_tempId'>[]) => {
+    const handleConfirmImport = async (finalLogs: Omit<StagedLog, '_tempId'>[]) => {
         // Pre-flight check
-        const bomsMap = new Map(getBOMs().map(b => [b.productName, b]));
-        const materialsMap = new Map<string, RawMaterial>(getRawMaterials().map(m => [m.id, m]));
+        const allBOMs = await getBOMs();
+        const allMaterials = await getRawMaterials();
+        const bomsMap = new Map(allBOMs.map(b => [b.productName, b]));
+        const materialsMap = new Map<string, RawMaterial>(allMaterials.map(m => [m.id, m]));
         const requiredMaterials = new Map<string, number>();
 
         for (const row of finalLogs) {
@@ -511,7 +513,7 @@ export const MoldingTab: React.FC = () => {
 
         // Proceed with import
         const newLogs: MoldingLogEntry[] = [];
-        const updatedRawMaterials = getRawMaterials();
+        const updatedRawMaterials = await getRawMaterials();
         finalLogs.forEach(row => {
             const bom = bomsMap.get(row.productName);
             let materialCost = 0;
@@ -535,10 +537,10 @@ export const MoldingTab: React.FC = () => {
             newLogs.push(newLog);
         });
 
-        saveRawMaterials(updatedRawMaterials);
+        await saveRawMaterials(updatedRawMaterials);
         setRawMaterials(updatedRawMaterials);
         const allLogs = [...newLogs, ...logs];
-        saveMoldingLogs(allLogs);
+        await saveMoldingLogs(allLogs);
         setLogs(allLogs);
         alert(`นำเข้าสำเร็จ ${newLogs.length} รายการ`);
         setIsReviewModalOpen(false);

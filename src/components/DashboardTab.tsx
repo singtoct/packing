@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { getOrders, getPackingLogs, getInventory, getQCEntries, getMoldingLogs, getBOMs, getRawMaterials, getMachines, getSettings, saveSettings } from '../services/storageService';
 import { generateProductionPlan, generateInventoryForecast } from '../services/geminiService';
@@ -42,10 +39,11 @@ const AIInventoryForecastCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = 
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
             
-            const orders = getOrders();
-            const moldingLogs = getMoldingLogs().filter(log => new Date(log.date) >= thirtyDaysAgo);
-            const boms = getBOMs();
-            const rawMaterials = getRawMaterials();
+            const orders = await getOrders();
+            const allMoldingLogs = await getMoldingLogs();
+            const moldingLogs = allMoldingLogs.filter(log => new Date(log.date) >= thirtyDaysAgo);
+            const boms = await getBOMs();
+            const rawMaterials = await getRawMaterials();
             
             const generatedForecast = await generateInventoryForecast(orders, moldingLogs, boms, rawMaterials);
             setForecast(generatedForecast);
@@ -110,11 +108,11 @@ const AIPlannerCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = () => {
         setIsLoading(true);
         setError(null);
         try {
-            const orders = getOrders();
-            const inventory = getInventory();
-            const machines = getMachines();
-            const boms = getBOMs();
-            const rawMaterials = getRawMaterials();
+            const orders = await getOrders();
+            const inventory = await getInventory();
+            const machines = await getMachines();
+            const boms = await getBOMs();
+            const rawMaterials = await getRawMaterials();
             const generatedPlan = await generateProductionPlan(orders, inventory, machines, boms, rawMaterials);
             setPlan(generatedPlan);
         } catch (err) {
@@ -172,7 +170,11 @@ const AIPlannerCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = () => {
 const UpcomingOrdersCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ setActiveTab }) => {
     const [orders, setOrders] = useState<OrderItem[]>([]);
     useEffect(() => {
-        setOrders([...getOrders()].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()).slice(0, 5));
+        const loadData = async () => {
+            const allOrders = await getOrders();
+            setOrders([...allOrders].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()).slice(0, 5));
+        };
+        loadData();
     }, []);
     return (
         <StatCard title="ออเดอร์ใกล้ถึงกำหนดส่ง" icon={<ListOrderedIcon className="w-6 h-6 text-green-500" />} onClick={() => setActiveTab('production_plan')}>
@@ -196,7 +198,11 @@ const UpcomingOrdersCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ se
 const LowStockCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ setActiveTab }) => {
     const [items, setItems] = useState<InventoryItem[]>([]);
     useEffect(() => {
-        setItems(getInventory().filter(item => item.minStock !== undefined && item.quantity < item.minStock));
+        const loadData = async () => {
+            const inventory = await getInventory();
+            setItems(inventory.filter(item => item.minStock !== undefined && item.quantity < item.minStock));
+        };
+        loadData();
     }, []);
     return (
         <StatCard title="รายการสต็อกต่ำ" icon={<AlertTriangleIcon className="w-6 h-6 text-yellow-500" />} onClick={() => setActiveTab('inventory')}>
@@ -217,7 +223,13 @@ const LowStockCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ setActiv
 
 const PendingQcCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ setActiveTab }) => {
     const [count, setCount] = useState(0);
-    useEffect(() => setCount(getQCEntries().filter(e => e.status === 'Pending').length), []);
+    useEffect(() => {
+        const loadData = async () => {
+            const qcEntries = await getQCEntries();
+            setCount(qcEntries.filter(e => e.status === 'Pending').length);
+        };
+        loadData();
+    }, []);
     return (
         <StatCard title="รอตรวจสอบคุณภาพ (QC)" icon={<ClipboardCheckIcon className="w-6 h-6 text-teal-500" />} onClick={() => setActiveTab('qc')}>
              <div className="text-center">
@@ -231,15 +243,18 @@ const PendingQcCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ setActi
 const ProductionSummaryCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = () => {
     const [data, setData] = useState<{ name: string; Produced: number; Rejected: number }[]>([]);
     useEffect(() => {
-        const logs = getMoldingLogs();
-        const summary = logs.reduce((acc, log) => {
-            const day = new Date(log.date).toLocaleDateString('th-TH', { weekday: 'short' });
-            if (!acc[day]) acc[day] = { name: day, Produced: 0, Rejected: 0 };
-            acc[day].Produced += log.quantityProduced;
-            acc[day].Rejected += log.quantityRejected;
-            return acc;
-        }, {} as Record<string, { name: string; Produced: number; Rejected: number }>);
-        setData(Object.values(summary).slice(-7));
+        const loadData = async () => {
+            const logs = await getMoldingLogs();
+            const summary = logs.reduce((acc, log) => {
+                const day = new Date(log.date).toLocaleDateString('th-TH', { weekday: 'short' });
+                if (!acc[day]) acc[day] = { name: day, Produced: 0, Rejected: 0 };
+                acc[day].Produced += log.quantityProduced;
+                acc[day].Rejected += log.quantityRejected;
+                return acc;
+            }, {} as Record<string, { name: string; Produced: number; Rejected: number }>);
+            setData(Object.values(summary).slice(-7));
+        };
+        loadData();
     }, []);
     return (
         <StatCard title="สรุปการผลิต 7 วันล่าสุด" icon={<TrendingUpIcon className="w-6 h-6 text-indigo-500" />}>
@@ -260,15 +275,19 @@ const ProductionSummaryCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = ()
 const TopPackersCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ setActiveTab }) => {
     const [packers, setPackers] = useState<{ name: string; quantity: number }[]>([]);
     useEffect(() => {
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        const logs = getPackingLogs().filter(log => new Date(log.date) > sevenDaysAgo);
-        const summary = logs.reduce((acc, log) => {
-            if (!acc[log.packerName]) acc[log.packerName] = 0;
-            acc[log.packerName] += log.quantity;
-            return acc;
-        }, {} as Record<string, number>);
-        setPackers(Object.entries(summary).map(([name, quantity]) => ({ name, quantity })).sort((a, b) => b.quantity - a.quantity).slice(0, 5));
+        const loadData = async () => {
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            const allLogs = await getPackingLogs();
+            const logs = allLogs.filter(log => new Date(log.date) > sevenDaysAgo);
+            const summary = logs.reduce((acc, log) => {
+                if (!acc[log.packerName]) acc[log.packerName] = 0;
+                acc[log.packerName] += log.quantity;
+                return acc;
+            }, {} as Record<string, number>);
+            setPackers(Object.entries(summary).map(([name, quantity]) => ({ name, quantity })).sort((a, b) => b.quantity - a.quantity).slice(0, 5));
+        };
+        loadData();
     }, []);
     return (
         <StatCard title="ยอดแพ็คสูงสุด (7 วันล่าสุด)" icon={<TrophyIcon className="w-6 h-6 text-amber-500" />} onClick={() => setActiveTab('employees')}>
@@ -289,27 +308,30 @@ const TopPackersCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ setAct
 const RawMaterialNeedsCard: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ setActiveTab }) => {
     const [needs, setNeeds] = useState<{ id: string; name: string; shortfall: number; unit: string }[]>([]);
     useEffect(() => {
-        const orders = getOrders();
-        const boms = getBOMs();
-        const materials = getRawMaterials();
-        const bomMap = new Map(boms.map(b => [b.productName, b.components]));
-        const materialMap = new Map(materials.map(m => [m.id, m]));
-        const required = new Map<string, number>();
+        const loadData = async () => {
+            const orders = await getOrders();
+            const boms = await getBOMs();
+            const materials = await getRawMaterials();
+            const bomMap = new Map(boms.map(b => [b.productName, b.components]));
+            const materialMap = new Map(materials.map(m => [m.id, m]));
+            const required = new Map<string, number>();
 
-        orders.forEach(order => {
-            const bom = bomMap.get(`${order.name} (${order.color})`);
-            if (bom) {
-                bom.forEach(comp => {
-                    required.set(comp.rawMaterialId, (required.get(comp.rawMaterialId) || 0) + (comp.quantity * order.quantity));
-                });
-            }
-        });
+            orders.forEach(order => {
+                const bom = bomMap.get(`${order.name} (${order.color})`);
+                if (bom) {
+                    bom.forEach(comp => {
+                        required.set(comp.rawMaterialId, (required.get(comp.rawMaterialId) || 0) + (comp.quantity * order.quantity));
+                    });
+                }
+            });
 
-        const shortfalls = Array.from(required.entries()).map(([id, quantity]) => {
-            const material = materialMap.get(id);
-            return { id, name: material?.name || 'N/A', shortfall: quantity - (material?.quantity || 0), unit: material?.unit || '' };
-        }).filter(item => item.shortfall > 0).sort((a,b) => b.shortfall - a.shortfall).slice(0,5);
-        setNeeds(shortfalls);
+            const shortfalls = Array.from(required.entries()).map(([id, quantity]) => {
+                const material = materialMap.get(id);
+                return { id, name: material?.name || 'N/A', shortfall: quantity - (material?.quantity || 0), unit: material?.unit || '' };
+            }).filter(item => item.shortfall > 0).sort((a,b) => b.shortfall - a.shortfall).slice(0,5);
+            setNeeds(shortfalls);
+        };
+        loadData();
     }, []);
 
     return (
@@ -340,28 +362,34 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
         rawMaterialNeeds: { id: 'rawMaterialNeeds', title: 'Raw Material Needs', Component: RawMaterialNeedsCard, gridSpan: 1 },
     };
     
-    const [settings, setSettings] = useState<AppSettings>(getSettings());
+    const [settings, setSettings] = useState<AppSettings | null>(null);
     const [draggableWidgets, setDraggableWidgets] = useState<DashboardWidget[]>([]);
     const dragItem = useRef<string | null>(null);
     const dragOverItem = useRef<string | null>(null);
 
     // Initialize widgets based on user role
     useEffect(() => {
-        const currentSettings = getSettings();
-        setSettings(currentSettings);
-        
-        const userRoleLayout = currentSettings.dashboardLayouts[currentSettings.companyInfo.currentUserRoleId] || Object.keys(WIDGETS);
-        const initialWidgets = userRoleLayout
-            .map(id => WIDGETS[id])
-            .filter(Boolean); // Filter out any undefined widgets if config is stale
-        setDraggableWidgets(initialWidgets);
+        const loadData = async () => {
+            const currentSettings = await getSettings();
+            setSettings(currentSettings);
+            
+            if (currentSettings) {
+                 const userRoleLayout = currentSettings.dashboardLayouts[currentSettings.companyInfo.currentUserRoleId] || Object.keys(WIDGETS);
+                const initialWidgets = userRoleLayout
+                    .map(id => WIDGETS[id])
+                    .filter(Boolean); // Filter out any undefined widgets if config is stale
+                setDraggableWidgets(initialWidgets);
+            }
+        };
+        loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleDragStart = (e: React.DragEvent<HTMLDivElement>, id: string) => {
         dragItem.current = id;
     };
     
-    const handleDrop = (e: React.DragEvent<HTMLDivElement>, id: string) => {
+    const handleDrop = async (e: React.DragEvent<HTMLDivElement>, id: string) => {
         dragOverItem.current = id;
         
         const dragItemIndex = draggableWidgets.findIndex(w => w.id === dragItem.current);
@@ -378,21 +406,27 @@ export const DashboardTab: React.FC<{ setActiveTab: (tab: Tab) => void }> = ({ s
         dragOverItem.current = null;
         
         // Save new layout to settings
-        const newLayoutOrder = newWidgets.map(w => w.id);
-        const newSettings = {
-            ...settings,
-            dashboardLayouts: {
-                ...settings.dashboardLayouts,
-                [settings.companyInfo.currentUserRoleId]: newLayoutOrder,
-            }
-        };
-        saveSettings(newSettings);
+        if (settings) {
+            const newLayoutOrder = newWidgets.map(w => w.id);
+            const newSettings = {
+                ...settings,
+                dashboardLayouts: {
+                    ...settings.dashboardLayouts,
+                    [settings.companyInfo.currentUserRoleId]: newLayoutOrder,
+                }
+            };
+            await saveSettings(newSettings);
+        }
     };
+    
+    if (!settings) {
+        return <div className="flex items-center justify-center h-full"><LoaderIcon className="w-10 h-10 animate-spin text-green-600" /></div>;
+    }
 
     return (
         <div>
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-3xl font-bold text-gray-800">ภาพรวมระบบ</h2>
+            <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center mb-6">
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-800">ภาพรวมระบบ</h2>
                 <button
                     onClick={() => {}}
                     className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200"

@@ -25,12 +25,16 @@ export const MachinePerformanceTab: React.FC = () => {
     const [dateRange, setDateRange] = useState<number>(7); // Default to last 7 days
 
     useEffect(() => {
-        const allMachines = getMachines().sort((a,b) => a.name.localeCompare(b.name));
-        setMachines(allMachines);
-        setAllLogs(getMoldingLogs());
-        if (allMachines.length > 0) {
-            setSelectedMachineId(allMachines[0].id);
-        }
+        const loadData = async () => {
+            const allMachines = (await getMachines()).sort((a,b) => a.name.localeCompare(b.name));
+            setMachines(allMachines);
+            setAllLogs(await getMoldingLogs());
+            if (allMachines.length > 0 && !selectedMachineId) {
+                setSelectedMachineId(allMachines[0].id);
+            }
+        };
+        loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const filteredLogs = useMemo(() => {
@@ -58,9 +62,9 @@ export const MachinePerformanceTab: React.FC = () => {
     }, [selectedMachineId, dateRange, allLogs, machines]);
 
     const performanceData = useMemo(() => {
-        const totalProduced = filteredLogs.reduce((sum, log) => sum + log.quantityProduced, 0);
-        const totalRejected = filteredLogs.reduce((sum, log) => sum + log.quantityRejected, 0);
-        const rejectionRate = totalProduced > 0 ? (Number(totalRejected) / Number(totalProduced)) * 100 : 0;
+        const totalProduced = filteredLogs.reduce((sum, log) => sum + Number(log.quantityProduced || 0), 0);
+        const totalRejected = filteredLogs.reduce((sum, log) => sum + Number(log.quantityRejected || 0), 0);
+        const rejectionRate = Number(totalProduced) > 0 ? (Number(totalRejected) / Number(totalProduced)) * 100 : 0;
 
         const productSummary = filteredLogs.reduce((acc, log) => {
             acc[log.productName] = (acc[log.productName] || 0) + log.quantityProduced;

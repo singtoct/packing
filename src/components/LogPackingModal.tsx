@@ -13,7 +13,7 @@ interface LogPackingModalProps {
 export const LogPackingModal: React.FC<LogPackingModalProps> = ({ station, job, onClose, onSave }) => {
     const [quantity, setQuantity] = useState(0);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (quantity <= 0) {
             alert("กรุณาใส่จำนวนที่แพ็คให้ถูกต้อง");
@@ -28,8 +28,8 @@ export const LogPackingModal: React.FC<LogPackingModalProps> = ({ station, job, 
             quantity: quantity,
             packerName: job.packerName || 'N/A',
         };
-        const allPackingLogs = getPackingLogs();
-        savePackingLogs([newLog, ...allPackingLogs]);
+        const allPackingLogs = await getPackingLogs();
+        await savePackingLogs([newLog, ...allPackingLogs]);
 
         // 2. Create QCEntry
         const newQCEntry: QCEntry = {
@@ -41,21 +41,21 @@ export const LogPackingModal: React.FC<LogPackingModalProps> = ({ station, job, 
             packingDate: newLog.date,
             status: 'Pending',
         };
-        const allQCEntries = getQCEntries();
-        saveQCEntries([newQCEntry, ...allQCEntries]);
+        const allQCEntries = await getQCEntries();
+        await saveQCEntries([newQCEntry, ...allQCEntries]);
 
         // 3. Update Inventory
-        const inventory = getInventory();
+        const inventory = await getInventory();
         const itemIndex = inventory.findIndex(i => i.name === job.productName);
         if (itemIndex > -1) {
             inventory[itemIndex].quantity += quantity;
         } else {
-            inventory.push({ name: job.productName, quantity });
+            inventory.push({ id: job.productName, name: job.productName, quantity: quantity });
         }
-        saveInventory(inventory);
+        await saveInventory(inventory);
 
         // 4. Update PackingQueueItem
-        const queue = getPackingQueue();
+        const queue = await getPackingQueue();
         const jobIndex = queue.findIndex(j => j.id === job.id);
         if (jobIndex > -1) {
             const updatedJob = { ...queue[jobIndex] };
@@ -64,15 +64,15 @@ export const LogPackingModal: React.FC<LogPackingModalProps> = ({ station, job, 
             // 5. Check for job completion
             if (updatedJob.quantityPacked >= updatedJob.quantityGoal) {
                 queue.splice(jobIndex, 1); // Remove from queue
-                const stations = getPackingStations();
+                const stations = await getPackingStations();
                 const updatedStations = stations.map(s => 
                     s.id === station.id ? { ...s, status: 'Idle' as const, lastStartedAt: undefined } : s
                 );
-                savePackingStations(updatedStations);
+                await savePackingStations(updatedStations);
             } else {
                 queue[jobIndex] = updatedJob;
             }
-            savePackingQueue(queue);
+            await savePackingQueue(queue);
         }
 
         onSave();

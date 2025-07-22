@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useMemo, useState, useEffect } from 'react';
 import { getOrders, getBOMs, getRawMaterials, getMoldingLogs, getMachines, getMaintenanceLogs, getProducts } from '../services/storageService';
 import { analyzeProductionAnomalies } from '../services/geminiService';
@@ -19,12 +21,12 @@ const OEEAnalysis: React.FC = () => {
     const [dateRange, setDateRange] = useState<number>(30); // Default to 30 days
 
     useEffect(() => {
-        const calculateOEE = () => {
-            const machines = getMachines();
-            const allProducts = getProducts();
+        const calculateOEE = async () => {
+            const machines = await getMachines();
+            const allProducts = await getProducts();
             const productMap = new Map(allProducts.map(p => [p.name, p]));
-            const maintenanceLogs = getMaintenanceLogs();
-            const moldingLogs = getMoldingLogs();
+            const maintenanceLogs = await getMaintenanceLogs();
+            const moldingLogs = await getMoldingLogs();
 
             const end = new Date();
             const start = new Date();
@@ -203,7 +205,8 @@ const AnomalyDetector: React.FC = () => {
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         
-        const logs = getMoldingLogs().filter(log => new Date(log.date) >= thirtyDaysAgo);
+        const allLogs = await getMoldingLogs();
+        const logs = allLogs.filter(log => new Date(log.date) >= thirtyDaysAgo);
         
         if (logs.length === 0) {
             setFindings([]);
@@ -271,45 +274,49 @@ const AnomalyDetector: React.FC = () => {
 
 export const AnalysisTab: React.FC = () => {
     const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'shortfall', direction: 'desc' });
+    const [analysisResult, setAnalysisResult] = useState<any[]>([]);
 
-    const analysisResult = useMemo(() => {
-        const orders = getOrders();
-        const boms = getBOMs();
-        const rawMaterials = getRawMaterials();
+    useEffect(() => {
+        const calculateAnalysis = async () => {
+            const orders = await getOrders();
+            const boms = await getBOMs();
+            const rawMaterials = await getRawMaterials();
 
-        const bomMap = new Map(boms.map(b => [b.productName, b]));
-        const rawMaterialMap = new Map(rawMaterials.map(rm => [rm.id, rm]));
-        const requiredMaterials = new Map<string, { required: number, name: string, unit: string }>();
+            const bomMap = new Map(boms.map(b => [b.productName, b]));
+            const rawMaterialMap = new Map(rawMaterials.map(rm => [rm.id, rm]));
+            const requiredMaterials = new Map<string, { required: number, name: string, unit: string }>();
 
-        orders.forEach(order => {
-            const productName = `${order.name} (${order.color})`;
-            const bom = bomMap.get(productName);
-            if (bom) {
-                bom.components.forEach(comp => {
-                    const material = rawMaterialMap.get(comp.rawMaterialId);
-                    if (material) {
-                        const totalRequired = comp.quantity * order.quantity;
-                        const existing = requiredMaterials.get(material.id) || { required: 0, name: material.name, unit: material.unit };
-                        existing.required += totalRequired;
-                        requiredMaterials.set(material.id, existing);
-                    }
-                });
-            }
-        });
+            orders.forEach(order => {
+                const productName = `${order.name} (${order.color})`;
+                const bom = bomMap.get(productName);
+                if (bom) {
+                    bom.components.forEach(comp => {
+                        const material = rawMaterialMap.get(comp.rawMaterialId);
+                        if (material) {
+                            const totalRequired = comp.quantity * order.quantity;
+                            const existing = requiredMaterials.get(material.id) || { required: 0, name: material.name, unit: material.unit };
+                            existing.required += totalRequired;
+                            requiredMaterials.set(material.id, existing);
+                        }
+                    });
+                }
+            });
 
-        return Array.from(requiredMaterials.entries()).map(([id, data]) => {
-            const materialInStock = rawMaterialMap.get(id);
-            const inStock = materialInStock?.quantity || 0;
-            const shortfall = data.required - inStock;
-            return {
-                ...data,
-                id,
-                inStock,
-                shortfall: shortfall > 0 ? shortfall : 0,
-                isSufficient: shortfall <= 0,
-            };
-        });
-
+            const result = Array.from(requiredMaterials.entries()).map(([id, data]) => {
+                const materialInStock = rawMaterialMap.get(id);
+                const inStock = materialInStock?.quantity || 0;
+                const shortfall = data.required - inStock;
+                return {
+                    ...data,
+                    id,
+                    inStock,
+                    shortfall: shortfall > 0 ? shortfall : 0,
+                    isSufficient: shortfall <= 0,
+                };
+            });
+            setAnalysisResult(result);
+        };
+        calculateAnalysis();
     }, []);
     
     const requestSort = (key: string) => {

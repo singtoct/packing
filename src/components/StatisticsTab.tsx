@@ -1,8 +1,6 @@
-
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { getMoldingLogs, getEmployees, getSettings, getPurchaseOrders, getRawMaterials } from '../services/storageService';
-import { MoldingLogEntry, Employee, PurchaseOrder, RawMaterial } from '../types';
+import { MoldingLogEntry, Employee, PurchaseOrder, RawMaterial, AppSettings } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { FactoryIcon, ShoppingCartIcon, TruckIcon } from 'lucide-react';
 
@@ -37,14 +35,17 @@ const ProductionStats: React.FC = () => {
     const [selectedOperator, setSelectedOperator] = useState('All');
 
     useEffect(() => {
-        setLogs(getMoldingLogs());
-        setEmployees(getEmployees());
+        const loadData = async () => {
+            setLogs(await getMoldingLogs());
+            setEmployees(await getEmployees());
+        };
+        loadData();
     }, []);
 
     const filteredLogs = useMemo(() => {
         const endDate = new Date();
         const startDate = new Date();
-        startDate.setDate(endDate.getDate() - dateRange);
+        startDate.setDate(endDate.getDate() - Number(dateRange));
         
         return logs.filter(log => {
             const logDate = new Date(log.date);
@@ -104,13 +105,20 @@ const ProductionStats: React.FC = () => {
 
 const ShippingStats: React.FC = () => {
     const [logs, setLogs] = useState<MoldingLogEntry[]>([]);
+    const [settings, setSettings] = useState<AppSettings | null>(null);
 
     useEffect(() => {
-        setLogs(getMoldingLogs());
+        const loadData = async () => {
+            setLogs(await getMoldingLogs());
+            setSettings(await getSettings());
+        };
+        loadData();
     }, []);
 
     const summaryData = useMemo(() => {
-        const productionStatuses = getSettings().productionStatuses;
+        if (!settings) return { finished: 0, inFinalStage: 0, inProgress: 0, topFinished: [] };
+
+        const productionStatuses = settings.productionStatuses;
         const finalStage = productionStatuses.length > 0 ? (productionStatuses[productionStatuses.length - 1].startsWith('รอ') ? productionStatuses[productionStatuses.length - 1] : `รอ${productionStatuses[productionStatuses.length - 1]}`) : 'รอแพ็ค';
         
         let finished = 0;
@@ -120,12 +128,12 @@ const ShippingStats: React.FC = () => {
 
         logs.forEach(log => {
             if (log.status === 'เสร็จสิ้น') {
-                finished += log.quantityProduced;
-                topFinishedProducts.set(log.productName, (topFinishedProducts.get(log.productName) || 0) + log.quantityProduced);
+                finished += Number(log.quantityProduced);
+                topFinishedProducts.set(log.productName, (topFinishedProducts.get(log.productName) || 0) + Number(log.quantityProduced));
             } else if (log.status === finalStage) {
-                inFinalStage += log.quantityProduced;
+                inFinalStage += Number(log.quantityProduced);
             } else {
-                inProgress += log.quantityProduced;
+                inProgress += Number(log.quantityProduced);
             }
         });
 
@@ -133,9 +141,9 @@ const ShippingStats: React.FC = () => {
             finished,
             inFinalStage,
             inProgress,
-            topFinished: Array.from(topFinishedProducts.entries()).map(([name, quantity]) => ({name, quantity})).sort((a,b) => Number(b.quantity) - Number(a.quantity)).slice(0,5)
+            topFinished: Array.from(topFinishedProducts.entries()).map(([name, quantity]) => ({name, quantity})).sort((a,b) => b.quantity - a.quantity).slice(0,5)
         };
-    }, [logs]);
+    }, [logs, settings]);
 
     return (
         <div className="space-y-6">
@@ -165,8 +173,11 @@ const PurchasingStats: React.FC = () => {
     const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
 
     useEffect(() => {
-        setPOs(getPurchaseOrders());
-        setRawMaterials(getRawMaterials());
+        const loadData = async () => {
+            setPOs(await getPurchaseOrders());
+            setRawMaterials(await getRawMaterials());
+        };
+        loadData();
     }, []);
     
     const materialMap = useMemo(() => new Map(rawMaterials.map(rm => [rm.id, rm])), [rawMaterials]);

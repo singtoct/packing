@@ -19,12 +19,15 @@ export const AssignPackingJobModal: React.FC<AssignPackingJobModalProps> = ({ st
     const [priority, setPriority] = useState(10);
     
     useEffect(() => {
-        setProducts(getProducts());
-        const emps = getEmployees();
-        setEmployees(emps);
-        if (emps.length > 0) {
-            setPackerName(emps[0].name);
-        }
+        const loadData = async () => {
+            setProducts(await getProducts());
+            const emps = await getEmployees();
+            setEmployees(emps);
+            if (emps.length > 0) {
+                setPackerName(emps[0].name);
+            }
+        };
+        loadData();
     }, []);
 
     const productOptions = useMemo(() => {
@@ -32,7 +35,7 @@ export const AssignPackingJobModal: React.FC<AssignPackingJobModalProps> = ({ st
             .sort((a,b) => a.name.localeCompare(b.name));
     }, [products]);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const product = products.find(p => p.id === selectedProductId);
         if (!product) {
@@ -52,14 +55,14 @@ export const AssignPackingJobModal: React.FC<AssignPackingJobModalProps> = ({ st
             packerName,
         };
 
-        const queue = getPackingQueue();
-        savePackingQueue([...queue, newJob]);
+        const queue = await getPackingQueue();
+        await savePackingQueue([...queue, newJob]);
 
-        const stations = getPackingStations();
+        const stations = await getPackingStations();
         const updatedStations = stations.map(s => 
             s.id === station.id ? { ...s, status: 'Idle' as const } : s
         );
-        savePackingStations(updatedStations);
+        await savePackingStations(updatedStations);
 
         onSave();
     };

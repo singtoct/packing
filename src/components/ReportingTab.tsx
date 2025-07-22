@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { getInventory, getPackingLogs, getEmployees, getMoldingLogs, getProducts, getBOMs, getRawMaterials } from '../services/storageService';
@@ -48,28 +50,32 @@ const LotTraceability: React.FC = () => {
     const [result, setResult] = useState<TraceabilityResult | null>(null);
     const [error, setError] = useState<string | null>(null);
 
-    const handleSearch = () => {
+    const handleSearch = async () => {
         setError(null);
         setResult(null);
         if (!searchTerm.trim()) return;
-
-        const packingLog = getPackingLogs().find(p => p.id === searchTerm.trim());
+        
+        const allPackingLogs = await getPackingLogs();
+        const packingLog = allPackingLogs.find(p => p.id === searchTerm.trim());
         if (!packingLog) {
             setError('ไม่พบข้อมูลการแพ็คสำหรับ ID นี้');
             return;
         }
-
-        const moldingLogs = getMoldingLogs().filter(m => m.productName === packingLog.name);
-        const bom = getBOMs().find(b => b.productName === packingLog.name) || null;
+        
+        const allMoldingLogs = await getMoldingLogs();
+        const moldingLogs = allMoldingLogs.filter(m => m.productName === packingLog.name);
+        
+        const allBOMs = await getBOMs();
+        const bom = allBOMs.find(b => b.productName === packingLog.name) || null;
         
         let materials: (RawMaterial & { required: number })[] = [];
         if (bom) {
-            const allRawMaterials = getRawMaterials();
+            const allRawMaterials = await getRawMaterials();
             const materialMap = new Map(allRawMaterials.map(m => [m.id, m]));
             materials = bom.components.map(comp => {
                 const material = materialMap.get(comp.rawMaterialId);
                 return {
-                    ...(material || { id: comp.rawMaterialId, name: 'Unknown Material', quantity: 0, unit: '' }),
+                    ...(material || { id: comp.rawMaterialId, name: 'Unknown Material', quantity: 0, unit: '', costPerUnit: 0, defaultSupplierId: '' }),
                     required: comp.quantity,
                 };
             });
@@ -155,7 +161,10 @@ export const ReportingTab: React.FC = () => {
         setEndDate(today.toISOString().split('T')[0]);
         setStartDate(firstDayOfMonth.toISOString().split('T')[0]);
         
-        setEmployees(getEmployees());
+        const loadData = async () => {
+            setEmployees(await getEmployees());
+        };
+        loadData();
     }, []);
 
     const downloadReport = (
@@ -230,14 +239,16 @@ export const ReportingTab: React.FC = () => {
                  <ReportCard
                     title="รายงานประวัติการผลิต (ฉีด)"
                     description="สร้างรายงานประวัติการผลิตชิ้นส่วนจากแผนกฉีด"
-                    onDownload={() => downloadReport('Molding', getMoldingLogs(), 'Molding_History_Report', 'Molding History', [
+                    onDownload={async () => {
+                        const logs = await getMoldingLogs();
+                        downloadReport('Molding', logs, 'Molding_History_Report', 'Molding History', [
                         { header: 'วันที่', key: 'date', wch: 15 },
                         { header: 'ผู้ควบคุมเครื่อง', key: 'operatorName', wch: 20 },
                         { header: 'สินค้า', key: 'productName', wch: 40 },
                         { header: 'เครื่องจักร', key: 'machine', wch: 15 },
                         { header: 'จำนวนผลิตได้', key: 'quantityProduced', wch: 15 },
                         { header: 'จำนวนของเสีย', key: 'quantityRejected', wch: 15 }
-                    ])}
+                    ])}}
                 >
                     <p className="text-gray-700">
                         รายงานนี้จะแสดงข้อมูลการผลิตทั้งหมดจากแผนกฉีดตามตัวกรองที่ท่านเลือก
@@ -249,12 +260,14 @@ export const ReportingTab: React.FC = () => {
                 <ReportCard
                     title="รายงานประวัติการแพ็ค"
                     description="สร้างรายงานประวัติการแพ็คสินค้าตามตัวกรองที่กำหนด"
-                     onDownload={() => downloadReport('Packing', getPackingLogs(), 'Packing_History_Report', 'Packing History', [
+                     onDownload={async () => {
+                        const logs = await getPackingLogs();
+                        downloadReport('Packing', logs, 'Packing_History_Report', 'Packing History', [
                         { header: 'วันที่', key: 'date', wch: 15 },
                         { header: 'ผู้บันทึก', key: 'packerName', wch: 20 },
                         { header: 'สินค้า', key: 'name', wch: 50 },
                         { header: 'จำนวน (ชิ้น)', key: 'quantity', wch: 15 }
-                    ])}
+                    ])}}
                 >
                     <p className="text-gray-700">
                         รายงานนี้จะแสดงข้อมูลการแพ็คสินค้าทั้งหมดตามตัวกรองที่ท่านเลือก
@@ -265,8 +278,8 @@ export const ReportingTab: React.FC = () => {
                 <ReportCard
                     title="รายงานสต็อกสินค้าคงคลัง"
                     description="ดาวน์โหลดข้อมูลสรุปสต็อกสินค้าที่แพ็คแล้วทั้งหมด"
-                    onDownload={() => {
-                        const inventory = getInventory();
+                    onDownload={async () => {
+                        const inventory = await getInventory();
                         const dataToExport = inventory.map(item => ({
                             'ชื่อสินค้า': item.name,
                             'สต็อกปัจจุบัน (ชิ้น)': item.quantity,

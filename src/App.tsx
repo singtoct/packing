@@ -1,9 +1,4 @@
-
-
-
-
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { PackingLogTab } from './components/PackingLogTab';
 import { StatisticsTab } from './components/StatisticsTab';
@@ -27,9 +22,10 @@ import { CustomersTab } from './components/CustomersTab';
 import { ComplaintsTab } from './components/ComplaintsTab';
 import { WorkerApp } from './components/WorkerApp';
 import { QuickActionModal } from './components/QuickActionModal';
-import { BellIcon, PlusIcon, ListOrderedIcon, ClipboardCheckIcon, WrenchIcon, FactoryIcon, ShieldAlertIcon } from 'lucide-react';
+import { BellIcon, PlusIcon, ListOrderedIcon, ClipboardCheckIcon, WrenchIcon, FactoryIcon, ShieldAlertIcon, LoaderIcon, MenuIcon } from 'lucide-react';
 import { getSettings, getInventory, getOrders, getQCEntries, getMachines, getReadNotificationIds, saveReadNotificationIds, getMoldingLogs } from './services/storageService';
-import { InventoryItem, AppNotification, AppSettings } from './types';
+import { seedDefaultData } from './services/firebaseService';
+import { AppNotification, AppSettings } from './types';
 import { ProductionPlanTab } from './components/ProductionPlanTab';
 import { PackingFloorTab } from './components/PackingFloorTab';
 import { ProductionKanbanTab } from './components/ProductionKanbanTab';
@@ -45,15 +41,18 @@ const App: React.FC = () => {
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
   const [quickActionType, setQuickActionType] = useState<QuickActionType | null>(null);
-  const [settings, setSettings] = useState<AppSettings>(getSettings());
+  const [settings, setSettings] = useState<AppSettings | null>(null);
   const [isWorkerMode, setIsWorkerMode] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const generateNotifications = () => {
+  const generateNotifications = useCallback(async () => {
     const today = new Date();
     const newNotifications: AppNotification[] = [];
 
     // 1. Low Finished Stock -> Suggest Production
-    getInventory().forEach(item => {
+    const inventory = await getInventory();
+    inventory.forEach(item => {
         if (item.minStock !== undefined && item.quantity < item.minStock) {
             newNotifications.push({
                 id: `low-stock-${item.name}`,
@@ -67,7 +66,7 @@ const App: React.FC = () => {
     });
 
     // 2. High Rejection Rate -> Suggest Maintenance
-    const moldingLogs = getMoldingLogs();
+    const moldingLogs = await getMoldingLogs();
     const logsByMachine: Record<string, { produced: number, rejected: number }> = {};
     moldingLogs.forEach(log => {
         if (!logsByMachine[log.machine]) {
@@ -90,9 +89,9 @@ const App: React.FC = () => {
         }
     });
 
-
     // 3. Order Due Dates
-    getOrders().forEach(order => {
+    const orders = await getOrders();
+    orders.forEach(order => {
         const dueDate = new Date(order.dueDate);
         const diffTime = dueDate.getTime() - today.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -109,7 +108,8 @@ const App: React.FC = () => {
     });
 
     // 4. Pending QC
-    getQCEntries().forEach(entry => {
+    const qcEntries = await getQCEntries();
+    qcEntries.forEach(entry => {
         if (entry.status === 'Pending') {
             const packingDate = new Date(entry.packingDate);
             const diffTime = today.getTime() - packingDate.getTime();
@@ -128,7 +128,8 @@ const App: React.FC = () => {
     });
     
     // 5. Machine Maintenance
-    getMachines().forEach(machine => {
+    const machines = await getMachines();
+    machines.forEach(machine => {
         if (machine.nextPmDate) {
             const pmDate = new Date(machine.nextPmDate);
             if (pmDate <= today) {
@@ -145,56 +146,56 @@ const App: React.FC = () => {
     });
 
     setNotifications(newNotifications.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-  };
+  }, []);
   
   const handleQuickActionSelect = (type: QuickActionType) => {
     setQuickActionType(type);
     setIsQuickActionsOpen(false);
   }
 
-  useEffect(() => {
-    const currentSettings = getSettings();
-    setSettings(currentSettings);
-    
-    const productionRole = currentSettings.roles.find(r => r.name === 'ฝ่ายผลิต');
-    if (productionRole && currentSettings.companyInfo.currentUserRoleId === productionRole.id) {
-        setIsWorkerMode(true);
-    } else {
-        setIsWorkerMode(false);
-    }
-    
-    document.title = currentSettings.companyInfo.name || 'CT.ELECTRIC - Production System';
-    const favicon = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-    if (favicon && currentSettings.companyInfo.logoUrl) {
-      favicon.href = currentSettings.companyInfo.logoUrl;
-    }
+  const loadInitialData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+        // Ensure database is seeded with default data before fetching anything
+        await seedDefaultData();
 
-    setReadNotifications(getReadNotificationIds());
-    generateNotifications();
-    
-    const handleStorageChange = () => {
-        const newSettings = getSettings();
-        setSettings(newSettings);
-        const productionRole = newSettings.roles.find(r => r.name === 'ฝ่ายผลิต');
-        if (productionRole && newSettings.companyInfo.currentUserRoleId === productionRole.id) {
+        const currentSettings = await getSettings();
+        setSettings(currentSettings);
+        
+        const productionRole = currentSettings.roles.find(r => r.name === 'ฝ่ายผลิต');
+        if (productionRole && currentSettings.companyInfo.currentUserRoleId === productionRole.id) {
             setIsWorkerMode(true);
         } else {
             setIsWorkerMode(false);
         }
-        generateNotifications();
-    };
-    window.addEventListener('storage', handleStorageChange);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, []);
+        
+        document.title = currentSettings.companyInfo.name || 'CT.ELECTRIC - Production System';
+        const favicon = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+        if (favicon && currentSettings.companyInfo.logoUrl) {
+          favicon.href = currentSettings.companyInfo.logoUrl;
+        }
+
+        const readIds = await getReadNotificationIds();
+        setReadNotifications(readIds);
+        await generateNotifications();
+    } catch (error) {
+        console.error("Error loading initial data:", error);
+        // Error will be displayed by firebaseService if initialization fails
+    } finally {
+        setIsLoading(false);
+    }
+  }, [generateNotifications]);
+
+
+  useEffect(() => {
+    loadInitialData();
+  }, [loadInitialData]);
   
-  const onDataUpdate = () => {
-    generateNotifications();
-    setSettings(getSettings());
-    setActiveTab(activeTab); 
-  }
+  const onDataUpdate = useCallback(async () => {
+    await generateNotifications();
+    const newSettings = await getSettings();
+    setSettings(newSettings);
+  }, [generateNotifications]);
 
   const handleNotificationClick = (notification: AppNotification) => {
     markAsRead(notification.id);
@@ -202,20 +203,28 @@ const App: React.FC = () => {
     setIsAlertsOpen(false);
   };
   
-  const markAsRead = (id: string) => {
+  const markAsRead = async (id: string) => {
       const newReadNotifications = new Set<string>(readNotifications);
       newReadNotifications.add(id);
       setReadNotifications(newReadNotifications);
-      saveReadNotificationIds(newReadNotifications);
+      await saveReadNotificationIds(newReadNotifications);
   };
 
-  const markAllAsRead = () => {
+  const markAllAsRead = async () => {
       const newReadNotifications = new Set<string>(notifications.map(n => n.id));
       setReadNotifications(newReadNotifications);
-      saveReadNotificationIds(newReadNotifications);
+      await saveReadNotificationIds(newReadNotifications);
   };
   
   const unreadCount = notifications.filter(n => !readNotifications.has(n.id)).length;
+
+  if (isLoading || !settings) {
+      return (
+          <div className="flex h-screen w-screen items-center justify-center bg-gray-100">
+              <LoaderIcon className="w-16 h-16 animate-spin text-green-600" />
+          </div>
+      );
+  }
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -236,13 +245,13 @@ const App: React.FC = () => {
       case 'molding':
         return <MoldingTab />;
       case 'logs':
-        return <PackingLogTab setLowStockCheck={generateNotifications} />;
+        return <PackingLogTab setLowStockCheck={onDataUpdate} />;
       case 'qc':
         return <QCTab />;
       case 'shipments':
         return <ShipmentTrackingTab />;
       case 'inventory':
-        return <InventoryTab setLowStockCheck={generateNotifications}/>;
+        return <InventoryTab setLowStockCheck={onDataUpdate}/>;
       case 'products':
         return <ProductsTab />;
       case 'raw_materials':
@@ -288,70 +297,91 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen bg-gray-100 font-sans">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} logoUrl={settings.companyInfo.logoUrl} />
+    <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        logoUrl={settings.companyInfo.logoUrl}
+        isOpen={isSidebarOpen}
+        setIsOpen={setIsSidebarOpen} 
+      />
+      
+      {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"></div>}
       
       {quickActionType && <QuickActionModal actionType={quickActionType} onClose={() => setQuickActionType(null)} onDataUpdate={onDataUpdate} />}
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white shadow-sm z-20">
+        <header className="bg-white shadow-sm z-10">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-end items-center py-2 h-16 gap-2">
-               <div className="relative">
-                 <button onClick={() => setIsQuickActionsOpen(!isQuickActionsOpen)} className="p-2 text-gray-600 hover:text-green-600 hover:bg-gray-100 rounded-full">
-                   <PlusIcon className="w-6 h-6" />
-                 </button>
-                 {isQuickActionsOpen && (
-                   <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-xl z-30">
-                     <ul className="py-1">
-                        <li onClick={() => handleQuickActionSelect('order')} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">เพิ่มออเดอร์ใหม่</li>
-                        <li onClick={() => handleQuickActionSelect('molding')} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">บันทึกการผลิต (ฉีด)</li>
-                        <li onClick={() => handleQuickActionSelect('packing')} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">บันทึกการแพ็ค</li>
-                     </ul>
-                   </div>
-                 )}
-               </div>
-              <div className="relative">
-                <button onClick={() => setIsAlertsOpen(!isAlertsOpen)} className="relative p-2 text-gray-600 hover:text-green-600 hover:bg-gray-100 rounded-full">
-                  <BellIcon className="w-6 h-6" />
-                  {unreadCount > 0 && (
-                    <span className="absolute top-0 right-0 block h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center ring-2 ring-white">
-                      {unreadCount}
-                    </span>
-                  )}
+            <div className="flex justify-between items-center py-2 h-16 gap-2">
+                <button
+                    onClick={() => setIsSidebarOpen(true)}
+                    className="p-2 text-gray-600 hover:text-green-600 md:hidden"
+                    aria-label="Open menu"
+                >
+                    <MenuIcon className="w-6 h-6" />
                 </button>
-                {isAlertsOpen && (
-                  <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-xl z-30">
-                    <div className="p-3 border-b flex justify-between items-center">
-                        <h3 className="font-bold text-gray-700">การแจ้งเตือน</h3>
-                        {unreadCount > 0 && 
-                            <button onClick={markAllAsRead} className="text-xs text-blue-600 hover:underline">อ่านทั้งหมด</button>
-                        }
-                    </div>
-                    {notifications.length > 0 ? (
-                      <ul className="max-h-96 overflow-y-auto">
-                        {notifications.map(item => (
-                           <li key={item.id} onClick={() => handleNotificationClick(item)} className={`px-4 py-3 border-b text-sm cursor-pointer hover:bg-gray-50 flex items-start gap-3 ${!readNotifications.has(item.id) ? 'bg-blue-50' : ''}`}>
-                             <div className="mt-1"><NotificationIcon type={item.type} /></div>
-                             <div className="flex-1">
-                                <p className="text-gray-800">{item.message}</p>
-                                <p className="text-xs text-gray-400">{new Date(item.date).toLocaleDateString('th-TH')}</p>
-                             </div>
-                           </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="p-4 text-sm text-gray-500">ไม่มีการแจ้งเตือนในขณะนี้</p>
+                
+                {/* This div is for spacing to keep right icons on the right on mobile */}
+                <div className="flex-1 md:hidden"></div>
+
+               <div className="flex items-center gap-2">
+                 <div className="relative">
+                   <button onClick={() => setIsQuickActionsOpen(!isQuickActionsOpen)} className="p-2 text-gray-600 hover:text-green-600 hover:bg-gray-100 rounded-full">
+                     <PlusIcon className="w-6 h-6" />
+                   </button>
+                   {isQuickActionsOpen && (
+                     <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-xl z-30">
+                       <ul className="py-1">
+                          <li onClick={() => handleQuickActionSelect('order')} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">เพิ่มออเดอร์ใหม่</li>
+                          <li onClick={() => handleQuickActionSelect('molding')} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">บันทึกการผลิต (ฉีด)</li>
+                          <li onClick={() => handleQuickActionSelect('packing')} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">บันทึกการแพ็ค</li>
+                       </ul>
+                     </div>
+                   )}
+                 </div>
+                <div className="relative">
+                  <button onClick={() => setIsAlertsOpen(!isAlertsOpen)} className="relative p-2 text-gray-600 hover:text-green-600 hover:bg-gray-100 rounded-full">
+                    <BellIcon className="w-6 h-6" />
+                    {unreadCount > 0 && (
+                      <span className="absolute top-0 right-0 block h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center ring-2 ring-white">
+                        {unreadCount}
+                      </span>
                     )}
-                  </div>
-                )}
+                  </button>
+                  {isAlertsOpen && (
+                    <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-xl z-30">
+                      <div className="p-3 border-b flex justify-between items-center">
+                          <h3 className="font-bold text-gray-700">การแจ้งเตือน</h3>
+                          {unreadCount > 0 && 
+                              <button onClick={markAllAsRead} className="text-xs text-blue-600 hover:underline">อ่านทั้งหมด</button>
+                          }
+                      </div>
+                      {notifications.length > 0 ? (
+                        <ul className="max-h-96 overflow-y-auto">
+                          {notifications.map(item => (
+                             <li key={item.id} onClick={() => handleNotificationClick(item)} className={`px-4 py-3 border-b text-sm cursor-pointer hover:bg-gray-50 flex items-start gap-3 ${!readNotifications.has(item.id) ? 'bg-blue-50' : ''}`}>
+                               <div className="mt-1"><NotificationIcon type={item.type} /></div>
+                               <div className="flex-1">
+                                  <p className="text-gray-800">{item.message}</p>
+                                  <p className="text-xs text-gray-400">{new Date(item.date).toLocaleDateString('th-TH')}</p>
+                               </div>
+                             </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="p-4 text-sm text-gray-500">ไม่มีการแจ้งเตือนในขณะนี้</p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
         </header>
 
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-4 sm:p-6 lg:p-8">
-          <div className="bg-white p-6 rounded-xl shadow-lg min-h-full">
+          <div className="bg-white p-4 sm:p-6 rounded-xl shadow-lg min-h-full">
             {renderTabContent()}
           </div>
         </main>

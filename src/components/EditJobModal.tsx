@@ -16,7 +16,11 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({ job, machine, onClos
     const [startTime, setStartTime] = useState('');
 
     useEffect(() => {
-        setEmployees(getEmployees());
+        const loadData = async () => {
+            setEmployees(await getEmployees());
+        };
+        loadData();
+
         if (machine.status === 'Running' && machine.lastStartedAt) {
             const date = new Date(machine.lastStartedAt);
             const pad = (num: number) => ('0' + num).slice(-2);
@@ -29,33 +33,33 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({ job, machine, onClos
         setFormData(prev => ({...prev, [field]: value}));
     };
 
-    const handleSaveChanges = (e: React.FormEvent) => {
+    const handleSaveChanges = async (e: React.FormEvent) => {
         e.preventDefault();
         
         // Save machine start time first if changed
         if (machine.status === 'Running' && startTime) {
-            const allMachines = getMachines();
+            const allMachines = await getMachines();
             const newStartTimeIso = new Date(startTime).toISOString();
             const machineInDb = allMachines.find(m => m.id === machine.id);
             if (machineInDb && machineInDb.lastStartedAt !== newStartTimeIso) {
                 const updatedMachines = allMachines.map(m => 
                     m.id === machine.id ? { ...m, lastStartedAt: newStartTimeIso } : m
                 );
-                saveMachines(updatedMachines);
+                await saveMachines(updatedMachines);
             }
         }
     
         // Then save job data
-        const queue = getProductionQueue();
+        const queue = await getProductionQueue();
         const updatedQueue = queue.map(j => (j.id === formData.id ? formData : j));
-        saveProductionQueue(updatedQueue);
+        await saveProductionQueue(updatedQueue);
         
         onSave();
     };
 
-    const handleJobAction = (action: 'start' | 'pause' | 'complete' | 'cancel') => {
-        const queue = getProductionQueue();
-        const machines = getMachines();
+    const handleJobAction = async (action: 'start' | 'pause' | 'complete' | 'cancel') => {
+        const queue = await getProductionQueue();
+        const machines = await getMachines();
         const machineToUpdate = machines.find(m => m.id === machine.id);
 
         switch (action) {
@@ -63,7 +67,7 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({ job, machine, onClos
                 if (machineToUpdate) {
                     machineToUpdate.status = 'Running';
                     machineToUpdate.lastStartedAt = new Date().toISOString();
-                    saveMachines(machines);
+                    await saveMachines(machines);
                 }
                 const startedQueue = queue.map(j => {
                     if (j.id === job.id) {
@@ -72,13 +76,13 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({ job, machine, onClos
                     }
                     return j;
                 });
-                saveProductionQueue(startedQueue);
+                await saveProductionQueue(startedQueue);
                 break;
             case 'pause':
                  if (machineToUpdate) {
                     machineToUpdate.status = 'Idle';
                     delete machineToUpdate.lastStartedAt;
-                    saveMachines(machines);
+                    await saveMachines(machines);
                 }
                 const pausedQueue = queue.map(j => {
                     if (j.id === job.id) {
@@ -87,19 +91,19 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({ job, machine, onClos
                     }
                     return j;
                 });
-                saveProductionQueue(pausedQueue);
+                await saveProductionQueue(pausedQueue);
                 break;
             case 'complete':
                  if (machineToUpdate) {
                     machineToUpdate.status = 'Idle';
                     delete machineToUpdate.lastStartedAt;
-                    saveMachines(machines);
+                    await saveMachines(machines);
                 }
 
                 // If the job is completed, log any remaining quantity automatically.
                 const remainingQty = job.quantityGoal - job.quantityProduced;
                 if (remainingQty > 0) {
-                    const settings = getSettings();
+                    const settings = await getSettings();
                     const defaultStatus = settings.productionStatuses[0] || 'รอแปะกันรอย';
                     const status = defaultStatus.startsWith('รอ') ? defaultStatus : `รอ${defaultStatus}`;
 
@@ -115,22 +119,22 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({ job, machine, onClos
                         status: status,
                         jobId: job.id,
                     };
-                    const allMoldingLogs = getMoldingLogs();
-                    saveMoldingLogs([newLog, ...allMoldingLogs]);
+                    const allMoldingLogs = await getMoldingLogs();
+                    await saveMoldingLogs([newLog, ...allMoldingLogs]);
                 }
 
                 const completedQueue = queue.filter(j => j.id !== job.id);
-                saveProductionQueue(completedQueue);
+                await saveProductionQueue(completedQueue);
                 break;
             case 'cancel':
                 if(window.confirm('คุณแน่ใจหรือไม่ว่าต้องการยกเลิกงานนี้ออกจากคิว?')) {
                     if (machineToUpdate && job.status === 'In Progress') {
                          machineToUpdate.status = 'Idle';
                          delete machineToUpdate.lastStartedAt;
-                         saveMachines(machines);
+                         await saveMachines(machines);
                     }
                     const cancelledQueue = queue.filter(j => j.id !== job.id);
-                    saveProductionQueue(cancelledQueue);
+                    await saveProductionQueue(cancelledQueue);
                 } else {
                     return;
                 }

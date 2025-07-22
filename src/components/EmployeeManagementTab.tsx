@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Employee } from '../types';
-import { getEmployees, saveEmployees, getPackingLogs } from '../services/storageService';
+import { getEmployees, addEmployee, deleteEmployee, deleteMultipleEmployees, getPackingLogs } from '../services/storageService';
 import { PlusCircleIcon, Trash2Icon, UsersIcon } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -9,30 +9,34 @@ export const EmployeeManagementTab: React.FC = () => {
     const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
     const [newEmployeeName, setNewEmployeeName] = useState('');
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+    const [packingLogs, setPackingLogs] = useState<any[]>([]);
 
     useEffect(() => {
-        setEmployees(getEmployees());
+        const loadData = async () => {
+            setEmployees(await getEmployees());
+            setPackingLogs(await getPackingLogs());
+        };
+        loadData();
     }, []);
 
-    const handleAddEmployee = (e: React.FormEvent) => {
+    const handleAddEmployee = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newEmployeeName.trim()) return;
-        const newEmployee: Employee = {
-            id: crypto.randomUUID(),
+        const newEmployeeData: Omit<Employee, 'id'> = {
             name: newEmployeeName.trim(),
             hireDate: new Date().toISOString().split('T')[0]
         };
+        const newEmployee = await addEmployee(newEmployeeData);
         const updatedEmployees = [...employees, newEmployee].sort((a,b) => a.name.localeCompare(b.name));
         setEmployees(updatedEmployees);
-        saveEmployees(updatedEmployees);
         setNewEmployeeName('');
     };
 
-    const handleDeleteEmployee = (id: string) => {
+    const handleDeleteEmployee = async (id: string) => {
         if (window.confirm('คุณแน่ใจหรือไม่ว่าต้องการลบพนักงานคนนี้? ประวัติการแพ็คของพนักงานจะยังคงอยู่')) {
+            await deleteEmployee(id);
             const updatedEmployees = employees.filter(emp => emp.id !== id);
             setEmployees(updatedEmployees);
-            saveEmployees(updatedEmployees);
             if (selectedEmployee?.id === id) {
                 setSelectedEmployee(null);
             }
@@ -56,12 +60,14 @@ export const EmployeeManagementTab: React.FC = () => {
         }
     };
     
-    const handleDeleteSelected = () => {
+    const handleDeleteSelected = async () => {
         if (selectedEmployees.size === 0) return;
         if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบพนักงาน ${selectedEmployees.size} คนที่เลือก?`)) {
+            const idsToDelete: string[] = Array.from(selectedEmployees);
+            await deleteMultipleEmployees(idsToDelete);
+            
             const updatedEmployees = employees.filter(emp => !selectedEmployees.has(emp.id));
             setEmployees(updatedEmployees);
-            saveEmployees(updatedEmployees);
             setSelectedEmployees(new Set());
             if (selectedEmployee && selectedEmployees.has(selectedEmployee.id)) {
                 setSelectedEmployee(null);
@@ -71,7 +77,6 @@ export const EmployeeManagementTab: React.FC = () => {
 
     const selectedEmployeeLogs = useMemo(() => {
         if (!selectedEmployee) return [];
-        const packingLogs = getPackingLogs();
         const dailyLogs = packingLogs
             .filter(log => log.packerName === selectedEmployee.name)
             .reduce((acc, log) => {
@@ -84,7 +89,7 @@ export const EmployeeManagementTab: React.FC = () => {
             .sort(([dateA], [dateB]) => new Date(dateA).getTime() - new Date(dateB).getTime())
             .slice(-30)
             .map(([date, quantity]) => ({ date: new Date(date).toLocaleDateString('th-TH', { day: '2-digit', month: 'short' }), quantity }));
-    }, [selectedEmployee]);
+    }, [selectedEmployee, packingLogs]);
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

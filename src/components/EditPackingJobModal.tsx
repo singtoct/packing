@@ -15,24 +15,27 @@ export const EditPackingJobModal: React.FC<EditPackingJobModalProps> = ({ job, s
     const [employees, setEmployees] = useState<Employee[]>([]);
 
     useEffect(() => {
-        setEmployees(getEmployees());
+        const loadEmps = async () => {
+            setEmployees(await getEmployees());
+        };
+        loadEmps();
     }, []);
 
     const handleChange = (field: keyof PackingQueueItem, value: any) => {
         setFormData(prev => ({...prev, [field]: value}));
     };
 
-    const handleSaveChanges = (e: React.FormEvent) => {
+    const handleSaveChanges = async (e: React.FormEvent) => {
         e.preventDefault();
-        const queue = getPackingQueue();
+        const queue = await getPackingQueue();
         const updatedQueue = queue.map(j => (j.id === formData.id ? formData : j));
-        savePackingQueue(updatedQueue);
+        await savePackingQueue(updatedQueue);
         onSave();
     };
 
-    const handleJobAction = (action: 'start' | 'pause' | 'complete' | 'cancel') => {
-        const queue = getPackingQueue();
-        const stations = getPackingStations();
+    const handleJobAction = async (action: 'start' | 'pause' | 'complete' | 'cancel') => {
+        const queue = await getPackingQueue();
+        const stations = await getPackingStations();
         const stationToUpdate = stations.find(s => s.id === station.id);
 
         switch (action) {
@@ -40,38 +43,38 @@ export const EditPackingJobModal: React.FC<EditPackingJobModalProps> = ({ job, s
                 if (stationToUpdate) {
                     stationToUpdate.status = 'Running';
                     stationToUpdate.lastStartedAt = new Date().toISOString();
-                    savePackingStations(stations);
+                    await savePackingStations(stations);
                 }
                 const startedQueue = queue.map((j): PackingQueueItem => j.id === job.id ? { ...formData, status: 'In Progress' } : j);
-                savePackingQueue(startedQueue);
+                await savePackingQueue(startedQueue);
                 break;
             case 'pause':
                  if (stationToUpdate) {
                     stationToUpdate.status = 'Idle';
                     delete stationToUpdate.lastStartedAt;
-                    savePackingStations(stations);
+                    await savePackingStations(stations);
                 }
                 const pausedQueue = queue.map((j): PackingQueueItem => j.id === job.id ? { ...formData, status: 'Queued' } : j);
-                savePackingQueue(pausedQueue);
+                await savePackingQueue(pausedQueue);
                 break;
             case 'complete':
                  if (stationToUpdate) {
                     stationToUpdate.status = 'Idle';
                     delete stationToUpdate.lastStartedAt;
-                    savePackingStations(stations);
+                    await savePackingStations(stations);
                 }
                 const completedQueue = queue.filter(j => j.id !== job.id);
-                savePackingQueue(completedQueue);
+                await savePackingQueue(completedQueue);
                 break;
             case 'cancel':
                 if(window.confirm('คุณแน่ใจหรือไม่ว่าต้องการยกเลิกงานนี้ออกจากคิว?')) {
                     if (stationToUpdate && job.status === 'In Progress') {
                          stationToUpdate.status = 'Idle';
                          delete stationToUpdate.lastStartedAt;
-                         savePackingStations(stations);
+                         await savePackingStations(stations);
                     }
                     const cancelledQueue = queue.filter(j => j.id !== job.id);
-                    savePackingQueue(cancelledQueue);
+                    await savePackingQueue(cancelledQueue);
                 } else {
                     return;
                 }

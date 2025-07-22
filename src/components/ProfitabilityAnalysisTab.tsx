@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { getMoldingLogs, getProducts } from '../services/storageService';
 import { MoldingLogEntry, Product } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from 'recharts';
@@ -11,6 +11,7 @@ interface ProfitabilityData {
     totalProfit: number;
     profitMargin: number;
     unitsProduced: number;
+    date: string;
 }
 
 const StatCard: React.FC<{ title: string; value: string; className?: string }> = ({ title, value, className }) => (
@@ -26,51 +27,56 @@ export const ProfitabilityAnalysisTab: React.FC = () => {
         start: '',
         end: new Date().toISOString().split('T')[0],
     });
+    const [profitabilityData, setProfitabilityData] = useState<ProfitabilityData[]>([]);
 
-    const profitabilityData = useMemo((): ProfitabilityData[] => {
-        const logs = getMoldingLogs();
-        const products = getProducts();
-        const productMap = new Map(products.map(p => [`${p.name} (${p.color})`, p]));
-        
-        const data = new Map<string, { totalProduced: number; totalCost: number; salePrice: number; date: string }>();
+    useEffect(() => {
+        const calculateProfitability = async () => {
+            const logs = await getMoldingLogs();
+            const products = await getProducts();
+            const productMap = new Map(products.map(p => [`${p.name} (${p.color})`, p]));
+            
+            const data = new Map<string, { totalProduced: number; totalCost: number; salePrice: number; date: string }>();
 
-        logs.forEach(log => {
-            if (!log.materialCost) return;
-            
-            const product = productMap.get(log.productName);
-            
-            if (product) {
-                const existing = data.get(log.productName) || { totalProduced: 0, totalCost: 0, salePrice: product.salePrice, date: log.date };
-                existing.totalProduced += log.quantityProduced;
-                existing.totalCost += log.materialCost;
-                if(new Date(log.date) > new Date(existing.date)) {
-                    existing.date = log.date;
+            logs.forEach(log => {
+                if (!log.materialCost) return;
+                
+                const product = productMap.get(log.productName);
+                
+                if (product) {
+                    const existing = data.get(log.productName) || { totalProduced: 0, totalCost: 0, salePrice: product.salePrice, date: log.date };
+                    existing.totalProduced += log.quantityProduced;
+                    existing.totalCost += log.materialCost;
+                    if(new Date(log.date) > new Date(existing.date)) {
+                        existing.date = log.date;
+                    }
+                    data.set(log.productName, existing);
                 }
-                data.set(log.productName, existing);
-            }
-        });
-        
-        return Array.from(data.entries()).map(([productName, values]) => {
-            const totalRevenue = values.totalProduced * values.salePrice;
-            const totalProfit = totalRevenue - values.totalCost;
-            const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) : 0;
-            return {
-                productName,
-                totalRevenue,
-                totalCost: values.totalCost,
-                totalProfit,
-                profitMargin,
-                unitsProduced: values.totalProduced,
-            };
-        });
+            });
+            
+            const result = Array.from(data.entries()).map(([productName, values]) => {
+                const totalRevenue = values.totalProduced * values.salePrice;
+                const totalProfit = totalRevenue - values.totalCost;
+                const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) : 0;
+                return {
+                    productName,
+                    totalRevenue,
+                    totalCost: values.totalCost,
+                    totalProfit,
+                    profitMargin,
+                    unitsProduced: values.totalProduced,
+                    date: values.date,
+                };
+            });
+            setProfitabilityData(result);
+        };
+
+        calculateProfitability();
     }, []);
+
 
     const filteredData = useMemo(() => {
         return profitabilityData.filter(item => {
-            const log = getMoldingLogs().find(log => log.productName === item.productName);
-            if(!log) return false;
-            
-            const recordDate = new Date(log.date);
+            const recordDate = new Date(item.date);
             const startDate = dateRange.start ? new Date(dateRange.start) : null;
             const endDate = dateRange.end ? new Date(dateRange.end) : null;
             if (endDate) endDate.setHours(23, 59, 59, 999);

@@ -19,14 +19,16 @@ interface MenuItemProps {
     icon: IconComponent; // Icon is now a component reference
     activeTab: Tab;
     setActiveTab: (tab: Tab) => void;
+    setIsOpen: (isOpen: boolean) => void;
 }
 
-const MenuItem: React.FC<MenuItemProps> = ({ tab, title, icon: Icon, activeTab, setActiveTab }) => (
+const MenuItem: React.FC<MenuItemProps> = ({ tab, title, icon: Icon, activeTab, setActiveTab, setIsOpen }) => (
     <a
         href="#"
         onClick={(e) => {
             e.preventDefault();
             setActiveTab(tab);
+            setIsOpen(false); // Close sidebar on mobile after click
         }}
         className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
             activeTab === tab 
@@ -137,7 +139,15 @@ const menuConfig = [
 ];
 
 // --- Main Sidebar Component ---
-export const Sidebar: React.FC<{ activeTab: Tab, setActiveTab: (tab: Tab) => void, logoUrl?: string }> = ({ activeTab, setActiveTab, logoUrl }) => {
+interface SidebarProps {
+    activeTab: Tab;
+    setActiveTab: (tab: Tab) => void;
+    logoUrl?: string;
+    isOpen: boolean;
+    setIsOpen: (isOpen: boolean) => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, logoUrl, isOpen, setIsOpen }) => {
     const [openMenus, setOpenMenus] = useState<Set<string>>(new Set(['บันทึกข้อมูล', 'คลังสินค้า', 'การขายและลูกค้า']));
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -185,7 +195,7 @@ export const Sidebar: React.FC<{ activeTab: Tab, setActiveTab: (tab: Tab) => voi
       }, [searchTerm]);
 
     return (
-        <aside className="w-64 bg-gray-800 text-white flex-shrink-0 flex flex-col">
+        <aside className={`bg-gray-800 text-white flex-shrink-0 flex flex-col fixed md:relative inset-y-0 left-0 z-30 w-64 transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
             <div className="bg-gray-900 h-16 flex items-center justify-center px-4">
                 <div className="flex items-center gap-3">
                     {logoUrl && <img src={logoUrl} alt="Company Logo" className="h-10 w-auto object-contain" />}
@@ -221,6 +231,7 @@ export const Sidebar: React.FC<{ activeTab: Tab, setActiveTab: (tab: Tab) => voi
                                         icon={child.icon}
                                         activeTab={activeTab}
                                         setActiveTab={setActiveTab}
+                                        setIsOpen={setIsOpen}
                                     />
                                 ))}
                             </MenuCategory>
@@ -234,6 +245,7 @@ export const Sidebar: React.FC<{ activeTab: Tab, setActiveTab: (tab: Tab) => voi
                             icon={item.icon}
                             activeTab={activeTab}
                             setActiveTab={setActiveTab}
+                            setIsOpen={setIsOpen}
                         />
                     )
                 })}

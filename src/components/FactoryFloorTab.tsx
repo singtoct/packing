@@ -185,12 +185,12 @@ export const FactoryFloorTab: React.FC = () => {
     const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null);
     const [selectedJob, setSelectedJob] = useState<ProductionQueueItem | null>(null);
     
-    const fetchData = useCallback(() => {
+    const fetchData = useCallback(async () => {
         setIsLoading(true);
-        const allMachines = getMachines().sort((a, b) => a.name.localeCompare(b.name));
-        const allQueue = getProductionQueue();
-        const allProducts = getProducts();
-        const allDailyLogs = getMachineDailyLogs();
+        const allMachines = (await getMachines()).sort((a, b) => a.name.localeCompare(b.name));
+        const allQueue = await getProductionQueue();
+        const allProducts = await getProducts();
+        const allDailyLogs = await getMachineDailyLogs();
 
         // --- Data Synchronization Logic ---
         let machinesChanged = false;
@@ -215,7 +215,7 @@ export const FactoryFloorTab: React.FC = () => {
         });
 
         if (machinesChanged) {
-            saveMachines(synchronizedMachines);
+            await saveMachines(synchronizedMachines);
         }
         // --- End of Synchronization ---
 
@@ -256,9 +256,9 @@ export const FactoryFloorTab: React.FC = () => {
         setIsLoading(false);
     }, []);
 
-    const handleStatusChange = useCallback((machineId: string, newStatus: Machine['status']) => {
-        const allMachines = getMachines();
-        const allQueue = getProductionQueue();
+    const handleStatusChange = useCallback(async (machineId: string, newStatus: Machine['status']) => {
+        const allMachines = await getMachines();
+        const allQueue = await getProductionQueue();
         const machineIndex = allMachines.findIndex(m => m.id === machineId);
         if (machineIndex === -1) return;
 
@@ -293,23 +293,24 @@ export const FactoryFloorTab: React.FC = () => {
             }
         }
         
-        saveMachines(allMachines);
-        saveProductionQueue(allQueue);
+        await saveMachines(allMachines);
+        await saveProductionQueue(allQueue);
         fetchData();
     }, [fetchData]);
 
     useEffect(() => {
         fetchData();
         const handleStorageChange = () => fetchData();
-        window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
+        window.addEventListener('storage', handleStorageChange as any);
+        return () => window.removeEventListener('storage', handleStorageChange as any);
     }, [fetchData]);
 
-    const handleCardClick = (machine: Machine) => {
+    const handleCardClick = async (machine: Machine) => {
         const machineJob = machineData.find(md => md.machine.id === machine.id)?.currentJob;
         setSelectedMachine(machine);
         if (machineJob) {
-            const completeJobData = getProductionQueue().find(j => j.id === machineJob.id);
+            const allQueue = await getProductionQueue();
+            const completeJobData = allQueue.find(j => j.id === machineJob.id);
             if (completeJobData) {
               setSelectedJob(completeJobData);
               setIsEditModalOpen(true);

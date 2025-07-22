@@ -88,10 +88,15 @@ export const ComplaintsTab: React.FC = () => {
     const [traceResult, setTraceResult] = useState<any | null>(null);
 
     useEffect(() => {
-        const refreshData = () => {
-            setComplaints(getComplaints().sort((a,b) => new Date(b.complaintDate).getTime() - new Date(a.complaintDate).getTime()));
-            setCustomers(getCustomers());
-            setOrders(getOrders());
+        const refreshData = async () => {
+            const [complaintsData, customersData, ordersData] = await Promise.all([
+                getComplaints(),
+                getCustomers(),
+                getOrders()
+            ]);
+            setComplaints(complaintsData.sort((a,b) => new Date(b.complaintDate).getTime() - new Date(a.complaintDate).getTime()));
+            setCustomers(customersData);
+            setOrders(ordersData);
         };
         refreshData();
         window.addEventListener('storage', refreshData);
@@ -124,7 +129,7 @@ export const ComplaintsTab: React.FC = () => {
         }
     };
     
-    const handleTrace = (orderId: string) => {
+    const handleTrace = async (orderId: string) => {
         const order = orderMap.get(orderId);
         if (!order) {
             alert("ไม่พบข้อมูลออเดอร์สำหรับตรวจสอบ");
@@ -132,13 +137,19 @@ export const ComplaintsTab: React.FC = () => {
         }
 
         const productName = `${order.name} (${order.color})`;
-        const packingLogs = getPackingLogs().filter(p => p.name === productName);
-        const moldingLogs = getMoldingLogs().filter(m => m.productName === productName);
-        const bom = getBOMs().find(b => b.productName === productName) || null;
+        const [packingLogs, moldingLogs, boms, allRawMaterials] = await Promise.all([
+            getPackingLogs(),
+            getMoldingLogs(),
+            getBOMs(),
+            getRawMaterials()
+        ]);
+        
+        const relevantPackingLogs = packingLogs.filter(p => p.name === productName);
+        const relevantMoldingLogs = moldingLogs.filter(m => m.productName === productName);
+        const bom = boms.find(b => b.productName === productName) || null;
         
         let materials: (RawMaterial & { required: number })[] = [];
         if (bom) {
-            const allRawMaterials = getRawMaterials();
             const materialMap = new Map(allRawMaterials.map(m => [m.id, m]));
             materials = bom.components.map(comp => {
                 const material = materialMap.get(comp.rawMaterialId);
@@ -149,7 +160,7 @@ export const ComplaintsTab: React.FC = () => {
             });
         }
         
-        setTraceResult({ order, packingLogs, moldingLogs, bom, rawMaterials: materials });
+        setTraceResult({ order, packingLogs: relevantPackingLogs, moldingLogs: relevantMoldingLogs, bom, rawMaterials: materials });
     };
 
     return (

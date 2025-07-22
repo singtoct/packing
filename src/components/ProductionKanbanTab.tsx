@@ -90,8 +90,8 @@ export const ProductionKanbanTab: React.FC = () => {
     const [selectedLog, setSelectedLog] = useState<MoldingLogEntry | null>(null);
     const [viewMode, setViewMode] = useState<'individual' | 'summary'>('individual');
 
-    const fetchData = useCallback(() => {
-        const settings = getSettings();
+    const fetchData = useCallback(async () => {
+        const settings = await getSettings();
         const productionStatuses = settings.productionStatuses || [];
         if (!productionStatuses.includes('เสร็จสิ้น')) {
             productionStatuses.push('เสร็จสิ้น');
@@ -99,14 +99,14 @@ export const ProductionKanbanTab: React.FC = () => {
         setStatuses(productionStatuses);
 
         // We only care about logs that are not finished yet for the Kanban board
-        const logs = getMoldingLogs().filter(log => log.status !== 'เสร็จสิ้น');
+        const logs = (await getMoldingLogs()).filter(log => log.status !== 'เสร็จสิ้น');
         setAllLogs(logs);
     }, []);
 
     useEffect(() => {
         fetchData();
-        window.addEventListener('storage', fetchData);
-        return () => window.removeEventListener('storage', fetchData);
+        window.addEventListener('storage', fetchData as any);
+        return () => window.removeEventListener('storage', fetchData as any);
     }, [fetchData]);
 
     const logsByStatus = useMemo(() => {
@@ -161,12 +161,12 @@ export const ProductionKanbanTab: React.FC = () => {
         setIsMoveModalOpen(true);
     };
 
-    const handleSaveMove = (logId: string, newStatus: string) => {
-        const currentLogs = getMoldingLogs();
+    const handleSaveMove = async (logId: string, newStatus: string) => {
+        const currentLogs = await getMoldingLogs();
         const updatedLogs = currentLogs.map(log => 
             log.id === logId ? { ...log, status: newStatus } : log
         );
-        saveMoldingLogs(updatedLogs);
+        await saveMoldingLogs(updatedLogs);
         fetchData(); 
         setIsMoveModalOpen(false);
         setSelectedLog(null);

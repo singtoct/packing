@@ -19,12 +19,15 @@ export const AssignJobModal: React.FC<AssignJobModalProps> = ({ machine, onClose
     const [priority, setPriority] = useState(10);
     
     useEffect(() => {
-        setProducts(getProducts());
-        const emps = getEmployees();
-        setEmployees(emps);
-        if (emps.length > 0) {
-            setOperatorName(emps[0].name);
-        }
+        const loadData = async () => {
+            setProducts(await getProducts());
+            const emps = await getEmployees();
+            setEmployees(emps);
+            if (emps.length > 0) {
+                setOperatorName(emps[0].name);
+            }
+        };
+        loadData();
     }, []);
 
     const productOptions = useMemo(() => {
@@ -32,7 +35,7 @@ export const AssignJobModal: React.FC<AssignJobModalProps> = ({ machine, onClose
             .sort((a,b) => a.name.localeCompare(b.name));
     }, [products]);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const product = products.find(p => p.id === selectedProductId);
         if (!product) {
@@ -53,18 +56,18 @@ export const AssignJobModal: React.FC<AssignJobModalProps> = ({ machine, onClose
             operatorName,
         };
 
-        const queue = getProductionQueue();
-        saveProductionQueue([...queue, newJob]);
+        const queue = await getProductionQueue();
+        await saveProductionQueue([...queue, newJob]);
 
         // When a job is assigned, the machine is no longer in 'Mold Change' or other non-productive states. It's now 'Idle' and ready.
-        const machines = getMachines();
+        const machines = await getMachines();
         const updatedMachines = machines.map((m): Machine => {
             if (m.id === machine.id && m.status !== 'Running') {
                 return { ...m, status: 'Idle' };
             }
             return m;
         });
-        saveMachines(updatedMachines);
+        await saveMachines(updatedMachines);
 
         onSave();
     };

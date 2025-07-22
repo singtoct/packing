@@ -1,7 +1,5 @@
-
-
 import React, { useState, useEffect } from 'react';
-import { getInventory, saveInventory } from '../services/storageService';
+import { getInventory, updateInventoryItem, deleteInventoryItem } from '../services/storageService';
 import { InventoryItem } from '../types';
 import { Trash2Icon } from 'lucide-react';
 
@@ -9,15 +7,14 @@ export const InventoryTab: React.FC<{ setLowStockCheck: () => void; }> = ({ setL
     const [inventory, setInventory] = useState<InventoryItem[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
 
+    const fetchInventory = async () => {
+        const storedInventory = await getInventory();
+        setInventory(storedInventory.sort((a, b) => a.name.localeCompare(b.name)));
+    };
+
     useEffect(() => {
-        const fetchInventory = () => {
-            const storedInventory = getInventory();
-            setInventory(storedInventory.sort((a, b) => a.name.localeCompare(b.name)));
-        };
-        
         fetchInventory();
         window.addEventListener('storage', fetchInventory);
-
         return () => {
             window.removeEventListener('storage', fetchInventory);
         };
@@ -34,24 +31,19 @@ export const InventoryTab: React.FC<{ setLowStockCheck: () => void; }> = ({ setL
         );
     };
 
-    const handleSaveMinStock = (itemName: string) => {
+    const handleSaveMinStock = async (itemName: string) => {
         const itemToUpdate = inventory.find(item => item.name === itemName);
         if(!itemToUpdate) return;
 
-        const currentFullInventory = getInventory();
-        const updatedFullInventory = currentFullInventory.map(item => 
-             item.name === itemName ? itemToUpdate : item
-        );
-        saveInventory(updatedFullInventory);
+        await updateInventoryItem(itemName, { minStock: itemToUpdate.minStock });
         setLowStockCheck(); // Trigger a global check
         alert(`บันทึกสต็อกขั้นต่ำสำหรับ ${itemName} เรียบร้อยแล้ว`);
     };
 
-    const handleDeleteItem = (itemName: string) => {
+    const handleDeleteItem = async (itemName: string) => {
         if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบ '${itemName}' ออกจากสต็อก? การกระทำนี้ไม่สามารถย้อนกลับได้`)) {
-            const updatedInventory = inventory.filter(item => item.name !== itemName);
-            saveInventory(updatedInventory);
-            setInventory(updatedInventory); // Update state immediately for a responsive UI
+            await deleteInventoryItem(itemName);
+            setInventory(prev => prev.filter(item => item.name !== itemName)); // Update state immediately
             setLowStockCheck(); // Re-evaluate low stock alerts
         }
     };

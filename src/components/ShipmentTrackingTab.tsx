@@ -47,7 +47,10 @@ export const ShipmentTrackingTab: React.FC = () => {
     const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'shipmentDate', direction: 'desc' });
     
     useEffect(() => {
-        setShipments(getShipments());
+        const loadShipments = async () => {
+            setShipments(await getShipments());
+        };
+        loadShipments();
         setShipmentDate(new Date().toISOString().split('T')[0]);
     }, []);
 
@@ -63,8 +66,8 @@ export const ShipmentTrackingTab: React.FC = () => {
         let sortableItems = [...shipments];
         if(sortConfig) {
             sortableItems.sort((a,b) => {
-                let aVal = a[sortConfig.key];
-                let bVal = b[sortConfig.key];
+                let aVal: any = a[sortConfig.key];
+                let bVal: any = b[sortConfig.key];
 
                 if(sortConfig.key === 'orderIds') {
                     aVal = (aVal as string[]).join(',');

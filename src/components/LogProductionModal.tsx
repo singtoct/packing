@@ -21,11 +21,14 @@ export const LogProductionModal: React.FC<LogProductionModalProps> = ({ machine,
     const [productionStatuses, setProductionStatuses] = useState<string[]>([]);
 
     useEffect(() => {
-        const settings = getSettings();
-        setProductionStatuses(settings.productionStatuses);
-        if (settings.productionStatuses.length > 0) {
-            setNextStep(settings.productionStatuses[0]);
-        }
+        const loadSettings = async () => {
+            const settings = await getSettings();
+            setProductionStatuses(settings.productionStatuses);
+            if (settings.productionStatuses.length > 0) {
+                setNextStep(settings.productionStatuses[0]);
+            }
+        };
+        loadSettings();
     }, []);
 
     useEffect(() => {
@@ -39,7 +42,7 @@ export const LogProductionModal: React.FC<LogProductionModalProps> = ({ machine,
         }
     }, [hoursWorked, job.productId, products]);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         // 1. Create MoldingLogEntry
@@ -56,21 +59,21 @@ export const LogProductionModal: React.FC<LogProductionModalProps> = ({ machine,
             status,
             jobId: job.id,
         };
-        const allMoldingLogs = getMoldingLogs();
-        saveMoldingLogs([newLog, ...allMoldingLogs]);
+        const allMoldingLogs = await getMoldingLogs();
+        await saveMoldingLogs([newLog, ...allMoldingLogs]);
 
         // 2. Update MachineDailyLog
-        const dailyLogs = getMachineDailyLogs();
+        const dailyLogs = await getMachineDailyLogs();
         const logIndex = dailyLogs.findIndex(l => l.machineId === machine.id && l.jobId === job.id && l.date === date);
         if (logIndex > -1) {
             dailyLogs[logIndex].hours += hoursWorked;
         } else if (hoursWorked > 0) {
             dailyLogs.push({ id: crypto.randomUUID(), machineId: machine.id, jobId: job.id, date, hours: hoursWorked });
         }
-        saveMachineDailyLogs(dailyLogs);
+        await saveMachineDailyLogs(dailyLogs);
 
         // 3. Update ProductionQueueItem
-        const queue = getProductionQueue();
+        const queue = await getProductionQueue();
         const jobIndex = queue.findIndex(j => j.id === job.id);
         if (jobIndex > -1) {
             const updatedJob = { ...queue[jobIndex] };
@@ -82,18 +85,18 @@ export const LogProductionModal: React.FC<LogProductionModalProps> = ({ machine,
                 queue.splice(jobIndex, 1);
                 
                 // Update machine status
-                const machines = getMachines();
+                const machines = await getMachines();
                 const updatedMachines = machines.map(m => {
                     if (m.id === machine.id) {
                         return { ...m, status: 'Idle' as Machine['status'], lastStartedAt: undefined };
                     }
                     return m;
                 });
-                saveMachines(updatedMachines);
+                await saveMachines(updatedMachines);
             } else {
                 queue[jobIndex] = updatedJob;
             }
-             saveProductionQueue(queue);
+             await saveProductionQueue(queue);
         }
 
         onSave();

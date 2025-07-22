@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import * as XLSX from 'xlsx';
-import { PackingLogEntry, Employee, QCEntry, Product } from '../types';
-import { getPackingLogs, savePackingLogs, getOrders, getInventory, saveInventory, getEmployees, getQCEntries, saveQCEntries, getMoldingLogs, getProducts } from '../services/storageService';
+import { PackingLogEntry, Employee, QCEntry, Product, InventoryItem } from '../types';
+import { getPackingLogs, addPackingLog, deletePackingLog, deleteMultiplePackingLogs, getOrders, getInventory, updateInventoryItem, getEmployees, getQCEntries, addQCEntry, deleteMultipleQCEntries, getMoldingLogs, getProducts, upsertInventoryItem } from '../services/storageService';
 import { PlusCircleIcon, Trash2Icon, FileSpreadsheetIcon, DownloadIcon, UploadIcon, XCircleIcon } from 'lucide-react';
 import { SearchableInput } from './SearchableInput';
 
@@ -117,32 +116,31 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
     const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'date', direction: 'desc' });
 
     useEffect(() => {
-        const storedLogs = getPackingLogs();
-        setLogs(storedLogs);
-        
-        const today = new Date().toISOString().split('T')[0];
-        setLogDate(today);
+        const loadInitialData = async () => {
+            const storedLogs = await getPackingLogs();
+            setLogs(storedLogs);
+            
+            const today = new Date().toISOString().split('T')[0];
+            setLogDate(today);
 
-        const loadedEmployees = getEmployees();
-        setEmployees(loadedEmployees);
-        if (loadedEmployees.length > 0) {
-            setPackerName(loadedEmployees[0].name);
-        }
+            const loadedEmployees = await getEmployees();
+            setEmployees(loadedEmployees);
+            if (loadedEmployees.length > 0) {
+                setPackerName(loadedEmployees[0].name);
+            }
 
-        const products: Product[] = getProducts();
-        const uniqueItemNames = products.map(p => `${p.name} (${p.color})`).sort();
-        
-        setAvailableItems(uniqueItemNames);
-        
-        if (uniqueItemNames.length > 0 && !logItemName) {
-            setLogItemName(uniqueItemNames[0]);
-        }
+            const products: Product[] = await getProducts();
+            const uniqueItemNames = products.map(p => `${p.name} (${p.color})`).sort();
+            
+            setAvailableItems(uniqueItemNames);
+            
+            if (uniqueItemNames.length > 0 && !logItemName) {
+                setLogItemName(uniqueItemNames[0]);
+            }
+        };
+        loadInitialData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); 
-
-    useEffect(() => {
-        savePackingLogs(logs);
-    }, [logs]);
 
     const requestSort = (key: keyof PackingLogEntry) => {
         let direction: SortDirection = 'asc';
@@ -170,18 +168,26 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
         return sortableItems;
     }, [logs, sortConfig]);
     
-    const addLogEntry = (logData: Omit<PackingLogEntry, 'id'>, currentInventory: any[], currentQCEntries: any[]) => {
-        const newLog: PackingLogEntry = { ...logData, id: crypto.randomUUID() };
-
-        const itemIndex = currentInventory.findIndex(item => item.name === newLog.name);
-        if (itemIndex > -1) {
-            currentInventory[itemIndex].quantity += newLog.quantity;
-        } else {
-            currentInventory.push({ name: newLog.name, quantity: newLog.quantity });
-        }
+    const handleAddLog = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!logItemName.trim() || !logDate || !packerName) return;
         
-        const newQCEntry: QCEntry = {
-            id: newLog.id,
+        const newLogData: Omit<PackingLogEntry, 'id'> = {
+            date: logDate,
+            name: logItemName.trim(),
+            quantity: logQuantity,
+            packerName: packerName,
+        };
+
+        // 1. Add Packing Log
+        const newLog = await addPackingLog(newLogData);
+        setLogs(prevLogs => [newLog, ...prevLogs]);
+
+        // 2. Update Inventory
+        await upsertInventoryItem(newLog.name, newLog.quantity);
+
+        // 3. Add QC Entry
+        const newQCEntryData: Omit<QCEntry, 'id'> = {
             packingLogId: newLog.id,
             productName: newLog.name,
             quantity: newLog.quantity,
@@ -189,56 +195,32 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
             packingDate: newLog.date,
             status: 'Pending',
         };
-        currentQCEntries.push(newQCEntry);
-
-        return newLog;
-    };
-
-
-    const handleAddLog = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!logItemName.trim() || !logDate || !packerName) return;
-        
-        const currentInventory = getInventory();
-        const currentQCEntries = getQCEntries();
-
-        const newLog = addLogEntry({
-            date: logDate,
-            name: logItemName.trim(),
-            quantity: logQuantity,
-            packerName: packerName,
-        }, currentInventory, currentQCEntries);
-
-        saveInventory(currentInventory);
-        saveQCEntries(currentQCEntries);
-        
-        setLogs(prevLogs => [...prevLogs, newLog]);
+        await addQCEntry(newQCEntryData);
         
         setLowStockCheck();
         setLogQuantity(1);
     };
 
-    const handleDeleteLog = (id: string) => {
+    const handleDeleteLog = async (id: string) => {
         const logToDelete = logs.find(log => log.id === id);
         if (!logToDelete) return;
 
-        // Also delete the corresponding QC entry
-        const currentQCEntries = getQCEntries();
-        const updatedQCEntries = currentQCEntries.filter(entry => entry.packingLogId !== id);
-        saveQCEntries(updatedQCEntries);
-
-        const currentInventory = getInventory();
-        const itemIndex = currentInventory.findIndex(item => item.name === logToDelete.name);
-        if (itemIndex > -1) {
-            currentInventory[itemIndex].quantity -= logToDelete.quantity;
-            if (currentInventory[itemIndex].quantity < 0) {
-                 currentInventory[itemIndex].quantity = 0; // Prevent negative inventory
-            }
+        // 1. Delete Packing Log
+        await deletePackingLog(id);
+        
+        // 2. Also delete the corresponding QC entry
+        // This assumes a 1-to-1 mapping via packingLogId. A more robust solution might query.
+        const allQcEntries = await getQCEntries();
+        const qcToDelete = allQcEntries.find(qc => qc.packingLogId === id);
+        if (qcToDelete) {
+           await deleteMultipleQCEntries([qcToDelete.id]);
         }
-        saveInventory(currentInventory);
-        setLowStockCheck();
+
+        // 3. Reverse Inventory change
+        await upsertInventoryItem(logToDelete.name, -logToDelete.quantity);
         
         setLogs(prevLogs => prevLogs.filter(log => log.id !== id));
+        setLowStockCheck();
     };
 
     const handleSelectLog = (id: string, checked: boolean) => {
@@ -255,37 +237,35 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
         else setSelectedLogs(new Set());
     };
 
-    const handleDeleteSelected = () => {
+    const handleDeleteSelected = async () => {
         if (selectedLogs.size === 0) return;
         if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบ ${selectedLogs.size} รายการที่เลือก? การกระทำนี้จะลบสินค้าออกจากสต็อกด้วย`)) {
-            const logsToDelete = new Set(selectedLogs);
-            const logsToDeleteArray = logs.filter(log => logsToDelete.has(log.id));
+            const idsToDelete: string[] = Array.from(selectedLogs);
+            const logsToDelete = logs.filter(log => idsToDelete.includes(log.id));
 
-            // Reverse inventory update
-            const currentInventory = getInventory();
-            const logsByProduct = logsToDeleteArray.reduce((acc, log) => {
-                acc[log.name] = (acc[log.name] || 0) + log.quantity;
-                return acc;
-            }, {} as Record<string, number>);
-
-            const updatedInventory = currentInventory.map(item => {
-                if (logsByProduct[item.name]) {
-                    item.quantity -= logsByProduct[item.name];
-                    if (item.quantity < 0) item.quantity = 0;
-                }
-                return item;
+            // Reverse inventory update in bulk
+            const inventoryUpdates: Record<string, number> = {};
+            logsToDelete.forEach(log => {
+                inventoryUpdates[log.name] = (inventoryUpdates[log.name] || 0) - log.quantity;
             });
-
-            // Delete associated QC entries
-            const currentQCEntries = getQCEntries();
-            const updatedQCEntries = currentQCEntries.filter(entry => !logsToDelete.has(entry.packingLogId));
+            const updatePromises = Object.entries(inventoryUpdates).map(([name, change]) =>
+                upsertInventoryItem(name, change)
+            );
             
-            saveInventory(updatedInventory);
-            saveQCEntries(updatedQCEntries);
-            setLowStockCheck();
+            // Find and delete associated QC entries
+            const allQCEntries = await getQCEntries();
+            const qcIdsToDelete = allQCEntries.filter(entry => idsToDelete.includes(entry.packingLogId)).map(e => e.id);
 
-            setLogs(prevLogs => prevLogs.filter(log => !logsToDelete.has(log.id)));
+
+            await Promise.all([
+                ...updatePromises,
+                deleteMultiplePackingLogs(idsToDelete),
+                deleteMultipleQCEntries(qcIdsToDelete)
+            ]);
+            
+            setLogs(prevLogs => prevLogs.filter(log => !selectedLogs.has(log.id)));
             setSelectedLogs(new Set());
+            setLowStockCheck();
         }
     };
 
@@ -328,9 +308,9 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
                         newStagedLogs.push({
                             _tempId: crypto.randomUUID(),
                             date: (rowDate instanceof Date ? rowDate : new Date(rowDate)).toISOString().split('T')[0],
-                            name: productName.trim(),
+                            name: String(productName).trim(),
                             quantity: Number(quantity),
-                            packerName: packer.trim(),
+                            packerName: String(packer).trim(),
                         });
                     }
                 });
@@ -352,21 +332,31 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
         reader.readAsBinaryString(file);
     };
     
-    const handleConfirmImport = (finalLogs: StagedLog[]) => {
-        const currentInventory = getInventory();
-        const currentQCEntries = getQCEntries();
+    const handleConfirmImport = async (finalLogs: StagedLog[]) => {
         const newLogs: PackingLogEntry[] = [];
+        const inventoryUpdates: Record<string, number> = {};
 
-        finalLogs.forEach(logData => {
-            const newLog = addLogEntry(logData, currentInventory, currentQCEntries);
+        for (const logData of finalLogs) {
+            const newLog = await addPackingLog(logData);
+            await addQCEntry({
+                packingLogId: newLog.id,
+                productName: newLog.name,
+                quantity: newLog.quantity,
+                packerName: newLog.packerName,
+                packingDate: newLog.date,
+                status: 'Pending',
+            });
+            inventoryUpdates[newLog.name] = (inventoryUpdates[newLog.name] || 0) + newLog.quantity;
             newLogs.push(newLog);
-        });
+        }
+
+        const inventoryPromises = Object.entries(inventoryUpdates).map(([name, change]) =>
+            upsertInventoryItem(name, change)
+        );
+        await Promise.all(inventoryPromises);
 
         if (newLogs.length > 0) {
-            saveInventory(currentInventory);
-            saveQCEntries(currentQCEntries);
-            const updatedLogs = [...newLogs, ...logs];
-            setLogs(updatedLogs);
+            setLogs(prev => [...newLogs, ...prev]);
             setLowStockCheck();
             alert(`นำเข้าสำเร็จ ${newLogs.length} รายการ`);
         }
@@ -386,7 +376,7 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
         <div>
             {isReviewModalOpen && <ImportReviewModal stagedLogs={stagedLogs} onClose={() => setIsReviewModalOpen(false)} onConfirm={handleConfirmImport} />}
             <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">บันทึกข้อมูลการแพ็คสินค้า</h2>
+                <h2 className="text-xl md:text-2xl font-bold">บันทึกข้อมูลการแพ็คสินค้า</h2>
                 <div className="flex gap-2 flex-wrap">
                     <input type="file" ref={importFileRef} onChange={handleImportFromExcel} accept=".xlsx, .xls" className="hidden"/>
                      <button onClick={() => importFileRef.current?.click()} className="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-teal-600 hover:bg-teal-700 focus:outline-none">
@@ -445,7 +435,7 @@ export const PackingLogTab: React.FC<{ setLowStockCheck: () => void; }> = ({ set
                 </div>
             </form>
             <div className="flex flex-wrap gap-4 justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold">ประวัติการบันทึก</h2>
+                <h2 className="text-xl md:text-2xl font-bold">ประวัติการบันทึก</h2>
                 <button 
                     onClick={handleDeleteSelected}
                     disabled={selectedLogs.size === 0}
